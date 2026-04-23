@@ -7,6 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.rabbithole.musicbbit.presentation.music.MusicBrowseScreen
+import com.rabbithole.musicbbit.presentation.playlist.PlaylistDetailScreen
 import com.rabbithole.musicbbit.presentation.playlist.PlaylistListScreen
 import com.rabbithole.musicbbit.presentation.settings.ScanDirectorySettingsScreen
 
@@ -25,7 +26,7 @@ fun AppNavigation(
             PlaylistListScreen(navController = navController)
         }
         composable<PlaylistDetail> {
-            Text("Playlist Detail - Placeholder")
+            PlaylistDetailScreen(navController = navController)
         }
         composable<Alarm> {
             Text("Alarm - Placeholder")
