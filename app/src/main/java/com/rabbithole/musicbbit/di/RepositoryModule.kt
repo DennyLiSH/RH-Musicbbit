@@ -1,8 +1,10 @@
 package com.rabbithole.musicbbit.di
 
 import com.rabbithole.musicbbit.data.repository.MusicRepositoryImpl
+import com.rabbithole.musicbbit.data.repository.PlaylistRepositoryImpl
 import com.rabbithole.musicbbit.data.repository.ScanDirectoryRepositoryImpl
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
+import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
 import dagger.Binds
 import dagger.Module
@@ -22,4 +24,9 @@ abstract class RepositoryModule {
     abstract fun bindScanDirectoryRepository(
         impl: ScanDirectoryRepositoryImpl
     ): ScanDirectoryRepository
+
+    @Binds
+    abstract fun bindPlaylistRepository(
+        impl: PlaylistRepositoryImpl
+    ): PlaylistRepository
 }
