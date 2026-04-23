@@ -6,7 +6,10 @@ import kotlinx.serialization.Serializable
 data object MusicBrowse
 
 @Serializable
-data object Playlist
+data object PlaylistList
+
+@Serializable
+data class PlaylistDetail(val playlistId: Long)
 
 @Serializable
 data object Alarm
