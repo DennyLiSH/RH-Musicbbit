@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,14 +49,18 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.navigation.Player
 import com.rabbithole.musicbbit.navigation.ScanDirectorySettings
 import com.rabbithole.musicbbit.presentation.music.components.SongListItem
+import com.rabbithole.musicbbit.presentation.player.PlayerViewModel
+import com.rabbithole.musicbbit.presentation.player.components.AddToPlaylistBottomSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicBrowseScreen(
     navController: NavController,
-    viewModel: MusicBrowseViewModel = hiltViewModel()
+    viewModel: MusicBrowseViewModel = hiltViewModel(),
+    playerViewModel: PlayerViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
 
@@ -127,7 +133,11 @@ fun MusicBrowseScreen(
                         onSearchQueryChange = { viewModel.onAction(MusicBrowseAction.OnSearchQueryChange(it)) },
                         onSongClick = { song ->
                             viewModel.onAction(MusicBrowseAction.OnSongClick(song))
-                            // TODO: Navigate to Player screen with song
+                            playerViewModel.stateHolder.play(song, playlistId = null)
+                            navController.navigate(Player)
+                        },
+                        onAddToPlaylist = { song ->
+                            viewModel.onAction(MusicBrowseAction.OnSongClick(song))
                         }
                     )
                 }
@@ -229,8 +239,11 @@ private fun SuccessContent(
     songs: List<Song>,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
-    onSongClick: (Song) -> Unit
+    onSongClick: (Song) -> Unit,
+    onAddToPlaylist: (Song) -> Unit
 ) {
+    var selectedSongForPlaylist by remember { mutableStateOf<Song?>(null) }
+
     Column(modifier = Modifier.fillMaxSize()) {
         TextField(
             value = searchQuery,
@@ -259,11 +272,34 @@ private fun SuccessContent(
                 items = songs,
                 key = { it.id }
             ) { song ->
+                var showMenu by remember { mutableStateOf(false) }
+
                 SongListItem(
                     song = song,
-                    onClick = { onSongClick(song) }
+                    onClick = { onSongClick(song) },
+                    onLongClick = { showMenu = true }
                 )
+
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Add to playlist") },
+                        onClick = {
+                            showMenu = false
+                            selectedSongForPlaylist = song
+                        }
+                    )
+                }
             }
         }
+    }
+
+    selectedSongForPlaylist?.let { song ->
+        AddToPlaylistBottomSheet(
+            songId = song.id,
+            onDismiss = { selectedSongForPlaylist = null }
+        )
     }
 }
