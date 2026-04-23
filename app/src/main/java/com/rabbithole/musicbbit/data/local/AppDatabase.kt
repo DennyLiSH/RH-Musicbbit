@@ -24,7 +24,7 @@ import com.rabbithole.musicbbit.data.model.SongEntity
         AlarmEntity::class,
         ScanDirectoryEntity::class
     ],
-    version = 2
+    version = 3
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun songDao(): SongDao

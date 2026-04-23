@@ -3,6 +3,7 @@ package com.rabbithole.musicbbit.di
 import android.content.Context
 import androidx.room.Room
 import com.rabbithole.musicbbit.data.local.AppDatabase
+import com.rabbithole.musicbbit.data.local.MIGRATION_2_3
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
 import com.rabbithole.musicbbit.data.local.dao.PlaybackProgressDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
@@ -29,7 +30,9 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "musicbbit_database"
-        ).fallbackToDestructiveMigration().build()
+        )
+            .addMigrations(MIGRATION_2_3)
+            .build()
     }
 
     @Provides
