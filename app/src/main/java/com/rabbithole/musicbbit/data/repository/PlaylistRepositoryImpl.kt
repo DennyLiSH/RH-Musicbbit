@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -71,7 +72,7 @@ class PlaylistRepositoryImpl @Inject constructor(
             .map { list -> list.find { it.id == playlistId }?.toDomain() }
 
         val songsFlow = playlistSongDao.getByPlaylistId(playlistId)
-            .map { playlistSongEntities ->
+            .mapLatest { playlistSongEntities ->
                 playlistSongEntities.mapNotNull { ps ->
                     songDao.getById(ps.songId)?.toDomain()
                 }
