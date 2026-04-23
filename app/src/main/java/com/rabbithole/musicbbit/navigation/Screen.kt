@@ -13,3 +13,6 @@ data object Alarm
 
 @Serializable
 data object Player
+
+@Serializable
+data object ScanDirectorySettings

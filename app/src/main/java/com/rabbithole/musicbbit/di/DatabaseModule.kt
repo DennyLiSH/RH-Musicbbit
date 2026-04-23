@@ -7,6 +7,7 @@ import com.rabbithole.musicbbit.data.local.dao.AlarmDao
 import com.rabbithole.musicbbit.data.local.dao.PlaybackProgressDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistSongDao
+import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
 import dagger.Module
 import dagger.Provides
@@ -28,7 +29,7 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "musicbbit_database"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
     }
 
     @Provides
@@ -45,4 +46,7 @@ object DatabaseModule {
 
     @Provides
     fun provideAlarmDao(database: AppDatabase): AlarmDao = database.alarmDao()
+
+    @Provides
+    fun provideScanDirectoryDao(database: AppDatabase): ScanDirectoryDao = database.scanDirectoryDao()
 }
