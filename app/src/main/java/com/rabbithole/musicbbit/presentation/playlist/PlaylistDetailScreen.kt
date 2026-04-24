@@ -141,7 +141,7 @@ private fun EmptyContent(playlistName: String) {
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = ""$playlistName" is empty",
+            text = "\"$playlistName\" is empty",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
@@ -207,7 +207,7 @@ private fun PlaylistDetailContent(
                             shadowElevation = 8.dp.toPx()
                         }
                 } else {
-                    Modifier.animateItemPlacement()
+                    Modifier
                 }
 
                 SongListItemWithDelete(
