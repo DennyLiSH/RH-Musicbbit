@@ -62,7 +62,7 @@ object AlarmNotificationHelper {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification_small)
             .setContentTitle("⏰ Alarm Paused")
             .setContentText("Playback has been paused")
             .setContentIntent(contentIntent)
@@ -72,12 +72,12 @@ object AlarmNotificationHelper {
             .setAutoCancel(false)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .addAction(
-                android.R.drawable.ic_media_play,
+                R.drawable.ic_notification_play,
                 "Resume",
                 createActionPendingIntent(context, alarmId, AlarmActionReceiver.ACTION_RESUME)
             )
             .addAction(
-                android.R.drawable.ic_delete,
+                R.drawable.ic_notification_stop,
                 "Stop",
                 createActionPendingIntent(context, alarmId, AlarmActionReceiver.ACTION_STOP)
             )
@@ -121,7 +121,7 @@ object AlarmNotificationHelper {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification_small)
             .setContentTitle("⏰ $title")
             .setContentText(message)
             .setContentIntent(contentIntent)
@@ -185,7 +185,7 @@ object AlarmNotificationHelper {
         )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification_small)
             .setContentTitle("⏰ ${alarm.label ?: "Music Alarm"}")
             .setContentText("Playing: ${song.title} - ${song.artist ?: "Unknown artist"}")
             .setContentIntent(contentIntent)
@@ -201,12 +201,12 @@ object AlarmNotificationHelper {
 
         // Collapsed actions (visible in compact view)
         builder.addAction(
-            android.R.drawable.ic_delete,
+            R.drawable.ic_notification_stop,
             "Stop",
             createActionPendingIntent(context, alarm.id, AlarmActionReceiver.ACTION_STOP)
         )
         builder.addAction(
-            if (isPaused) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause,
+            if (isPaused) R.drawable.ic_notification_play else R.drawable.ic_notification_pause,
             if (isPaused) "Resume" else "Pause",
             createActionPendingIntent(
                 context,
@@ -239,7 +239,7 @@ object AlarmNotificationHelper {
             createActionPendingIntent(context, alarm.id, AlarmActionReceiver.ACTION_EXTEND_MINUTES, 15)
         )
         builder.addAction(
-            android.R.drawable.ic_media_next,
+            R.drawable.ic_notification_skip_next,
             "To song end",
             createActionPendingIntent(context, alarm.id, AlarmActionReceiver.ACTION_EXTEND_TO_END)
         )
