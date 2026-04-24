@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,12 +18,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,15 +39,18 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.rabbithole.musicbbit.domain.model.ThemeMode
 import com.rabbithole.musicbbit.presentation.settings.components.ScanDirectoryItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScanDirectorySettingsScreen(
     navController: NavController,
-    viewModel: ScanDirectorySettingsViewModel = hiltViewModel()
+    viewModel: ScanDirectorySettingsViewModel = hiltViewModel(),
+    themeViewModel: ThemeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val themeMode by themeViewModel.themeMode.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     val treeLauncher = rememberLauncherForActivityResult(
@@ -64,7 +70,7 @@ fun ScanDirectorySettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Scan Directory Settings") },
+                title = { Text("Settings") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
@@ -94,6 +100,10 @@ fun ScanDirectorySettingsScreen(
                 is ScanDirectorySettingsUiState.Success -> {
                     SuccessContent(
                         state = state,
+                        themeMode = themeMode,
+                        onThemeModeChange = { mode ->
+                            themeViewModel.setThemeMode(mode)
+                        },
                         onAddDirectory = { treeLauncher.launch(null) },
                         onRemoveDirectory = { id ->
                             viewModel.onAction(ScanDirectorySettingsAction.OnRemoveDirectory(id))
@@ -114,6 +124,8 @@ fun ScanDirectorySettingsScreen(
 @Composable
 private fun SuccessContent(
     state: ScanDirectorySettingsUiState.Success,
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
     onAddDirectory: () -> Unit,
     onRemoveDirectory: (Long) -> Unit,
     onConfirmDirectory: () -> Unit,
@@ -125,6 +137,22 @@ private fun SuccessContent(
         LazyColumn(
             modifier = Modifier.weight(1f)
         ) {
+            item(key = "theme_settings") {
+                ThemeSettingsSection(
+                    themeMode = themeMode,
+                    onThemeModeChange = onThemeModeChange,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+
+            item(key = "scan_directory_header") {
+                Text(
+                    text = "Scan Directories",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+
             items(
                 items = state.directories,
                 key = { it.id }
@@ -172,6 +200,72 @@ private fun SuccessContent(
             onConfirm = onConfirmDirectory,
             onDismiss = onCancelDirectory
         )
+    }
+}
+
+@Composable
+private fun ThemeSettingsSection(
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = "Theme",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ThemeModeButton(
+                label = "System",
+                selected = themeMode == ThemeMode.SYSTEM,
+                onClick = { onThemeModeChange(ThemeMode.SYSTEM) },
+                modifier = Modifier.weight(1f)
+            )
+            ThemeModeButton(
+                label = "Light",
+                selected = themeMode == ThemeMode.LIGHT,
+                onClick = { onThemeModeChange(ThemeMode.LIGHT) },
+                modifier = Modifier.weight(1f)
+            )
+            ThemeModeButton(
+                label = "Dark",
+                selected = themeMode == ThemeMode.DARK,
+                onClick = { onThemeModeChange(ThemeMode.DARK) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThemeModeButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (selected) {
+        FilledTonalButton(
+            onClick = onClick,
+            modifier = modifier,
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        ) {
+            Text(label)
+        }
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = modifier
+        ) {
+            Text(label)
+        }
     }
 }
 
