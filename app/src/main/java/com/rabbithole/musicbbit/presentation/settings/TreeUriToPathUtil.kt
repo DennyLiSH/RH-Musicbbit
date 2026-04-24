@@ -6,24 +6,26 @@ import android.os.Environment
 import android.provider.DocumentsContract
 import java.io.File
 
-/**
- * Converts a SAF tree URI to a physical file system path.
- *
- * Only handles the "primary" external storage volume. Returns `null` for
- * secondary volumes, non-tree URIs, or any URI that does not represent
- * primary storage.
- */
-fun Context.getPathFromTreeUri(uri: Uri): String? {
-    if (!DocumentsContract.isTreeUri(uri)) return null
+sealed interface TreeUriPathResult {
+    data class Success(val path: String) : TreeUriPathResult
+    data object UnsupportedStorage : TreeUriPathResult
+    data object ParseFailed : TreeUriPathResult
+}
+
+fun Context.getPathFromTreeUri(uri: Uri): TreeUriPathResult {
+    if (!DocumentsContract.isTreeUri(uri)) return TreeUriPathResult.ParseFailed
 
     val docId = DocumentsContract.getTreeDocumentId(uri)
     val split = docId.split(":", limit = 2)
 
     return when {
-        split.size == 2 && split[0].equals("primary", ignoreCase = true) -> {
-            @Suppress("DEPRECATION") // SAF tree URI -> physical path requires legacy API
-            File(Environment.getExternalStorageDirectory(), split[1]).canonicalPath
+        split.size != 2 -> TreeUriPathResult.ParseFailed
+        split[0].equals("primary", ignoreCase = true) -> {
+            @Suppress("DEPRECATION")
+            TreeUriPathResult.Success(
+                File(Environment.getExternalStorageDirectory(), split[1]).canonicalPath
+            )
         }
-        else -> null
+        else -> TreeUriPathResult.UnsupportedStorage
     }
 }
