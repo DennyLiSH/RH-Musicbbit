@@ -55,6 +55,8 @@ class MusicPlaybackService : Service() {
     lateinit var alarmVolumeController: AlarmVolumeController
 
     private lateinit var exoPlayer: ExoPlayer
+    private lateinit var audioFocusManager: AudioFocusManager
+    private var wasPausedByFocusLoss = false
 
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(serviceJob + Dispatchers.Main)
@@ -137,12 +139,40 @@ class MusicPlaybackService : Service() {
         Timber.i("MusicPlaybackService created")
         createNotificationChannel()
         initExoPlayer()
+        initAudioFocusManager()
     }
 
     private fun initExoPlayer() {
         exoPlayer = ExoPlayer.Builder(this).build().apply {
             addListener(playerListener)
         }
+    }
+
+    private fun initAudioFocusManager() {
+        audioFocusManager = AudioFocusManager(
+            context = this,
+            onFocusLoss = {
+                Timber.i("Audio focus lost: pausing playback")
+                if (_playbackState.value.isPlaying) {
+                    wasPausedByFocusLoss = true
+                    pause()
+                }
+            },
+            onFocusLossTransient = {
+                Timber.i("Audio focus lost transiently: pausing playback")
+                if (_playbackState.value.isPlaying) {
+                    wasPausedByFocusLoss = true
+                    pause()
+                }
+            },
+            onFocusGain = {
+                Timber.i("Audio focus gained")
+                if (wasPausedByFocusLoss && !exoPlayer.isPlaying && _playbackState.value.currentSong != null) {
+                    wasPausedByFocusLoss = false
+                    resume()
+                }
+            }
+        )
     }
 
     override fun onBind(intent: Intent): IBinder = binder
@@ -178,6 +208,10 @@ class MusicPlaybackService : Service() {
      * @param playlistId Optional playlist ID for progress tracking.
      */
     fun play(song: Song, playlistId: Long) {
+        if (!audioFocusManager.requestFocus()) {
+            Timber.w("Failed to gain audio focus")
+            return
+        }
         Timber.i("Playing single song: ${song.title}, playlistId=$playlistId")
         val mediaItem = MediaItem.Builder()
             .setUri(song.path)
@@ -210,6 +244,10 @@ class MusicPlaybackService : Service() {
     fun playQueue(songs: List<Song>, startIndex: Int, playlistId: Long) {
         if (songs.isEmpty()) {
             Timber.w("playQueue called with empty list")
+            return
+        }
+        if (!audioFocusManager.requestFocus()) {
+            Timber.w("Failed to gain audio focus")
             return
         }
         val safeIndex = startIndex.coerceIn(0, songs.lastIndex)
@@ -254,6 +292,7 @@ class MusicPlaybackService : Service() {
     /** Pause playback. */
     fun pause() {
         Timber.i("Pausing playback")
+        wasPausedByFocusLoss = false
         alarmVolumeController.restoreVolume()
         exoPlayer.pause()
         saveCurrentProgress()
@@ -262,6 +301,10 @@ class MusicPlaybackService : Service() {
     /** Resume playback. */
     fun resume() {
         Timber.i("Resuming playback")
+        if (!audioFocusManager.requestFocus()) {
+            Timber.w("Failed to gain audio focus, cannot resume")
+            return
+        }
         if (!exoPlayer.isPlaying) {
             exoPlayer.play()
         }
@@ -303,6 +346,7 @@ class MusicPlaybackService : Service() {
     /** Stop playback and clear state. */
     fun stop() {
         Timber.i("Stopping playback")
+        audioFocusManager.abandonFocus()
         alarmVolumeController.restoreVolume()
         saveCurrentProgress()
         exoPlayer.stop()
@@ -440,6 +484,7 @@ class MusicPlaybackService : Service() {
 
     override fun onDestroy() {
         Timber.i("MusicPlaybackService destroyed")
+        audioFocusManager.abandonFocus()
         alarmVolumeController.restoreVolume()
         cancelAutoStop()
         autoStopHandler.removeCallbacksAndMessages(null)
