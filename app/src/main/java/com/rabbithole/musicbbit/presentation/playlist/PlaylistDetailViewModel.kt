@@ -24,6 +24,7 @@ sealed interface PlaylistDetailUiState {
 sealed interface PlaylistDetailAction {
     data class OnRemoveSong(val songId: Long) : PlaylistDetailAction
     data class OnPlayPlaylist(val startIndex: Int) : PlaylistDetailAction
+    data class OnReorderSongs(val fromIndex: Int, val toIndex: Int) : PlaylistDetailAction
 }
 
 @HiltViewModel
@@ -54,6 +55,32 @@ class PlaylistDetailViewModel @Inject constructor(
             is PlaylistDetailAction.OnRemoveSong -> {
                 viewModelScope.launch {
                     removeSongFromPlaylistUseCase(playlistId, action.songId)
+                }
+            }
+            is PlaylistDetailAction.OnReorderSongs -> {
+                val currentState = _uiState.value as? PlaylistDetailUiState.Success
+                    ?: return
+                val songs = currentState.playlistWithSongs.songs
+                val fromIndex = action.fromIndex
+                val toIndex = action.toIndex
+                if (fromIndex !in songs.indices || toIndex !in songs.indices) return
+
+                val reordered = songs.toMutableList()
+                val movedSong = reordered.removeAt(fromIndex)
+                reordered.add(toIndex, movedSong)
+
+                _uiState.value = PlaylistDetailUiState.Success(
+                    currentState.playlistWithSongs.copy(songs = reordered)
+                )
+
+                viewModelScope.launch {
+                    val songIds = reordered.map { it.id }
+                    val result = reorderPlaylistSongsUseCase(playlistId, songIds)
+                    if (result.isFailure) {
+                        _uiState.value = PlaylistDetailUiState.Success(
+                            currentState.playlistWithSongs.copy(songs = songs)
+                        )
+                    }
                 }
             }
             else -> { /* Play handled in UI via StateHolder */ }
