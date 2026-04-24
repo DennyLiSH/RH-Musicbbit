@@ -59,15 +59,15 @@ class ScanDirectorySettingsViewModel @Inject constructor(
     private fun observeDirectories() {
         getScanDirectoriesUseCase()
             .onEach { directories ->
-                _uiState.update { currentState ->
-                    if (currentState is ScanDirectorySettingsUiState.Success) {
-                        currentState.copy(directories = directories)
-                    } else {
-                        ScanDirectorySettingsUiState.Success(
-                            directories = directories,
-                            directoryCount = directories.size
-                        )
-                    }
+                updateSuccess { currentState ->
+                    currentState.copy(directories = directories)
+                }
+                val currentState = _uiState.value
+                if (currentState !is ScanDirectorySettingsUiState.Success) {
+                    _uiState.value = ScanDirectorySettingsUiState.Success(
+                        directories = directories,
+                        directoryCount = directories.size
+                    )
                 }
             }
             .launchIn(viewModelScope)
@@ -90,12 +90,8 @@ class ScanDirectorySettingsViewModel @Inject constructor(
             }
 
             is ScanDirectorySettingsAction.OnScanDirectoryPreview -> {
-                _uiState.update {
-                    if (it is ScanDirectorySettingsUiState.Success) {
-                        it.copy(pendingDirectory = PendingDirectory(action.path, action.name), addError = null)
-                    } else {
-                        it
-                    }
+                updateSuccess {
+                    it.copy(pendingDirectory = PendingDirectory(action.path, action.name), addError = null)
                 }
             }
 
@@ -104,17 +100,15 @@ class ScanDirectorySettingsViewModel @Inject constructor(
                 if (currentState is ScanDirectorySettingsUiState.Success) {
                     currentState.pendingDirectory?.let { pending ->
                         addDirectory(pending.path, pending.name)
+                    } ?: run {
+                        updateSuccess { it.copy(addError = "No directory selected") }
                     }
                 }
             }
 
             is ScanDirectorySettingsAction.OnCancelDirectoryPreview -> {
-                _uiState.update {
-                    if (it is ScanDirectorySettingsUiState.Success) {
-                        it.copy(pendingDirectory = null, addError = null)
-                    } else {
-                        it
-                    }
+                updateSuccess {
+                    it.copy(pendingDirectory = null, addError = null)
                 }
             }
         }
@@ -124,12 +118,8 @@ class ScanDirectorySettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val file = File(path)
             if (!file.exists() || !file.isDirectory) {
-                _uiState.update {
-                    if (it is ScanDirectorySettingsUiState.Success) {
-                        it.copy(addError = "Invalid directory path", pendingDirectory = null)
-                    } else {
-                        it
-                    }
+                updateSuccess {
+                    it.copy(addError = "Invalid directory path", pendingDirectory = null)
                 }
                 return@launch
             }
@@ -143,22 +133,22 @@ class ScanDirectorySettingsViewModel @Inject constructor(
 
             val result = addScanDirectoryUseCase(directory)
             if (result.isSuccess) {
-                _uiState.update {
-                    if (it is ScanDirectorySettingsUiState.Success) {
-                        it.copy(pendingDirectory = null, addError = null)
-                    } else {
-                        it
-                    }
+                updateSuccess {
+                    it.copy(pendingDirectory = null, addError = null)
                 }
             } else {
-                _uiState.update {
-                    if (it is ScanDirectorySettingsUiState.Success) {
-                        it.copy(addError = "Failed to add directory", pendingDirectory = null)
-                    } else {
-                        it
-                    }
+                updateSuccess {
+                    it.copy(addError = "Failed to add directory", pendingDirectory = null)
                 }
             }
+        }
+    }
+
+    private inline fun updateSuccess(
+        transform: (ScanDirectorySettingsUiState.Success) -> ScanDirectorySettingsUiState.Success
+    ) {
+        _uiState.update { current ->
+            if (current is ScanDirectorySettingsUiState.Success) transform(current) else current
         }
     }
 }
