@@ -1,5 +1,6 @@
 package com.rabbithole.musicbbit.presentation.settings
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 
+@Immutable
 data class PendingDirectory(
     val path: String,
     val name: String
@@ -34,7 +36,6 @@ sealed interface ScanDirectorySettingsUiState {
 }
 
 sealed interface ScanDirectorySettingsAction {
-    data object OnAddDirectory : ScanDirectorySettingsAction
     data class OnRemoveDirectory(val id: Long) : ScanDirectorySettingsAction
     data object OnBack : ScanDirectorySettingsAction
     data class OnScanDirectoryPreview(val path: String, val name: String) : ScanDirectorySettingsAction
@@ -75,10 +76,6 @@ class ScanDirectorySettingsViewModel @Inject constructor(
 
     fun onAction(action: ScanDirectorySettingsAction) {
         when (action) {
-            is ScanDirectorySettingsAction.OnAddDirectory -> {
-                // No-op: UI layer launches the folder picker directly
-            }
-
             is ScanDirectorySettingsAction.OnRemoveDirectory -> {
                 viewModelScope.launch {
                     removeScanDirectoryUseCase(action.id)
