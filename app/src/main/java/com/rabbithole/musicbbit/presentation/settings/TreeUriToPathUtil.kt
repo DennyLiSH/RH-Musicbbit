@@ -15,7 +15,11 @@ sealed interface TreeUriPathResult {
 fun Context.getPathFromTreeUri(uri: Uri): TreeUriPathResult {
     if (!DocumentsContract.isTreeUri(uri)) return TreeUriPathResult.ParseFailed
 
-    val docId = DocumentsContract.getTreeDocumentId(uri)
+    val docId = try {
+        DocumentsContract.getTreeDocumentId(uri)
+    } catch (e: IllegalArgumentException) {
+        return TreeUriPathResult.ParseFailed
+    }
     val split = docId.split(":", limit = 2)
 
     return when {
