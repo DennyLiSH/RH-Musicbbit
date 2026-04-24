@@ -21,6 +21,9 @@ class AlarmVolumeController @Inject constructor(
     private var originalVolume: Int = -1
     private var volumeJob: Job? = null
 
+    private var userAdjustedVolume: Int = -1
+    private var userAdjusted: Boolean = false
+
     private val maxVolume: Int
         get() = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
 
@@ -38,6 +41,19 @@ class AlarmVolumeController @Inject constructor(
         volumeJob = coroutineScope.launch {
             repeat(steps) { i ->
                 delay(delayMs)
+
+                // Detect manual user adjustment
+                val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                val expectedVolume = (startVolume + volumeStep * i).toInt().coerceIn(0, maxVolume)
+
+                if (currentVolume != expectedVolume) {
+                    userAdjustedVolume = currentVolume
+                    userAdjusted = true
+                    Timber.i("User manually adjusted volume to $currentVolume, stopping ramp")
+                    return@launch
+                }
+
+                // Continue ramp
                 val newVolume = (startVolume + volumeStep * (i + 1)).toInt()
                 audioManager.setStreamVolume(
                     AudioManager.STREAM_MUSIC,
@@ -52,10 +68,24 @@ class AlarmVolumeController @Inject constructor(
 
     fun restoreVolume() {
         volumeJob?.cancel()
-        if (originalVolume >= 0) {
-            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, originalVolume, 0)
-            Timber.i("Volume restored to $originalVolume")
-            originalVolume = -1
+
+        val targetVolume = when {
+            userAdjusted -> {
+                Timber.i("Restoring to user-adjusted volume: $userAdjustedVolume")
+                userAdjustedVolume
+            }
+            originalVolume >= 0 -> {
+                Timber.i("Restoring to original volume: $originalVolume")
+                originalVolume
+            }
+            else -> return
         }
+
+        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVolume, 0)
+
+        // Reset all state
+        originalVolume = -1
+        userAdjustedVolume = -1
+        userAdjusted = false
     }
 }
