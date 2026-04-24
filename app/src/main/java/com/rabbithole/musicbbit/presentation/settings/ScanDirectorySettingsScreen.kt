@@ -1,5 +1,8 @@
 package com.rabbithole.musicbbit.presentation.settings
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,18 +23,15 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -45,6 +45,21 @@ fun ScanDirectorySettingsScreen(
     viewModel: ScanDirectorySettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    val treeLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        uri?.let {
+            val path = context.getPathFromTreeUri(it)
+            if (path != null) {
+                val name = java.io.File(path).name
+                viewModel.onAction(ScanDirectorySettingsAction.OnScanDirectoryPreview(path, name))
+            } else {
+                Toast.makeText(context, "Unable to get folder path", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -79,13 +94,15 @@ fun ScanDirectorySettingsScreen(
                 is ScanDirectorySettingsUiState.Success -> {
                     SuccessContent(
                         state = state,
-                        onAddDirectory = { viewModel.onAction(ScanDirectorySettingsAction.OnAddDirectory) },
+                        onAddDirectory = { treeLauncher.launch(null) },
                         onRemoveDirectory = { id ->
                             viewModel.onAction(ScanDirectorySettingsAction.OnRemoveDirectory(id))
                         },
-                        onDismissDialog = { viewModel.onAction(ScanDirectorySettingsAction.OnDismissDialog) },
-                        onDirectoryPathSubmitted = { path ->
-                            viewModel.onAction(ScanDirectorySettingsAction.OnDirectoryPathSubmitted(path))
+                        onConfirmDirectory = {
+                            viewModel.onAction(ScanDirectorySettingsAction.OnConfirmAddDirectory)
+                        },
+                        onCancelDirectory = {
+                            viewModel.onAction(ScanDirectorySettingsAction.OnCancelDirectoryPreview)
                         }
                     )
                 }
@@ -99,8 +116,8 @@ private fun SuccessContent(
     state: ScanDirectorySettingsUiState.Success,
     onAddDirectory: () -> Unit,
     onRemoveDirectory: (Long) -> Unit,
-    onDismissDialog: () -> Unit,
-    onDirectoryPathSubmitted: (String) -> Unit
+    onConfirmDirectory: () -> Unit,
+    onCancelDirectory: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize()
@@ -148,35 +165,37 @@ private fun SuccessContent(
         }
     }
 
-    if (state.showAddDialog) {
-        AddDirectoryDialog(
-            onDismiss = onDismissDialog,
-            onConfirm = onDirectoryPathSubmitted,
-            error = state.addError
+    if (state.pendingDirectory != null) {
+        ConfirmAddDirectoryDialog(
+            directory = state.pendingDirectory,
+            error = state.addError,
+            onConfirm = onConfirmDirectory,
+            onDismiss = onCancelDirectory
         )
     }
 }
 
 @Composable
-private fun AddDirectoryDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
-    error: String?
+private fun ConfirmAddDirectoryDialog(
+    directory: PendingDirectory,
+    error: String?,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
 ) {
-    var path by remember { mutableStateOf("") }
-
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Directory") },
         text = {
             Column {
-                OutlinedTextField(
-                    value = path,
-                    onValueChange = { path = it },
-                    label = { Text("Directory Path") },
-                    placeholder = { Text("/storage/emulated/0/Music") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                Text(
+                    text = directory.name,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = directory.path,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (error != null) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -189,10 +208,7 @@ private fun AddDirectoryDialog(
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = { onConfirm(path) },
-                enabled = path.isNotBlank()
-            ) {
+            TextButton(onClick = onConfirm) {
                 Text("Add")
             }
         },
