@@ -3,7 +3,7 @@ package com.rabbithole.musicbbit.data.repository
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
+import com.rabbithole.musicbbit.data.local.datastore.SettingsKeys
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.ThemeMode
 import com.rabbithole.musicbbit.domain.repository.ThemeRepository
@@ -20,7 +20,7 @@ class ThemeRepositoryImpl @Inject constructor(
 
     override fun getThemeMode(): Flow<ThemeMode> {
         return dataStore.data.map { preferences ->
-            val modeString = preferences[KEY_THEME_MODE] ?: ThemeMode.SYSTEM.name
+            val modeString = preferences[SettingsKeys.THEME_MODE] ?: ThemeMode.SYSTEM.name
             ThemeMode.valueOf(modeString)
         }
     }
@@ -28,7 +28,7 @@ class ThemeRepositoryImpl @Inject constructor(
     override suspend fun setThemeMode(mode: ThemeMode): Result<Unit> = withContext(ioDispatcher) {
         try {
             dataStore.edit { preferences ->
-                preferences[KEY_THEME_MODE] = mode.name
+                preferences[SettingsKeys.THEME_MODE] = mode.name
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -36,7 +36,4 @@ class ThemeRepositoryImpl @Inject constructor(
         }
     }
 
-    companion object {
-        private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
-    }
 }
