@@ -23,7 +23,7 @@ class PlaybackProgressRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getProgress(songId: Long, playlistId: Long?): Result<PlaybackProgress?> = withContext(ioDispatcher) {
+    override suspend fun getProgress(songId: Long, playlistId: Long): Result<PlaybackProgress?> = withContext(ioDispatcher) {
         try {
             val entity = playbackProgressDao.getBySongIdAndPlaylistId(songId, playlistId)
             Result.success(entity?.toDomain())
@@ -32,7 +32,7 @@ class PlaybackProgressRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun deleteProgress(songId: Long, playlistId: Long?): Result<Unit> = withContext(ioDispatcher) {
+    override suspend fun deleteProgress(songId: Long, playlistId: Long): Result<Unit> = withContext(ioDispatcher) {
         try {
             playbackProgressDao.deleteBySongIdAndPlaylistId(songId, playlistId)
             Result.success(Unit)

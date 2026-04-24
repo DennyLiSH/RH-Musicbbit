@@ -5,7 +5,7 @@ import com.rabbithole.musicbbit.domain.model.Song
 data class PlaybackState(
     val isPlaying: Boolean = false,
     val currentSong: Song? = null,
-    val currentPlaylistId: Long? = null,
+    val currentPlaylistId: Long = -1,
     val positionMs: Long = 0,
     val durationMs: Long = 0,
     val playMode: PlayMode = PlayMode.SEQUENTIAL,

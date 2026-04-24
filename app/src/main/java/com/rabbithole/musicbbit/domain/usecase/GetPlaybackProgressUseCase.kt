@@ -7,8 +7,6 @@ import javax.inject.Inject
 class GetPlaybackProgressUseCase @Inject constructor(
     private val playbackProgressRepository: PlaybackProgressRepository
 ) {
-    suspend operator fun invoke(songId: Long, playlistId: Long?): Result<PlaybackProgress?> =
-        runCatching {
-            playbackProgressRepository.getProgress(songId, playlistId)
-        }
+    suspend operator fun invoke(songId: Long, playlistId: Long): Result<PlaybackProgress?> =
+        playbackProgressRepository.getProgress(songId, playlistId)
 }

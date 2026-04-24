@@ -4,5 +4,5 @@ data class PlaybackProgress(
     val songId: Long,
     val positionMs: Long,
     val updatedAt: Long,
-    val playlistId: Long?
+    val playlistId: Long
 )

@@ -10,7 +10,7 @@ class SavePlaybackProgressUseCase @Inject constructor(
     suspend operator fun invoke(
         songId: Long,
         positionMs: Long,
-        playlistId: Long?
+        playlistId: Long
     ): Result<Unit> = runCatching {
         playbackProgressRepository.saveProgress(
             PlaybackProgress(

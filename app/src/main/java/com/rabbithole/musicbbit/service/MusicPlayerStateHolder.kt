@@ -71,12 +71,12 @@ class MusicPlayerStateHolder @Inject constructor(
         }
     }
 
-    fun play(song: Song, playlistId: Long? = null) {
+    fun play(song: Song, playlistId: Long = -1) {
         ensureServiceRunning()
         service?.play(song, playlistId)
     }
 
-    fun playPlaylist(songs: List<Song>, startIndex: Int, playlistId: Long?) {
+    fun playPlaylist(songs: List<Song>, startIndex: Int, playlistId: Long) {
         ensureServiceRunning()
         service?.playQueue(songs, startIndex, playlistId)
     }

@@ -143,7 +143,7 @@ class MusicPlaybackService : Service() {
      * @param song The song to play.
      * @param playlistId Optional playlist ID for progress tracking.
      */
-    fun play(song: Song, playlistId: Long?) {
+    fun play(song: Song, playlistId: Long) {
         Timber.i("Playing single song: ${song.title}, playlistId=$playlistId")
         val mediaItem = MediaItem.Builder()
             .setUri(song.path)
@@ -173,7 +173,7 @@ class MusicPlaybackService : Service() {
      * @param startIndex The index in the queue to start from.
      * @param playlistId Optional playlist ID for progress tracking.
      */
-    fun playQueue(songs: List<Song>, startIndex: Int, playlistId: Long?) {
+    fun playQueue(songs: List<Song>, startIndex: Int, playlistId: Long) {
         if (songs.isEmpty()) {
             Timber.w("playQueue called with empty list")
             return
