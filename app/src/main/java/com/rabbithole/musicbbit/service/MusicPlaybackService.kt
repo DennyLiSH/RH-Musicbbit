@@ -381,7 +381,7 @@ class MusicPlaybackService : Service() {
         )
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification_small)
             .setContentTitle(song?.title ?: getString(R.string.app_name))
             .setContentText(song?.artist ?: "Unknown artist")
             .setContentIntent(contentIntent)
