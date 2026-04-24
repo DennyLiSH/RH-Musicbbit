@@ -15,7 +15,7 @@ import javax.inject.Inject
 
 class ThemeRepositoryImpl @Inject constructor(
     private val dataStore: DataStore<Preferences>,
-    @IoDispatcher private val ioDispatcher: CoroutineDispatcher
+    @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : ThemeRepository {
 
     override fun getThemeMode(): Flow<ThemeMode> {

@@ -29,13 +29,13 @@ class AudioFocusManager(
      *
      * @return true if focus was granted, false otherwise.
      */
+    @Suppress("DEPRECATION")
     fun requestFocus(): Boolean {
         val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val request = createFocusRequest()
             audioFocusRequest = request
             audioManager.requestAudioFocus(request)
         } else {
-            @Suppress("DEPRECATION")
             val listener = createFocusChangeListener()
             audioFocusChangeListener = listener
             audioManager.requestAudioFocus(

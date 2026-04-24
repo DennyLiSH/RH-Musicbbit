@@ -13,7 +13,7 @@ import timber.log.Timber
 
 @Singleton
 class AlarmVolumeController @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
     private val audioManager: AudioManager =
         context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
