@@ -50,6 +50,15 @@ class PlaybackProgressRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getProgressForPlaylist(playlistId: Long): Result<List<PlaybackProgress>> = withContext(ioDispatcher) {
+        try {
+            val entities = playbackProgressDao.getByPlaylistId(playlistId)
+            Result.success(entities.map { it.toDomain() })
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     private fun PlaybackProgress.toEntity(): PlaybackProgressEntity {
         return PlaybackProgressEntity(
             songId = songId,

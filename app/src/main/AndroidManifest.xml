@@ -16,7 +16,6 @@
 
     <!-- 精确闹钟 -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
     <!-- 唤醒 -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -51,6 +50,22 @@
             android:name=".service.MusicPlaybackService"
             android:foregroundServiceType="mediaPlayback"
             android:exported="false" />
+
+        <receiver
+            android:name=".service.AlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".service.AlarmActionReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".service.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

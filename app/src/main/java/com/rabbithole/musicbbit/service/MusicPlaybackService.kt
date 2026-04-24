@@ -9,7 +9,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Binder
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -49,6 +51,9 @@ class MusicPlaybackService : Service() {
     @Inject
     lateinit var getPlaybackProgressUseCase: GetPlaybackProgressUseCase
 
+    @Inject
+    lateinit var alarmVolumeController: AlarmVolumeController
+
     private lateinit var exoPlayer: ExoPlayer
 
     private val serviceJob = SupervisorJob()
@@ -58,6 +63,11 @@ class MusicPlaybackService : Service() {
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
     private var progressSaveJob: Job? = null
+
+    private val autoStopHandler = Handler(Looper.getMainLooper())
+    private var autoStopRunnable: Runnable? = null
+    private var currentAlarmId: Long = -1
+    private var extendToEnd: Boolean = false
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -84,6 +94,12 @@ class MusicPlaybackService : Service() {
                 )
             }
             updateNotification()
+
+            // Check extend-to-end
+            if (extendToEnd && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                Timber.i("Extend-to-end: stopping after current song")
+                stop()
+            }
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -132,8 +148,21 @@ class MusicPlaybackService : Service() {
     override fun onBind(intent: Intent): IBinder = binder
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Timber.i("MusicPlaybackService started")
+        Timber.i("MusicPlaybackService started, action=${intent?.action}")
         startForeground(NOTIFICATION_ID, buildNotification())
+
+        when (intent?.action) {
+            ACTION_PLAY_ALARM -> handlePlayAlarm(intent)
+            AlarmActionReceiver.ACTION_SERVICE_STOP -> stop()
+            AlarmActionReceiver.ACTION_SERVICE_PAUSE -> pause()
+            AlarmActionReceiver.ACTION_SERVICE_RESUME -> resume()
+            AlarmActionReceiver.ACTION_SERVICE_EXTEND_MINUTES -> {
+                val minutes = intent.getIntExtra(AlarmActionReceiver.EXTRA_MINUTES, 0)
+                if (minutes > 0) extendAutoStop(minutes)
+            }
+            AlarmActionReceiver.ACTION_SERVICE_EXTEND_TO_END -> setExtendToEnd(true)
+        }
+
         return START_STICKY
     }
 
@@ -220,6 +249,7 @@ class MusicPlaybackService : Service() {
     /** Pause playback. */
     fun pause() {
         Timber.i("Pausing playback")
+        alarmVolumeController.restoreVolume()
         exoPlayer.pause()
         saveCurrentProgress()
     }
@@ -268,11 +298,14 @@ class MusicPlaybackService : Service() {
     /** Stop playback and clear state. */
     fun stop() {
         Timber.i("Stopping playback")
+        alarmVolumeController.restoreVolume()
         saveCurrentProgress()
         exoPlayer.stop()
         exoPlayer.clearMediaItems()
         _playbackState.update { PlaybackState() }
         progressSaveJob?.cancel()
+        cancelAutoStop()
+        extendToEnd = false
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -369,6 +402,9 @@ class MusicPlaybackService : Service() {
 
     override fun onDestroy() {
         Timber.i("MusicPlaybackService destroyed")
+        alarmVolumeController.restoreVolume()
+        cancelAutoStop()
+        autoStopHandler.removeCallbacksAndMessages(null)
         saveCurrentProgress()
         progressSaveJob?.cancel()
         exoPlayer.removeListener(playerListener)
@@ -377,10 +413,110 @@ class MusicPlaybackService : Service() {
         super.onDestroy()
     }
 
+    private fun preloadFirstSong(uri: android.net.Uri) {
+        val mediaItem = MediaItem.fromUri(uri)
+        exoPlayer.setMediaItem(mediaItem)
+        exoPlayer.prepare()
+        Timber.d("Preloaded first song: $uri")
+    }
+
+    private fun handlePlayAlarm(intent: Intent) {
+        @Suppress("DEPRECATION")
+        val songs = intent.getParcelableArrayListExtra<Song>(EXTRA_SONGS) ?: return
+        val startIndex = intent.getIntExtra(EXTRA_START_INDEX, 0)
+        val playlistId = intent.getLongExtra(EXTRA_PLAYLIST_ID, -1)
+        val autoStopMinutes = intent.getIntExtra(EXTRA_AUTO_STOP_MINUTES, -1)
+        val alarmId = intent.getLongExtra(EXTRA_ALARM_ID, -1)
+        val isAlarmTrigger = intent.getBooleanExtra(EXTRA_IS_ALARM_TRIGGER, false)
+
+        if (songs.isEmpty() || playlistId == -1L) {
+            Timber.w("Invalid alarm play intent")
+            return
+        }
+
+        // Preload first song if triggered by alarm
+        if (isAlarmTrigger && songs.isNotEmpty()) {
+            val firstSongUri = android.net.Uri.parse(songs.first().path)
+            preloadFirstSong(firstSongUri)
+        }
+
+        playQueue(songs, startIndex, playlistId)
+
+        // Start volume ramp for alarm-triggered playback
+        if (isAlarmTrigger) {
+            alarmVolumeController.startVolumeRamp(serviceScope)
+            Timber.i("Started volume ramp for alarm playback")
+        }
+
+        // Schedule auto-stop
+        if (autoStopMinutes > 0) {
+            scheduleAutoStop(autoStopMinutes, alarmId)
+        }
+
+        // Reset extend-to-end flag
+        extendToEnd = false
+    }
+
+    private fun scheduleAutoStop(minutes: Int, alarmId: Long) {
+        cancelAutoStop()
+        currentAlarmId = alarmId
+
+        val delayMs = minutes * 60_000L
+        Timber.i("Scheduling auto-stop in $minutes minutes for alarm $alarmId")
+
+        autoStopRunnable = Runnable {
+            Timber.i("Auto-stop triggered for alarm $alarmId")
+            stop()
+            // Send broadcast to clear alarm notification
+            sendBroadcast(Intent(this, AlarmActionReceiver::class.java).apply {
+                action = AlarmActionReceiver.ACTION_STOP
+                putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
+            })
+        }
+        autoStopHandler.postDelayed(autoStopRunnable!!, delayMs)
+    }
+
+    private fun cancelAutoStop() {
+        autoStopRunnable?.let {
+            autoStopHandler.removeCallbacks(it)
+            Timber.d("Auto-stop cancelled")
+        }
+        autoStopRunnable = null
+        currentAlarmId = -1
+    }
+
+    /**
+     * Extend the auto-stop time by the given minutes.
+     * Called from AlarmActionReceiver via broadcast.
+     */
+    fun extendAutoStop(minutes: Int) {
+        autoStopRunnable?.let { currentRunnable ->
+            autoStopHandler.removeCallbacks(currentRunnable)
+            autoStopHandler.postDelayed(currentRunnable, minutes * 60_000L)
+            Timber.i("Auto-stop extended by $minutes minutes")
+        }
+    }
+
+    /**
+     * Set extend-to-end mode. When enabled, playback stops after the current song finishes.
+     */
+    fun setExtendToEnd(enabled: Boolean) {
+        extendToEnd = enabled
+        Timber.i("Extend-to-end mode: $enabled")
+    }
+
     companion object {
         private const val CHANNEL_ID = "music_playback_channel"
         private const val NOTIFICATION_ID = 1
         private const val PROGRESS_SAVE_INTERVAL_MS = 5000L
+
+        const val ACTION_PLAY_ALARM = "com.rabbithole.musicbbit.action.PLAY_ALARM"
+        const val EXTRA_SONGS = "extra_songs"
+        const val EXTRA_START_INDEX = "extra_start_index"
+        const val EXTRA_PLAYLIST_ID = "extra_playlist_id"
+        const val EXTRA_AUTO_STOP_MINUTES = "extra_auto_stop_minutes"
+        const val EXTRA_ALARM_ID = "extra_alarm_id"
+        const val EXTRA_IS_ALARM_TRIGGER = "extra_is_alarm_trigger"
 
         /**
          * Create an [Intent] to start the playback service.

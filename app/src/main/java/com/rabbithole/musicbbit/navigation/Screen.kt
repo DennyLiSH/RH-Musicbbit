@@ -15,6 +15,9 @@ data class PlaylistDetail(val playlistId: Long)
 data object Alarm
 
 @Serializable
+data class AlarmEdit(val alarmId: Long = 0)
+
+@Serializable
 data object Player
 
 @Serializable
