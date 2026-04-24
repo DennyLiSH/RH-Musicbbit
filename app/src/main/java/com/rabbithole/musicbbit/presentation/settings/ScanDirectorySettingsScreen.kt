@@ -57,12 +57,25 @@ fun ScanDirectorySettingsScreen(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         uri?.let {
-            val path = context.getPathFromTreeUri(it)
-            if (path != null) {
-                val name = java.io.File(path).name
-                viewModel.onAction(ScanDirectorySettingsAction.OnScanDirectoryPreview(path, name))
-            } else {
-                Toast.makeText(context, "Unable to get folder path", Toast.LENGTH_SHORT).show()
+            when (val result = context.getPathFromTreeUri(it)) {
+                is TreeUriPathResult.Success -> {
+                    val name = java.io.File(result.path).name
+                    viewModel.onAction(ScanDirectorySettingsAction.OnScanDirectoryPreview(result.path, name))
+                }
+                is TreeUriPathResult.UnsupportedStorage -> {
+                    Toast.makeText(
+                        context,
+                        "External storage devices are not supported. Please select a folder from internal storage.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                is TreeUriPathResult.ParseFailed -> {
+                    Toast.makeText(
+                        context,
+                        "Failed to parse folder path. Please try again.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
