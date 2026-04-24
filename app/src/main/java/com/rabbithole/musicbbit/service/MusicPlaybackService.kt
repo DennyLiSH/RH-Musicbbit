@@ -161,6 +161,11 @@ class MusicPlaybackService : Service() {
                 if (minutes > 0) extendAutoStop(minutes)
             }
             AlarmActionReceiver.ACTION_SERVICE_EXTEND_TO_END -> setExtendToEnd(true)
+            ACTION_PREVIOUS -> previous()
+            ACTION_TOGGLE_PLAY_PAUSE -> {
+                if (_playbackState.value.isPlaying) pause() else resume()
+            }
+            ACTION_NEXT -> next()
         }
 
         return START_STICKY
@@ -367,6 +372,17 @@ class MusicPlaybackService : Service() {
         }
     }
 
+    private fun createActionPendingIntent(action: String): PendingIntent {
+        return PendingIntent.getService(
+            this,
+            action.hashCode(),
+            Intent(this, MusicPlaybackService::class.java).apply {
+                this.action = action
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
     private fun buildNotification(): Notification {
         val state = _playbackState.value
         val song = state.currentSong
@@ -389,6 +405,28 @@ class MusicPlaybackService : Service() {
             .setOnlyAlertOnce(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+
+        // Previous
+        builder.addAction(
+            R.drawable.ic_notification_skip_previous,
+            "Previous",
+            createActionPendingIntent(ACTION_PREVIOUS)
+        )
+
+        // Play/Pause toggle
+        val isPlaying = _playbackState.value.isPlaying
+        builder.addAction(
+            if (isPlaying) R.drawable.ic_notification_pause else R.drawable.ic_notification_play,
+            if (isPlaying) "Pause" else "Play",
+            createActionPendingIntent(ACTION_TOGGLE_PLAY_PAUSE)
+        )
+
+        // Next
+        builder.addAction(
+            R.drawable.ic_notification_skip_next,
+            "Next",
+            createActionPendingIntent(ACTION_NEXT)
+        )
 
         return builder.build()
     }
@@ -511,6 +549,9 @@ class MusicPlaybackService : Service() {
         private const val PROGRESS_SAVE_INTERVAL_MS = 5000L
 
         const val ACTION_PLAY_ALARM = "com.rabbithole.musicbbit.action.PLAY_ALARM"
+        const val ACTION_PREVIOUS = "com.rabbithole.musicbbit.action.PREVIOUS"
+        const val ACTION_TOGGLE_PLAY_PAUSE = "com.rabbithole.musicbbit.action.TOGGLE_PLAY_PAUSE"
+        const val ACTION_NEXT = "com.rabbithole.musicbbit.action.NEXT"
         const val EXTRA_SONGS = "extra_songs"
         const val EXTRA_START_INDEX = "extra_start_index"
         const val EXTRA_PLAYLIST_ID = "extra_playlist_id"
