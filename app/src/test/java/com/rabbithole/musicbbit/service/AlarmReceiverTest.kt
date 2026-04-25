@@ -144,7 +144,20 @@ class AlarmReceiverTest {
             override suspend fun refreshHolidays(year: Int): Result<Unit> = Result.success(Unit)
             override suspend fun isWorkday(date: String): Boolean = true
         }
-        val isWorkdayUseCase = com.rabbithole.musicbbit.domain.usecase.IsWorkdayUseCase(stubHolidayRepository)
+        val refreshHolidaysUseCase = com.rabbithole.musicbbit.domain.usecase.RefreshHolidaysUseCase(stubHolidayRepository)
+
+        // In-memory DataStore for tests
+        val dataStore = androidx.datastore.preferences.core.PreferenceDataStoreFactory.create(
+            corruptionHandler = androidx.datastore.core.handlers.ReplaceFileCorruptionHandler {
+                androidx.datastore.preferences.core.emptyPreferences()
+            }
+        ) { java.io.File.createTempFile("test_holiday", ".preferences_pb") }
+
+        val isWorkdayUseCase = com.rabbithole.musicbbit.domain.usecase.IsWorkdayUseCase(
+            stubHolidayRepository,
+            refreshHolidaysUseCase,
+            dataStore
+        )
         return AlarmScheduler(RuntimeEnvironment.getApplication(), isWorkdayUseCase)
     }
 }

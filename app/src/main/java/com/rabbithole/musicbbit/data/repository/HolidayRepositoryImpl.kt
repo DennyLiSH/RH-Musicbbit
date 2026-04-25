@@ -26,8 +26,8 @@ class HolidayRepositoryImpl @Inject constructor(
     private val holidayDao: HolidayDao,
     private val holidayApi: HolidayApi,
     private val json: Json,
-    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
-    @ApplicationContext private val context: Context
+    @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+    @param:ApplicationContext private val context: Context
 ) : HolidayRepository {
 
     private var fallbackCache: Map<String, HolidayEntity>? = null
