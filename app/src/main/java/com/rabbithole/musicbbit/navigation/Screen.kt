@@ -22,3 +22,6 @@ data object Player
 
 @Serializable
 data object ScanDirectorySettings
+
+@Serializable
+data object PermissionDiagnostics

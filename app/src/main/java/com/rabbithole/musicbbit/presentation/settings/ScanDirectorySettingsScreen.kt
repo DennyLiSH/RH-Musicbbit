@@ -42,6 +42,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.domain.model.ThemeMode
+import com.rabbithole.musicbbit.navigation.PermissionDiagnostics
 import com.rabbithole.musicbbit.presentation.settings.components.ScanDirectoryItem
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -116,6 +117,7 @@ fun ScanDirectorySettingsScreen(
                     SuccessContent(
                         state = state,
                         themeMode = themeMode,
+                        navController = navController,
                         onThemeModeChange = { mode ->
                             themeViewModel.setThemeMode(mode)
                         },
@@ -146,6 +148,7 @@ fun ScanDirectorySettingsScreen(
 private fun SuccessContent(
     state: ScanDirectorySettingsUiState.Success,
     themeMode: ThemeMode,
+    navController: NavController,
     onThemeModeChange: (ThemeMode) -> Unit,
     onAddDirectory: () -> Unit,
     onRemoveDirectory: (Long) -> Unit,
@@ -174,6 +177,13 @@ private fun SuccessContent(
                     periodMs = state.breathingPeriodMs,
                     onEnabledChanged = onBreathingEnabledChanged,
                     onPeriodChanged = onBreathingPeriodChanged,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+
+            item(key = "permission_diagnostics") {
+                PermissionDiagnosticsCard(
+                    onClick = { navController.navigate(PermissionDiagnostics) },
                     modifier = Modifier.padding(16.dp)
                 )
             }
@@ -400,4 +410,41 @@ private fun buildStatusText(state: ScanDirectorySettingsUiState.Success): String
     }
     parts.add("${state.directoryCount} directories")
     return parts.joinToString(" · ")
+}
+
+@Composable
+private fun PermissionDiagnosticsCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        onClick = onClick
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = "Permission Diagnostics",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Check alarm-related permissions",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }
