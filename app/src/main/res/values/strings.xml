@@ -30,6 +30,8 @@
     <string name="fsi_permission_message">On Android 14 and above, the app needs permission to display alarms over the lock screen. Without it, alarms will still play music but cannot show the full-screen ring interface.</string>
     <string name="fsi_permission_grant">Grant permission</string>
     <string name="now_playing">Now playing…</string>
+    <string name="alarm_active_banner_title">Alarm playing</string>
+    <string name="alarm_active_banner_stop">Stop alarm</string>
     <string name="pause">Pause</string>
     <string name="resume">Resume</string>    <string name="pause">Pause</string>
     <string name="resume">Resume</string>

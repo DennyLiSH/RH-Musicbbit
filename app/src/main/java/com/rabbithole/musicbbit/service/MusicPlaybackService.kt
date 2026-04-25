@@ -634,6 +634,7 @@ class MusicPlaybackService : Service() {
                 }
 
                 playQueue(songs, startIndex, alarm.playlistId)
+                _playbackState.update { it.copy(alarmId = alarmId) }
 
                 // Start volume ramp for alarm-triggered playback
                 if (isAlarmTrigger) {

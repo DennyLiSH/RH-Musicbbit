@@ -10,7 +10,8 @@ data class PlaybackState(
     val durationMs: Long = 0,
     val playMode: PlayMode = PlayMode.SEQUENTIAL,
     val queue: List<Song> = emptyList(),
-    val queueIndex: Int = 0
+    val queueIndex: Int = 0,
+    val alarmId: Long? = null
 )
 
 enum class PlayMode {

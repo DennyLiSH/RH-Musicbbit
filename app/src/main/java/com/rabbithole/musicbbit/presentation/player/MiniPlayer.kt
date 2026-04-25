@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -51,12 +52,29 @@ fun MiniPlayer(
         enter = slideInVertically(initialOffsetY = { it }),
         exit = slideOutVertically(targetOffsetY = { it })
     ) {
+        val isAlarmMode = playbackState.alarmId != null
+        val containerColor = if (isAlarmMode) {
+            MaterialTheme.colorScheme.errorContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHighest
+        }
+        val albumContainerColor = if (isAlarmMode) {
+            MaterialTheme.colorScheme.error
+        } else {
+            MaterialTheme.colorScheme.primaryContainer
+        }
+        val albumContentColor = if (isAlarmMode) {
+            MaterialTheme.colorScheme.onError
+        } else {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        }
+
         Row(
             modifier = modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 4.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .background(containerColor)
                 .clickable(enabled = currentSong != null) {
                     navController.navigate(Player)
                 }
@@ -64,18 +82,18 @@ fun MiniPlayer(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Album art placeholder
+            // Album art placeholder (alarm mode shows alarm icon with error color)
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    .background(albumContainerColor),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.MusicNote,
+                    imageVector = if (isAlarmMode) Icons.Default.Alarm else Icons.Default.MusicNote,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    tint = albumContentColor
                 )
             }
 
