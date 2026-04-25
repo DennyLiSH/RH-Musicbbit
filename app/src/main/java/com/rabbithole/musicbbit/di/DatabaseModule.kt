@@ -4,7 +4,10 @@ import android.content.Context
 import androidx.room.Room
 import com.rabbithole.musicbbit.data.local.AppDatabase
 import com.rabbithole.musicbbit.data.local.MIGRATION_2_3
+import com.rabbithole.musicbbit.data.local.MIGRATION_3_4
+import com.rabbithole.musicbbit.data.local.MIGRATION_4_5
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
+import com.rabbithole.musicbbit.data.local.dao.HolidayDao
 import com.rabbithole.musicbbit.data.local.dao.PlaybackProgressDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistSongDao
@@ -31,7 +34,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "musicbbit_database"
         )
-            .addMigrations(MIGRATION_2_3)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .build()
     }
 
@@ -52,4 +55,7 @@ object DatabaseModule {
 
     @Provides
     fun provideScanDirectoryDao(database: AppDatabase): ScanDirectoryDao = database.scanDirectoryDao()
+
+    @Provides
+    fun provideHolidayDao(database: AppDatabase): HolidayDao = database.holidayDao()
 }

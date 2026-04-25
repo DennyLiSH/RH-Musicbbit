@@ -3,11 +3,13 @@ package com.rabbithole.musicbbit.data.local
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
+import com.rabbithole.musicbbit.data.local.dao.HolidayDao
 import com.rabbithole.musicbbit.data.local.dao.PlaybackProgressDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistSongDao
 import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
+import com.rabbithole.musicbbit.data.local.model.HolidayEntity
 import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.data.model.PlaybackProgressEntity
 import com.rabbithole.musicbbit.data.model.PlaylistEntity
@@ -22,9 +24,10 @@ import com.rabbithole.musicbbit.data.model.SongEntity
         PlaylistSongEntity::class,
         PlaybackProgressEntity::class,
         AlarmEntity::class,
-        ScanDirectoryEntity::class
+        ScanDirectoryEntity::class,
+        HolidayEntity::class
     ],
-    version = 3,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -34,4 +37,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun playbackProgressDao(): PlaybackProgressDao
     abstract fun alarmDao(): AlarmDao
     abstract fun scanDirectoryDao(): ScanDirectoryDao
+    abstract fun holidayDao(): HolidayDao
 }
