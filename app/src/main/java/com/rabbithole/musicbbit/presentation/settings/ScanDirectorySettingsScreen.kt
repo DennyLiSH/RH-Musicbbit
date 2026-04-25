@@ -60,6 +60,8 @@ fun ScanDirectorySettingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val themeMode by themeViewModel.themeMode.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val externalStorageMessage = stringResource(R.string.settings_toast_external_storage)
+    val parseFailedMessage = stringResource(R.string.settings_toast_parse_failed)
 
     val treeLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -73,14 +75,14 @@ fun ScanDirectorySettingsScreen(
                 is TreeUriPathResult.UnsupportedStorage -> {
                     Toast.makeText(
                         context,
-                        context.getString(R.string.settings_toast_external_storage),
+                        externalStorageMessage,
                         Toast.LENGTH_SHORT
                     ).show()
                 }
                 is TreeUriPathResult.ParseFailed -> {
                     Toast.makeText(
                         context,
-                        context.getString(R.string.settings_toast_parse_failed),
+                        parseFailedMessage,
                         Toast.LENGTH_SHORT
                     ).show()
                 }

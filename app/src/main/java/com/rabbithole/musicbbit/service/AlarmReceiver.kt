@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
+import androidx.core.content.ContextCompat
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -59,7 +60,7 @@ class AlarmReceiver : BroadcastReceiver() {
                     putExtra(MusicPlaybackService.EXTRA_ALARM_ID, alarmId)
                     putExtra(MusicPlaybackService.EXTRA_IS_ALARM_TRIGGER, true)
                 }
-                context.startForegroundService(serviceIntent)
+                ContextCompat.startForegroundService(context, serviceIntent)
                 Timber.i("Started MusicPlaybackService for alarm id=$alarmId")
 
                 // Background tasks: validate alarm, update timestamp, reschedule

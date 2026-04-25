@@ -1,5 +1,6 @@
 package com.rabbithole.musicbbit.service
 
+import android.annotation.TargetApi
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
@@ -70,6 +71,7 @@ class AudioFocusManager(
         audioFocusChangeListener = null
     }
 
+    @TargetApi(Build.VERSION_CODES.O)
     private fun createFocusRequest(): AudioFocusRequest {
         return AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
             .setAudioAttributes(
