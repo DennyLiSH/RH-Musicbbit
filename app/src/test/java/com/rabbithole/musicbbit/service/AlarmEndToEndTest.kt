@@ -117,7 +117,7 @@ class AlarmEndToEndTest {
         assertNotNull("Expected service to be started for one-time alarm", startedService)
 
         assertEquals(1, alarmDao.updateCount)
-        val updated = alarmDao.getById(alarmId)
+        val updated = alarmDao.peek(alarmId)
         assertNotNull(updated)
         assertEquals(false, updated!!.isEnabled)
     }
@@ -178,6 +178,8 @@ class AlarmEndToEndTest {
         fun add(entity: AlarmEntity) {
             data[entity.id] = entity
         }
+
+        fun peek(id: Long): AlarmEntity? = data[id]
 
         override suspend fun getById(id: Long): AlarmEntity? = data[id]
 
