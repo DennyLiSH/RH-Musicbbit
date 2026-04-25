@@ -17,11 +17,20 @@
     <!-- 精确闹钟 -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
+    <!-- 全屏闹钟 intent -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
+    <!-- 网络访问（节假日 API） -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- 唤醒 -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- 开机重启 -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- 请求忽略电池优化（引导用户将应用加入白名单） -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name=".MusicApplication"
@@ -50,6 +59,14 @@
             android:name=".service.MusicPlaybackService"
             android:foregroundServiceType="mediaPlayback"
             android:exported="false" />
+
+        <activity
+            android:name=".presentation.alarm.AlarmRingActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
 
         <receiver
             android:name=".service.AlarmReceiver"

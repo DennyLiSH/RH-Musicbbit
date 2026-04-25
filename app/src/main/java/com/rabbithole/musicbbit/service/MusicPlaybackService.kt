@@ -12,13 +12,19 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.rabbithole.musicbbit.MainActivity
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.data.local.dao.AlarmDao
+import com.rabbithole.musicbbit.data.model.AlarmEntity
+import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
+import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.domain.usecase.GetPlaybackProgressUseCase
 import com.rabbithole.musicbbit.domain.usecase.SavePlaybackProgressUseCase
 import dagger.hilt.android.AndroidEntryPoint
@@ -32,8 +38,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
@@ -54,6 +62,15 @@ class MusicPlaybackService : Service() {
     @Inject
     lateinit var alarmVolumeController: AlarmVolumeController
 
+    @Inject
+    lateinit var alarmDao: AlarmDao
+
+    @Inject
+    lateinit var playlistRepository: PlaylistRepository
+
+    @Inject
+    lateinit var playbackProgressRepository: PlaybackProgressRepository
+
     private lateinit var exoPlayer: ExoPlayer
     private lateinit var audioFocusManager: AudioFocusManager
     private var wasPausedByFocusLoss = false
@@ -70,6 +87,7 @@ class MusicPlaybackService : Service() {
     private var autoStopRunnable: Runnable? = null
     private var currentAlarmId: Long = -1
     private var extendToEnd: Boolean = false
+    private var alarmWakeLock: PowerManager.WakeLock? = null
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -199,6 +217,39 @@ class MusicPlaybackService : Service() {
         }
 
         return START_STICKY
+    }
+
+    /**
+     * Acquire a partial wake lock for alarm playback.
+     * The lock is released when playback stops.
+     */
+    private fun acquireAlarmWakeLock() {
+        try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            alarmWakeLock = powerManager.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "RH-Musicbbit::AlarmPlaybackWakeLock"
+            ).apply {
+                setReferenceCounted(false)
+                acquire(ALARM_WAKE_LOCK_TIMEOUT_MS)
+            }
+            Timber.d("Alarm wake lock acquired")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to acquire alarm wake lock")
+        }
+    }
+
+    /**
+     * Release the alarm wake lock if held.
+     */
+    private fun releaseAlarmWakeLock() {
+        alarmWakeLock?.let {
+            if (it.isHeld) {
+                it.release()
+                Timber.d("Alarm wake lock released")
+            }
+        }
+        alarmWakeLock = null
     }
 
     /**
@@ -355,6 +406,7 @@ class MusicPlaybackService : Service() {
         progressSaveJob?.cancel()
         cancelAutoStop()
         extendToEnd = false
+        releaseAlarmWakeLock()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -492,6 +544,7 @@ class MusicPlaybackService : Service() {
         progressSaveJob?.cancel()
         exoPlayer.removeListener(playerListener)
         exoPlayer.release()
+        releaseAlarmWakeLock()
         serviceScope.cancel()
         super.onDestroy()
     }
@@ -504,40 +557,107 @@ class MusicPlaybackService : Service() {
     }
 
     private fun handlePlayAlarm(intent: Intent) {
-        @Suppress("DEPRECATION")
-        val songs = intent.getParcelableArrayListExtra<Song>(EXTRA_SONGS) ?: return
-        val startIndex = intent.getIntExtra(EXTRA_START_INDEX, 0)
-        val playlistId = intent.getLongExtra(EXTRA_PLAYLIST_ID, -1)
-        val autoStopMinutes = intent.getIntExtra(EXTRA_AUTO_STOP_MINUTES, -1)
         val alarmId = intent.getLongExtra(EXTRA_ALARM_ID, -1)
         val isAlarmTrigger = intent.getBooleanExtra(EXTRA_IS_ALARM_TRIGGER, false)
 
-        if (songs.isEmpty() || playlistId == -1L) {
-            Timber.w("Invalid alarm play intent")
+        if (alarmId == -1L) {
+            Timber.w("Invalid alarm play intent: no alarmId")
             return
         }
 
-        // Preload first song if triggered by alarm
-        if (isAlarmTrigger && songs.isNotEmpty()) {
-            val firstSongUri = android.net.Uri.parse(songs.first().path)
-            preloadFirstSong(firstSongUri)
-        }
-
-        playQueue(songs, startIndex, playlistId)
-
-        // Start volume ramp for alarm-triggered playback
+        // Acquire wake lock for alarm-triggered playback
         if (isAlarmTrigger) {
-            alarmVolumeController.startVolumeRamp(serviceScope)
-            Timber.i("Started volume ramp for alarm playback")
+            acquireAlarmWakeLock()
         }
 
-        // Schedule auto-stop
-        if (autoStopMinutes > 0) {
-            scheduleAutoStop(autoStopMinutes, alarmId)
-        }
+        serviceScope.launch(Dispatchers.IO) {
+            val alarm = alarmDao.getById(alarmId)
+            if (alarm == null || !alarm.isEnabled) {
+                Timber.w("Alarm id=$alarmId not found or disabled")
+                return@launch
+            }
 
-        // Reset extend-to-end flag
-        extendToEnd = false
+            val playlistWithSongs = playlistRepository.getPlaylistWithSongs(alarm.playlistId).first()
+            if (playlistWithSongs == null || playlistWithSongs.songs.isEmpty()) {
+                Timber.w("Playlist id=${alarm.playlistId} is empty or not found for alarm id=$alarmId")
+                AlarmNotificationHelper.showErrorNotification(
+                    this@MusicPlaybackService,
+                    alarmId.toInt(),
+                    alarm.label ?: "Music Alarm",
+                    "Playlist is empty"
+                )
+                return@launch
+            }
+
+            val songs = playlistWithSongs.songs
+            val startIndex = resolveStartIndex(songs, alarm)
+            val startSong = songs[startIndex]
+
+            // Reset playback progress for the starting song to beginning
+            resetPlaybackProgress(startSong, alarm)
+
+            withContext(Dispatchers.Main) {
+                // Preload first song if triggered by alarm
+                if (isAlarmTrigger && songs.isNotEmpty()) {
+                    val firstSongUri = android.net.Uri.parse(songs.first().path)
+                    preloadFirstSong(firstSongUri)
+                }
+
+                playQueue(songs, startIndex, alarm.playlistId)
+
+                // Start volume ramp for alarm-triggered playback
+                if (isAlarmTrigger) {
+                    alarmVolumeController.startVolumeRamp(serviceScope)
+                    Timber.i("Started volume ramp for alarm playback")
+                }
+
+                // Schedule auto-stop
+                val autoStopMinutes = alarm.autoStopMinutes
+                if (autoStopMinutes != null && autoStopMinutes > 0) {
+                    scheduleAutoStop(autoStopMinutes, alarmId)
+                }
+
+                // Reset extend-to-end flag
+                extendToEnd = false
+
+                // Show alarm notification
+                AlarmNotificationHelper.show(this@MusicPlaybackService, alarm, startSong)
+                Timber.i("Alarm notification shown for alarm id=$alarmId, song=${startSong.title}")
+            }
+        }
+    }
+
+    /**
+     * Resolve the starting song index based on saved playback progress.
+     */
+    private suspend fun resolveStartIndex(songs: List<Song>, alarm: AlarmEntity): Int {
+        val progressList = playbackProgressRepository.getProgressForPlaylist(alarm.playlistId).getOrNull()
+        return if (!progressList.isNullOrEmpty()) {
+            val latestProgress = progressList.maxByOrNull { it.updatedAt }
+            val index = latestProgress?.let { progress ->
+                songs.indexOfFirst { it.id == progress.songId }
+            } ?: 0
+            index.coerceIn(0, songs.lastIndex)
+        } else {
+            0
+        }
+    }
+
+    /**
+     * Reset playback progress for the starting song to the beginning.
+     */
+    private suspend fun resetPlaybackProgress(startSong: Song, alarm: AlarmEntity) {
+        val progress = PlaybackProgress(
+            songId = startSong.id,
+            positionMs = 0,
+            updatedAt = System.currentTimeMillis(),
+            playlistId = alarm.playlistId
+        )
+        playbackProgressRepository.saveProgress(progress).onSuccess {
+            Timber.d("Reset progress for song id=${startSong.id}")
+        }.onFailure { error ->
+            Timber.e(error, "Failed to reset progress for song id=${startSong.id}")
+        }
     }
 
     private fun scheduleAutoStop(minutes: Int, alarmId: Long) {
@@ -592,6 +712,7 @@ class MusicPlaybackService : Service() {
         private const val CHANNEL_ID = "music_playback_channel"
         private const val NOTIFICATION_ID = 1
         private const val PROGRESS_SAVE_INTERVAL_MS = 5000L
+        private const val ALARM_WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L // 10 minutes
 
         const val ACTION_PLAY_ALARM = "com.rabbithole.musicbbit.action.PLAY_ALARM"
         const val ACTION_PREVIOUS = "com.rabbithole.musicbbit.action.PREVIOUS"

@@ -1,5 +1,6 @@
 package com.rabbithole.musicbbit.presentation.alarm
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,11 +29,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -48,6 +52,8 @@ fun AlarmListScreen(
     viewModel: AlarmListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isIgnoringBatteryOptimizations by viewModel.isIgnoringBatteryOptimizations.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -67,7 +73,7 @@ fun AlarmListScreen(
             FloatingActionButton(
                 onClick = {
                     viewModel.onAction(AlarmListAction.OnCreateAlarm)
-                    navController.navigate(AlarmEdit)
+                    navController.navigate(AlarmEdit())
                 }
             ) {
                 Icon(
@@ -88,24 +94,78 @@ fun AlarmListScreen(
                 }
 
                 is AlarmListUiState.Success -> {
-                    if (state.alarms.isEmpty()) {
-                        EmptyContent()
-                    } else {
-                        AlarmListContent(
-                            alarms = state.alarms,
-                            onAlarmClick = { alarmId ->
-                                viewModel.onAction(AlarmListAction.OnAlarmClick(alarmId))
-                                navController.navigate(AlarmEdit(alarmId = alarmId))
-                            },
-                            onToggleEnabled = { alarmId, enabled ->
-                                viewModel.onAction(AlarmListAction.OnToggleEnabled(alarmId, enabled))
-                            },
-                            onDeleteAlarm = { alarm ->
-                                viewModel.onAction(AlarmListAction.OnDeleteAlarm(alarm))
-                            }
-                        )
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        if (!isIgnoringBatteryOptimizations) {
+                            BatteryOptimizationBanner(
+                                onClick = {
+                                    val intent = viewModel.createBatteryOptimizationIntent()
+                                    if (intent.resolveActivity(context.packageManager) != null) {
+                                        context.startActivity(intent)
+                                    }
+                                }
+                            )
+                        }
+                        if (state.alarms.isEmpty()) {
+                            EmptyContent()
+                        } else {
+                            AlarmListContent(
+                                alarms = state.alarms,
+                                onAlarmClick = { alarmId ->
+                                    viewModel.onAction(AlarmListAction.OnAlarmClick(alarmId))
+                                    navController.navigate(AlarmEdit(alarmId = alarmId))
+                                },
+                                onToggleEnabled = { alarmId, enabled ->
+                                    viewModel.onAction(AlarmListAction.OnToggleEnabled(alarmId, enabled))
+                                },
+                                onDeleteAlarm = { alarm ->
+                                    viewModel.onAction(AlarmListAction.OnDeleteAlarm(alarm))
+                                }
+                            )
+                        }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BatteryOptimizationBanner(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "电池优化限制",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "为了确保闹钟在熄屏时正常响起，建议将音乐兔加入电池优化白名单",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                )
+            }
+            TextButton(onClick = onClick) {
+                Text("去设置")
             }
         }
     }

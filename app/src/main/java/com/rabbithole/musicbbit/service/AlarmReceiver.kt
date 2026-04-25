@@ -5,17 +5,11 @@ import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
-import com.rabbithole.musicbbit.data.model.AlarmEntity
-import com.rabbithole.musicbbit.domain.model.PlaybackProgress
-import com.rabbithole.musicbbit.domain.model.Song
-import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
-import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -39,12 +33,6 @@ class AlarmReceiver : BroadcastReceiver() {
     lateinit var alarmDao: AlarmDao
 
     @Inject
-    lateinit var playlistRepository: PlaylistRepository
-
-    @Inject
-    lateinit var playbackProgressRepository: PlaybackProgressRepository
-
-    @Inject
     lateinit var alarmScheduler: AlarmScheduler
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -64,6 +52,17 @@ class AlarmReceiver : BroadcastReceiver() {
 
                 Timber.i("Processing alarm id=$alarmId")
 
+                // Immediately start foreground service with just the alarm ID.
+                // The service will acquire its own wake lock and load the playlist.
+                val serviceIntent = MusicPlaybackService.createIntent(context).apply {
+                    action = MusicPlaybackService.ACTION_PLAY_ALARM
+                    putExtra(MusicPlaybackService.EXTRA_ALARM_ID, alarmId)
+                    putExtra(MusicPlaybackService.EXTRA_IS_ALARM_TRIGGER, true)
+                }
+                context.startForegroundService(serviceIntent)
+                Timber.i("Started MusicPlaybackService for alarm id=$alarmId")
+
+                // Background tasks: validate alarm, update timestamp, reschedule
                 val alarm = alarmDao.getById(alarmId)
                 if (alarm == null) {
                     Timber.w("Alarm id=$alarmId not found in database")
@@ -75,30 +74,6 @@ class AlarmReceiver : BroadcastReceiver() {
                     return@launch
                 }
 
-                val playlistWithSongs =
-                    playlistRepository.getPlaylistWithSongs(alarm.playlistId).first()
-
-                if (playlistWithSongs == null || playlistWithSongs.songs.isEmpty()) {
-                    Timber.w("Playlist id=${alarm.playlistId} is empty or not found for alarm id=$alarmId")
-                    AlarmNotificationHelper.showErrorNotification(
-                        context,
-                        alarmId.toInt(),
-                        alarm.label ?: "Music Alarm",
-                        "Playlist is empty"
-                    )
-                    return@launch
-                }
-
-                val songs = playlistWithSongs.songs
-                val startIndex = resolveStartIndex(songs, alarm)
-                val startSong = songs[startIndex]
-
-                // Reset playback progress for the starting song to beginning
-                resetPlaybackProgress(startSong, alarm)
-
-                // Start the playback service
-                startPlaybackService(context, alarm, songs, startIndex)
-
                 // Update last triggered timestamp
                 val updatedAlarm = alarm.copy(lastTriggeredAt = System.currentTimeMillis())
                 alarmDao.update(updatedAlarm)
@@ -109,10 +84,6 @@ class AlarmReceiver : BroadcastReceiver() {
                     Timber.i("Rescheduling repeating alarm id=$alarmId")
                     alarmScheduler.schedule(updatedAlarm)
                 }
-
-                // Show alarm notification
-                AlarmNotificationHelper.show(context, alarm, startSong)
-                Timber.i("Alarm notification shown for alarm id=$alarmId, song=${startSong.title}")
             } catch (e: Exception) {
                 Timber.e(e, "AlarmReceiver processing failed")
             } finally {
@@ -128,7 +99,7 @@ class AlarmReceiver : BroadcastReceiver() {
     }
 
     /**
-     * Acquire a partial wake lock with a 10-second timeout.
+     * Acquire a partial wake lock with a 60-second timeout.
      *
      * @param context The context to use.
      * @return The acquired wake lock, or null if acquisition failed.
@@ -147,80 +118,8 @@ class AlarmReceiver : BroadcastReceiver() {
         }
     }
 
-    /**
-     * Resolve the starting song index based on saved playback progress.
-     *
-     * If progress exists for the playlist, the song with the most recent update
-     * is selected. Otherwise, playback starts from the first song.
-     *
-     * @param songs The list of songs in the playlist.
-     * @param alarm The triggered alarm entity.
-     * @return The index of the song to start playback from.
-     */
-    private suspend fun resolveStartIndex(songs: List<Song>, alarm: AlarmEntity): Int {
-        val progressList =
-            playbackProgressRepository.getProgressForPlaylist(alarm.playlistId).getOrNull()
-
-        return if (!progressList.isNullOrEmpty()) {
-            val latestProgress = progressList.maxByOrNull { it.updatedAt }
-            val index = latestProgress?.let { progress ->
-                songs.indexOfFirst { it.id == progress.songId }
-            } ?: 0
-            index.coerceIn(0, songs.lastIndex)
-        } else {
-            0
-        }
-    }
-
-    /**
-     * Reset playback progress for the starting song to the beginning.
-     *
-     * @param startSong The song that will be played first.
-     * @param alarm The triggered alarm entity.
-     */
-    private suspend fun resetPlaybackProgress(startSong: Song, alarm: AlarmEntity) {
-        val progress = PlaybackProgress(
-            songId = startSong.id,
-            positionMs = 0,
-            updatedAt = System.currentTimeMillis(),
-            playlistId = alarm.playlistId
-        )
-        playbackProgressRepository.saveProgress(progress).onSuccess {
-            Timber.d("Reset progress for song id=${startSong.id}")
-        }.onFailure { error ->
-            Timber.e(error, "Failed to reset progress for song id=${startSong.id}")
-        }
-    }
-
-    /**
-     * Start [MusicPlaybackService] as a foreground service with the alarm playback intent.
-     *
-     * @param context The context to use.
-     * @param alarm The triggered alarm entity.
-     * @param songs The list of songs to play.
-     * @param startIndex The index of the song to start from.
-     */
-    private fun startPlaybackService(
-        context: Context,
-        alarm: AlarmEntity,
-        songs: List<Song>,
-        startIndex: Int
-    ) {
-        val serviceIntent = MusicPlaybackService.createIntent(context).apply {
-            action = MusicPlaybackService.ACTION_PLAY_ALARM
-            putParcelableArrayListExtra(MusicPlaybackService.EXTRA_SONGS, ArrayList(songs))
-            putExtra(MusicPlaybackService.EXTRA_START_INDEX, startIndex)
-            putExtra(MusicPlaybackService.EXTRA_PLAYLIST_ID, alarm.playlistId)
-            putExtra(MusicPlaybackService.EXTRA_AUTO_STOP_MINUTES, alarm.autoStopMinutes ?: 0)
-            putExtra(MusicPlaybackService.EXTRA_ALARM_ID, alarm.id)
-            putExtra(MusicPlaybackService.EXTRA_IS_ALARM_TRIGGER, true)
-        }
-        context.startForegroundService(serviceIntent)
-        Timber.i("Started MusicPlaybackService for alarm id=${alarm.id}, startIndex=$startIndex")
-    }
-
     companion object {
         private const val WAKE_LOCK_TAG = "RH-Musicbbit::AlarmWakeLock"
-        private const val WAKE_LOCK_TIMEOUT_MS = 10_000L
+        private const val WAKE_LOCK_TIMEOUT_MS = 60_000L
     }
 }
