@@ -150,33 +150,7 @@ class AlarmReceiverTest {
     }
 
     @Test
-    fun `onReceive with snooze - skips update and reschedule`() {
-        val context = RuntimeEnvironment.getApplication()
-        val alarmId = 4L
-        val intent = Intent(context, AlarmReceiver::class.java).apply {
-            putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
-            putExtra(AlarmScheduler.EXTRA_IS_SNOOZE, true)
-        }
-
-        val alarmDao = FakeAlarmDao()
-        alarmDao.add(createAlarmEntity(id = alarmId, repeatDaysBitmask = 0b1111111))
-        val alarmScheduler: AlarmScheduler = mockk(relaxed = true)
-
-        val receiver = AlarmReceiver()
-        injectMocks(receiver, alarmDao, alarmScheduler)
-        receiver.onReceive(context, intent)
-
-        Thread.sleep(300)
-
-        val shadowApp = shadowOf(context)
-        val startedService = shadowApp.peekNextStartedService()
-        assertNotNull("Expected service to be started for snooze", startedService)
-
-        assertEquals(0, alarmDao.updateCount)
-    }
-
-    @Test
-    fun `onReceive with non-repeating alarm - does not reschedule`() {
+    fun `onReceive with one-time alarm sets isEnabled to false`() {
         val context = RuntimeEnvironment.getApplication()
         val alarmId = 5L
         val intent = Intent(context, AlarmReceiver::class.java).apply {
@@ -184,7 +158,7 @@ class AlarmReceiverTest {
         }
 
         val alarmDao = FakeAlarmDao()
-        alarmDao.add(createAlarmEntity(id = alarmId, repeatDaysBitmask = 0))
+        alarmDao.add(createAlarmEntity(id = alarmId, repeatDaysBitmask = 0, isEnabled = true))
         val alarmScheduler: AlarmScheduler = mockk(relaxed = true)
 
         val receiver = AlarmReceiver()
@@ -195,9 +169,40 @@ class AlarmReceiverTest {
 
         val shadowApp = shadowOf(context)
         val startedService = shadowApp.peekNextStartedService()
-        assertNotNull("Expected service to be started for non-repeating alarm", startedService)
+        assertNotNull("Expected service to be started for one-time alarm", startedService)
 
         assertEquals(1, alarmDao.updateCount)
+        val updated = alarmDao.peek(alarmId)
+        assertNotNull("Expected updated alarm to exist", updated)
+        assertEquals("One-time alarm should be disabled after trigger", false, updated!!.isEnabled)
+    }
+
+    @Test
+    fun `onReceive with repeating alarm keeps isEnabled true and reschedules`() {
+        val context = RuntimeEnvironment.getApplication()
+        val alarmId = 8L
+        val intent = Intent(context, AlarmReceiver::class.java).apply {
+            putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
+        }
+
+        val alarmDao = FakeAlarmDao()
+        alarmDao.add(createAlarmEntity(id = alarmId, repeatDaysBitmask = 0b1111111, isEnabled = true))
+        val alarmScheduler: AlarmScheduler = mockk(relaxed = true)
+
+        val receiver = AlarmReceiver()
+        injectMocks(receiver, alarmDao, alarmScheduler)
+        receiver.onReceive(context, intent)
+
+        Thread.sleep(300)
+
+        val shadowApp = shadowOf(context)
+        val startedService = shadowApp.peekNextStartedService()
+        assertNotNull("Expected service to be started for repeating alarm", startedService)
+
+        assertEquals(1, alarmDao.updateCount)
+        val updated = alarmDao.peek(alarmId)
+        assertNotNull(updated)
+        assertEquals("Repeating alarm should remain enabled", true, updated!!.isEnabled)
     }
 
     @Test
@@ -309,6 +314,8 @@ class AlarmReceiverTest {
         fun add(entity: AlarmEntity) {
             data[entity.id] = entity
         }
+
+        fun peek(id: Long): AlarmEntity? = data[id]
 
         override suspend fun getById(id: Long): AlarmEntity? {
             exceptionOnGetById?.let { throw it }

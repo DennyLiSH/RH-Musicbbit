@@ -205,66 +205,8 @@ class AlarmScheduler @Inject constructor(
         )
     }
 
-    /**
-     * Schedule a snooze alarm that triggers after [minutes] minutes.
-     *
-     * The snooze uses a separate request code offset to avoid colliding
-     * with the original alarm's PendingIntent.
-     *
-     * @param alarmId The original alarm ID.
-     * @param minutes Minutes from now to trigger the snooze.
-     */
-    fun scheduleSnooze(alarmId: Long, minutes: Int) {
-        val triggerTime = System.currentTimeMillis() + minutes * 60 * 1000L
-        val pendingIntent = createSnoozePendingIntent(alarmId)
-
-        Timber.i("Scheduling snooze for alarm id=$alarmId in $minutes minutes (triggerTime=$triggerTime)")
-
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            triggerTime,
-            pendingIntent
-        )
-    }
-
-    /**
-     * Cancel a previously scheduled snooze for the given alarm.
-     *
-     * @param alarmId The original alarm ID.
-     */
-    fun cancelSnooze(alarmId: Long) {
-        Timber.i("Cancelling snooze for alarm id=$alarmId")
-        val pendingIntent = createSnoozePendingIntent(alarmId)
-        alarmManager.cancel(pendingIntent)
-    }
-
-    /**
-     * Create a [PendingIntent] for a snooze trigger.
-     *
-     * Uses a large request code offset to avoid collision with the original alarm.
-     *
-     * @param alarmId The original alarm ID.
-     * @return A PendingIntent targeting [AlarmReceiver] with the snooze flag set.
-     */
-    private fun createSnoozePendingIntent(alarmId: Long): PendingIntent {
-        val intent = Intent(context, AlarmReceiver::class.java).apply {
-            putExtra(EXTRA_ALARM_ID, alarmId)
-            putExtra(EXTRA_IS_SNOOZE, true)
-        }
-        val requestCode = alarmId.toInt() + SNOOZE_REQUEST_CODE_OFFSET
-        return PendingIntent.getBroadcast(
-            context,
-            requestCode,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-    }
-
     companion object {
         const val EXTRA_ALARM_ID = "alarm_id"
-        const val EXTRA_IS_SNOOZE = "is_snooze"
-
-        private const val SNOOZE_REQUEST_CODE_OFFSET = 1_000_000
 
         /**
          * Calculate the next trigger time in milliseconds for an alarm.

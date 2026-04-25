@@ -7,7 +7,6 @@ import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
 import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.service.AlarmActionReceiver
-import com.rabbithole.musicbbit.service.AlarmScheduler
 import com.rabbithole.musicbbit.service.MusicPlaybackService
 import com.rabbithole.musicbbit.service.MusicPlayerStateHolder
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
@@ -40,12 +39,11 @@ data class AlarmRingUiState(
  * ViewModel for the alarm ring activity.
  *
  * Observes playback state from [MusicPlayerStateHolder] and provides
- * actions to pause, resume, stop, or snooze the alarm.
+ * actions to pause, resume, or stop the alarm.
  */
 @HiltViewModel
 class AlarmRingViewModel @Inject constructor(
     private val stateHolder: MusicPlayerStateHolder,
-    private val alarmScheduler: AlarmScheduler,
     private val alarmDao: AlarmDao,
     private val alarmRingSettingsRepository: AlarmRingSettingsRepository
 ) : ViewModel() {
@@ -129,24 +127,6 @@ class AlarmRingViewModel @Inject constructor(
             action = AlarmActionReceiver.ACTION_SERVICE_STOP
         }
         context.startService(intent)
-    }
-
-    /**
-     * Snooze the alarm by 5 minutes.
-     *
-     * Stops current playback and schedules a snooze via [AlarmScheduler].
-     */
-    fun snooze(context: Context, alarmId: Long) {
-        Timber.i("AlarmRing: snoozing alarmId=$alarmId for 5 minutes")
-
-        // Stop current playback
-        val stopIntent = MusicPlaybackService.createIntent(context).apply {
-            action = AlarmActionReceiver.ACTION_SERVICE_STOP
-        }
-        context.startService(stopIntent)
-
-        alarmScheduler.scheduleSnooze(alarmId, 5)
-        Timber.i("Snoozed alarm $alarmId via AlarmManager")
     }
 
     override fun onCleared() {

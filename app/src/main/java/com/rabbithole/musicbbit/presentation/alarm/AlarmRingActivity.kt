@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Snooze
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -56,7 +55,6 @@ import java.time.format.DateTimeFormatter
  * Shows over the lock screen with large buttons for:
  * - Pause / Resume playback
  * - Stop the alarm completely
- * - Snooze (delay by 5 minutes)
  */
 @AndroidEntryPoint
 class AlarmRingActivity : ComponentActivity() {
@@ -228,21 +226,6 @@ private fun AlarmRingScreen(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Snooze button
-            AlarmControlButton(
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.Snooze,
-                        contentDescription = stringResource(R.string.snooze),
-                        modifier = Modifier.size(32.dp)
-                    )
-                },
-                label = stringResource(R.string.snooze_5_min),
-                onClick = { viewModel.snooze(context = context, alarmId = alarmId) },
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-
             // Pause / Resume button
             AlarmControlButton(
                 icon = {

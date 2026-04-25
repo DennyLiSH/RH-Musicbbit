@@ -27,9 +27,8 @@
     <string name="exact_alarm_permission_title">Exact Alarm Permission Required</string>
     <string name="exact_alarm_permission_message">To ensure the alarm rings at the exact time, please allow this app to use exact alarms.</string>
     <string name="now_playing">Now playing…</string>
-    <string name="snooze">Snooze</string>
-    <string name="snooze_5_min">Snooze 5 min</string>
     <string name="pause">Pause</string>
+    <string name="resume">Resume</string>    <string name="pause">Pause</string>
     <string name="resume">Resume</string>
     <string name="stop">Stop</string>
     <string name="notification_channel_name">Music Alarm</string>

@@ -89,19 +89,19 @@ class AlarmEndToEndTest {
     }
 
     @Test
-    fun `snooze trigger starts service and skips update`() {
+    fun `one-time alarm trigger disables alarm and starts service`() {
         val context = RuntimeEnvironment.getApplication()
         val alarmId = 3L
         val intent = Intent(context, AlarmReceiver::class.java).apply {
             putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
-            putExtra(AlarmScheduler.EXTRA_IS_SNOOZE, true)
         }
 
         val alarmDao = FakeAlarmDao()
         alarmDao.add(
             createAlarmEntity(
                 id = alarmId,
-                repeatDaysBitmask = 0b1111111
+                repeatDaysBitmask = 0,
+                isEnabled = true
             )
         )
         val alarmScheduler: AlarmScheduler = mockk(relaxed = true)
@@ -114,9 +114,12 @@ class AlarmEndToEndTest {
 
         val shadowApp = shadowOf(context)
         val startedService = shadowApp.peekNextStartedService()
-        assertNotNull("Expected service to be started for snooze", startedService)
+        assertNotNull("Expected service to be started for one-time alarm", startedService)
 
-        assertEquals(0, alarmDao.updateCount)
+        assertEquals(1, alarmDao.updateCount)
+        val updated = alarmDao.getById(alarmId)
+        assertNotNull(updated)
+        assertEquals(false, updated!!.isEnabled)
     }
 
     // ------------------------------------------------------------------
