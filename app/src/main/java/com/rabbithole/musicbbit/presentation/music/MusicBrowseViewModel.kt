@@ -7,6 +7,7 @@ import com.rabbithole.musicbbit.domain.usecase.GetScanDirectoriesUseCase
 import com.rabbithole.musicbbit.domain.usecase.GetSongsUseCase
 import com.rabbithole.musicbbit.domain.usecase.SearchSongsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,7 +37,7 @@ sealed interface MusicBrowseAction {
     data class OnSongClick(val song: Song) : MusicBrowseAction
 }
 
-@OptIn(FlowPreview::class)
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MusicBrowseViewModel @Inject constructor(
     private val getSongsUseCase: GetSongsUseCase,

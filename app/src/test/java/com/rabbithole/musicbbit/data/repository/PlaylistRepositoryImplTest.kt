@@ -7,6 +7,7 @@ import com.rabbithole.musicbbit.data.local.dao.SongDao
 import com.rabbithole.musicbbit.data.model.PlaylistEntity
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
 import com.rabbithole.musicbbit.data.model.SongEntity
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -88,8 +89,8 @@ class PlaylistRepositoryImplTest {
 
         every { playlistDao.getAll() } returns flowOf(listOf(playlist))
         every { playlistSongDao.getByPlaylistId(1L) } returns flowOf(playlistSongs)
-        every { songDao.getById(10L) } returns song1
-        every { songDao.getById(20L) } returns song2
+        coEvery { songDao.getById(10L) } returns song1
+        coEvery { songDao.getById(20L) } returns song2
 
         repository.getPlaylistWithSongs(1L).test {
             val result = awaitItem()
@@ -153,8 +154,8 @@ class PlaylistRepositoryImplTest {
 
         every { playlistDao.getAll() } returns flowOf(listOf(playlist))
         every { playlistSongDao.getByPlaylistId(3L) } returns flowOf(playlistSongs)
-        every { songDao.getById(30L) } returns existingSong
-        every { songDao.getById(40L) } returns null
+        coEvery { songDao.getById(30L) } returns existingSong
+        coEvery { songDao.getById(40L) } returns null
 
         repository.getPlaylistWithSongs(3L).test {
             val result = awaitItem()

@@ -16,7 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PlaylistPlay
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -144,7 +144,7 @@ private fun EmptyContent() {
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            imageVector = Icons.Default.PlaylistPlay,
+            imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
             contentDescription = null,
             modifier = Modifier
                 .height(64.dp)
@@ -210,7 +210,7 @@ private fun PlaylistCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Default.PlaylistPlay,
+                imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary
             )
