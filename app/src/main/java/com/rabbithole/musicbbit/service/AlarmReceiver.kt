@@ -45,12 +45,17 @@ class AlarmReceiver : BroadcastReceiver() {
         scope.launch {
             try {
                 val alarmId = intent.getLongExtra(AlarmScheduler.EXTRA_ALARM_ID, -1L)
+                val isSnooze = intent.getBooleanExtra(AlarmScheduler.EXTRA_IS_SNOOZE, false)
                 if (alarmId == -1L) {
                     Timber.e("AlarmReceiver received invalid alarmId")
                     return@launch
                 }
 
-                Timber.i("Processing alarm id=$alarmId")
+                if (isSnooze) {
+                    Timber.i("Processing snooze for alarm id=$alarmId")
+                } else {
+                    Timber.i("Processing alarm id=$alarmId")
+                }
 
                 // Immediately start foreground service with just the alarm ID.
                 // The service will acquire its own wake lock and load the playlist.
@@ -60,7 +65,11 @@ class AlarmReceiver : BroadcastReceiver() {
                     putExtra(MusicPlaybackService.EXTRA_IS_ALARM_TRIGGER, true)
                 }
                 context.startForegroundService(serviceIntent)
-                Timber.i("Started MusicPlaybackService for alarm id=$alarmId")
+                if (isSnooze) {
+                    Timber.i("Started MusicPlaybackService for snooze id=$alarmId")
+                } else {
+                    Timber.i("Started MusicPlaybackService for alarm id=$alarmId")
+                }
 
                 // Background tasks: validate alarm, update timestamp, reschedule
                 val alarm = alarmDao.getById(alarmId)
@@ -71,6 +80,12 @@ class AlarmReceiver : BroadcastReceiver() {
 
                 if (!alarm.isEnabled) {
                     Timber.d("Alarm id=$alarmId is disabled, ignoring trigger")
+                    return@launch
+                }
+
+                // Snooze is a temporary one-time trigger: skip timestamp update and reschedule
+                if (isSnooze) {
+                    Timber.d("Skipping timestamp update and reschedule for snooze id=$alarmId")
                     return@launch
                 }
 

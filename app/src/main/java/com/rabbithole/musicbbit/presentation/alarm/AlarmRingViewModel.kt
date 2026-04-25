@@ -134,7 +134,7 @@ class AlarmRingViewModel @Inject constructor(
     /**
      * Snooze the alarm by 5 minutes.
      *
-     * Stops current playback and reschedules the alarm to trigger after 5 minutes.
+     * Stops current playback and schedules a snooze via [AlarmScheduler].
      */
     fun snooze(context: Context, alarmId: Long) {
         Timber.i("AlarmRing: snoozing alarmId=$alarmId for 5 minutes")
@@ -145,29 +145,8 @@ class AlarmRingViewModel @Inject constructor(
         }
         context.startService(stopIntent)
 
-        viewModelScope.launch {
-            val alarm = alarmDao.getById(alarmId)
-            if (alarm == null) {
-                Timber.w("Cannot snooze: alarm $alarmId not found")
-                return@launch
-            }
-
-            // Schedule a one-time snooze alarm 5 minutes from now
-            val snoozeTime = System.currentTimeMillis() + 5 * 60 * 1000
-            val snoozeAlarm = AlarmEntity(
-                id = 0, // New ID to avoid overwriting the original alarm's schedule
-                hour = alarm.hour,
-                minute = alarm.minute,
-                repeatDaysBitmask = 0, // One-time for snooze
-                playlistId = alarm.playlistId,
-                isEnabled = true,
-                label = alarm.label,
-                autoStopMinutes = alarm.autoStopMinutes,
-                lastTriggeredAt = null
-            )
-            alarmScheduler.schedule(snoozeAlarm)
-            Timber.i("Snoozed alarm $alarmId to trigger at $snoozeTime")
-        }
+        alarmScheduler.scheduleSnooze(alarmId, 5)
+        Timber.i("Snoozed alarm $alarmId via AlarmManager")
     }
 
     override fun onCleared() {

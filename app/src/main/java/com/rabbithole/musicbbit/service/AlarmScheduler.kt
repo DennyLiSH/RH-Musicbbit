@@ -8,7 +8,9 @@ import android.os.Build
 import com.rabbithole.musicbbit.data.model.AlarmEntity
 import timber.log.Timber
 import java.util.Calendar
+import com.rabbithole.musicbbit.domain.usecase.IsWorkdayUseCase
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,7 +22,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class AlarmScheduler @Inject constructor(
-    @param:ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context,
+    private val isWorkdayUseCase: IsWorkdayUseCase
 ) {
 
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -41,17 +44,18 @@ class AlarmScheduler @Inject constructor(
      * Schedule a single alarm with the system [AlarmManager].
      *
      * If the alarm is disabled, it will be cancelled instead.
+     * Considers Chinese holidays and adjusted workdays when calculating the next trigger time.
      *
      * @param alarm The alarm entity to schedule.
      */
-    fun schedule(alarm: AlarmEntity) {
+    suspend fun schedule(alarm: AlarmEntity) {
         if (!alarm.isEnabled) {
             Timber.d("Alarm ${alarm.id} is disabled, cancelling instead of scheduling")
             cancel(alarm.id)
             return
         }
 
-        val triggerTime = calculateNextTriggerTime(
+        val triggerTime = calculateNextTriggerTimeWithHolidays(
             alarm.hour,
             alarm.minute,
             alarm.repeatDaysBitmask
@@ -90,7 +94,7 @@ class AlarmScheduler @Inject constructor(
      *
      * @param enabledAlarms List of currently enabled alarm entities.
      */
-    fun rescheduleAll(enabledAlarms: List<AlarmEntity>) {
+    suspend fun rescheduleAll(enabledAlarms: List<AlarmEntity>) {
         Timber.i("Rescheduling all ${enabledAlarms.size} enabled alarms")
 
         // Cancel all first to avoid duplicate PendingIntents
@@ -98,6 +102,89 @@ class AlarmScheduler @Inject constructor(
 
         // Re-schedule each enabled alarm
         enabledAlarms.forEach { schedule(it) }
+    }
+
+    /**
+     * Calculate the next trigger time considering Chinese holidays and adjusted workdays.
+     *
+     * For one-time alarms: finds the next occurrence that is a workday.
+     * For repeating alarms: finds the next matching day that is also a workday.
+     * If a matching day is a statutory holiday, it is skipped.
+     * If a non-matching day is an adjusted workday, it is included.
+     *
+     * @param hour Hour of day in 24-hour format.
+     * @param minute Minute of hour.
+     * @param repeatDaysBitmask Bitmask of repeating days. 0 means one-time.
+     * @return Unix timestamp (ms) of the next trigger time.
+     */
+    private suspend fun calculateNextTriggerTimeWithHolidays(
+        hour: Int,
+        minute: Int,
+        repeatDaysBitmask: Int
+    ): Long {
+        val now = Calendar.getInstance()
+        val candidate = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, minute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        // For one-time alarms, ensure candidate is in the future
+        if (repeatDaysBitmask == 0 && candidate.before(now)) {
+            candidate.add(Calendar.DAY_OF_MONTH, 1)
+        }
+
+        // Find the next valid trigger date
+        while (true) {
+            val dateStr = String.format(
+                "%04d-%02d-%02d",
+                candidate.get(Calendar.YEAR),
+                candidate.get(Calendar.MONTH) + 1,
+                candidate.get(Calendar.DAY_OF_MONTH)
+            )
+            val isWorkday = isWorkdayUseCase(
+                java.time.LocalDate.parse(dateStr)
+            )
+            val dayMatches = isDayMatchingBitmask(candidate, repeatDaysBitmask)
+                || repeatDaysBitmask == 0
+
+            if (candidate.before(now)) {
+                // Time already passed, move to next day
+                candidate.add(Calendar.DAY_OF_MONTH, 1)
+                continue
+            }
+
+            if (repeatDaysBitmask == 0) {
+                // One-time alarm: any workday is fine
+                if (isWorkday) {
+                    return candidate.timeInMillis
+                }
+            } else {
+                // Repeating alarm:
+                // - If the day matches the repeat pattern AND is a workday -> trigger
+                // - If the day does NOT match but is an adjusted workday -> trigger
+                if (dayMatches && isWorkday) {
+                    return candidate.timeInMillis
+                }
+                if (!dayMatches && isWorkday) {
+                    // Check if this is an adjusted workday (Saturday/Sunday that is workday)
+                    val dayOfWeek = candidate.get(Calendar.DAY_OF_WEEK)
+                    if (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY) {
+                        return candidate.timeInMillis
+                    }
+                }
+            }
+
+            candidate.add(Calendar.DAY_OF_MONTH, 1)
+
+            // Safety limit: don't search more than 2 years ahead
+            val maxSearchDays = 730
+            if (candidate.get(Calendar.YEAR) > now.get(Calendar.YEAR) + 1) {
+                Timber.w("Could not find valid workday within $maxSearchDays days, falling back to basic calculation")
+                return calculateNextTriggerTime(hour, minute, repeatDaysBitmask, now)
+            }
+        }
     }
 
     /**
@@ -118,8 +205,66 @@ class AlarmScheduler @Inject constructor(
         )
     }
 
+    /**
+     * Schedule a snooze alarm that triggers after [minutes] minutes.
+     *
+     * The snooze uses a separate request code offset to avoid colliding
+     * with the original alarm's PendingIntent.
+     *
+     * @param alarmId The original alarm ID.
+     * @param minutes Minutes from now to trigger the snooze.
+     */
+    fun scheduleSnooze(alarmId: Long, minutes: Int) {
+        val triggerTime = System.currentTimeMillis() + minutes * 60 * 1000L
+        val pendingIntent = createSnoozePendingIntent(alarmId)
+
+        Timber.i("Scheduling snooze for alarm id=$alarmId in $minutes minutes (triggerTime=$triggerTime)")
+
+        alarmManager.setExactAndAllowWhileIdle(
+            AlarmManager.RTC_WAKEUP,
+            triggerTime,
+            pendingIntent
+        )
+    }
+
+    /**
+     * Cancel a previously scheduled snooze for the given alarm.
+     *
+     * @param alarmId The original alarm ID.
+     */
+    fun cancelSnooze(alarmId: Long) {
+        Timber.i("Cancelling snooze for alarm id=$alarmId")
+        val pendingIntent = createSnoozePendingIntent(alarmId)
+        alarmManager.cancel(pendingIntent)
+    }
+
+    /**
+     * Create a [PendingIntent] for a snooze trigger.
+     *
+     * Uses a large request code offset to avoid collision with the original alarm.
+     *
+     * @param alarmId The original alarm ID.
+     * @return A PendingIntent targeting [AlarmReceiver] with the snooze flag set.
+     */
+    private fun createSnoozePendingIntent(alarmId: Long): PendingIntent {
+        val intent = Intent(context, AlarmReceiver::class.java).apply {
+            putExtra(EXTRA_ALARM_ID, alarmId)
+            putExtra(EXTRA_IS_SNOOZE, true)
+        }
+        val requestCode = alarmId.toInt() + SNOOZE_REQUEST_CODE_OFFSET
+        return PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
     companion object {
         const val EXTRA_ALARM_ID = "alarm_id"
+        const val EXTRA_IS_SNOOZE = "is_snooze"
+
+        private const val SNOOZE_REQUEST_CODE_OFFSET = 1_000_000
 
         /**
          * Calculate the next trigger time in milliseconds for an alarm.
