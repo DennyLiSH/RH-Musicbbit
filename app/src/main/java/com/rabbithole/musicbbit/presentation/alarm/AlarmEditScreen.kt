@@ -24,7 +24,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -48,6 +49,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.navigation.NavController
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.presentation.alarm.components.DayOfWeekSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.PlaylistSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.TimePickerDialog
@@ -160,8 +162,8 @@ fun AlarmEditScreen(
             onDismissRequest = {
                 viewModel.onAction(AlarmEditAction.OnPermissionDialogDismissed)
             },
-            title = { Text("需要精确闹钟权限") },
-            text = { Text("为了确保闹钟能在设定时间准时响铃，请允许本应用使用精确闹钟功能。") },
+            title = { Text(stringResource(R.string.exact_alarm_permission_title)) },
+            text = { Text(stringResource(R.string.exact_alarm_permission_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -172,7 +174,7 @@ fun AlarmEditScreen(
                         viewModel.onAction(AlarmEditAction.OnPermissionDialogDismissed)
                     }
                 ) {
-                    Text("去设置")
+                    Text(stringResource(R.string.go_to_settings))
                 }
             },
             dismissButton = {
@@ -181,7 +183,7 @@ fun AlarmEditScreen(
                         viewModel.onAction(AlarmEditAction.OnPermissionDialogDismissed)
                     }
                 ) {
-                    Text("取消")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -369,7 +371,7 @@ private fun AutoStopDropdown(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
         )
 
         ExposedDropdownMenu(

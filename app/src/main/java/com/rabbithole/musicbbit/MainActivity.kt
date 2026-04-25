@@ -16,6 +16,7 @@ import com.rabbithole.musicbbit.domain.model.ThemeMode
 import com.rabbithole.musicbbit.navigation.AppNavigation
 import com.rabbithole.musicbbit.presentation.settings.ThemeViewModel
 import com.rabbithole.musicbbit.ui.theme.音乐兔Theme
+import com.rabbithole.musicbbit.R
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 
@@ -53,7 +54,7 @@ class MainActivity : ComponentActivity() {
                 Timber.w("Full screen intent permission not granted on API 34+")
                 Toast.makeText(
                     this,
-                    "请在应用通知设置中开启\"全屏通知\"权限，以确保闹钟正常显示",
+                    getString(R.string.fullscreen_notification_permission_toast),
                     Toast.LENGTH_LONG
                 ).show()
             }

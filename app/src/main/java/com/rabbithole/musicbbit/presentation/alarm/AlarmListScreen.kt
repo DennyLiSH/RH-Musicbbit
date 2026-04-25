@@ -36,11 +36,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import java.time.DayOfWeek
@@ -58,7 +60,7 @@ fun AlarmListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("闹钟") },
+                title = { Text(stringResource(R.string.alarm_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(
@@ -153,19 +155,19 @@ private fun BatteryOptimizationBanner(onClick: () -> Unit) {
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "电池优化限制",
+                    text = stringResource(R.string.battery_optimization_title),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "为了确保闹钟在熄屏时正常响起，建议将音乐兔加入电池优化白名单",
+                    text = stringResource(R.string.battery_optimization_message),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                 )
             }
             TextButton(onClick = onClick) {
-                Text("去设置")
+                Text(stringResource(R.string.go_to_settings))
             }
         }
     }
@@ -199,13 +201,13 @@ private fun EmptyContent() {
             tint = MaterialTheme.colorScheme.primary
         )
         Text(
-            text = "还没有闹钟",
+            text = stringResource(R.string.alarm_empty_title),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "点击 + 按钮创建",
+            text = stringResource(R.string.alarm_empty_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -275,7 +277,7 @@ private fun AlarmListItem(
             // Center: label + repeat rule + playlist name
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = alarm.label ?: "闹钟",
+                    text = alarm.label ?: stringResource(R.string.alarm_default_label),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -306,27 +308,33 @@ private fun formatTime(hour: Int, minute: Int): String {
 /**
  * Formats a set of [DayOfWeek] into a human-readable repeat description.
  */
+@Composable
 private fun formatRepeatDays(days: Set<DayOfWeek>): String {
     return when {
-        days.isEmpty() -> "一次性"
-        days.size == 7 -> "每天"
+        days.isEmpty() -> stringResource(R.string.alarm_one_time)
+        days.size == 7 -> stringResource(R.string.alarm_daily)
         days == setOf(
             DayOfWeek.MONDAY,
             DayOfWeek.TUESDAY,
             DayOfWeek.WEDNESDAY,
             DayOfWeek.THURSDAY,
             DayOfWeek.FRIDAY
-        ) -> "工作日"
-        else -> days.sortedBy { it.value }.joinToString(", ") {
-            when (it) {
-                DayOfWeek.MONDAY -> "周一"
-                DayOfWeek.TUESDAY -> "周二"
-                DayOfWeek.WEDNESDAY -> "周三"
-                DayOfWeek.THURSDAY -> "周四"
-                DayOfWeek.FRIDAY -> "周五"
-                DayOfWeek.SATURDAY -> "周六"
-                DayOfWeek.SUNDAY -> "周日"
+        ) -> stringResource(R.string.alarm_weekdays)
+        else -> {
+            val labels = mutableListOf<String>()
+            days.sortedBy { it.value }.forEach { day ->
+                val label = when (day) {
+                    DayOfWeek.MONDAY -> stringResource(R.string.alarm_monday)
+                    DayOfWeek.TUESDAY -> stringResource(R.string.alarm_tuesday)
+                    DayOfWeek.WEDNESDAY -> stringResource(R.string.alarm_wednesday)
+                    DayOfWeek.THURSDAY -> stringResource(R.string.alarm_thursday)
+                    DayOfWeek.FRIDAY -> stringResource(R.string.alarm_friday)
+                    DayOfWeek.SATURDAY -> stringResource(R.string.alarm_saturday)
+                    DayOfWeek.SUNDAY -> stringResource(R.string.alarm_sunday)
+                }
+                labels.add(label)
             }
+            labels.joinToString(", ")
         }
     }
 }

@@ -10,6 +10,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.rabbithole.musicbbit.MainActivity
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.presentation.alarm.AlarmRingActivity
 import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.domain.model.Song
 import timber.log.Timber
@@ -23,7 +24,7 @@ import timber.log.Timber
 object AlarmNotificationHelper {
 
     private const val CHANNEL_ID = "alarm_channel"
-    private const val CHANNEL_NAME = "音乐闹钟"
+    private val CHANNEL_NAME_RES = R.string.notification_channel_name
 
     /**
      * Show the alarm notification with playback controls.
@@ -147,7 +148,7 @@ object AlarmNotificationHelper {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                CHANNEL_NAME,
+                context.getString(CHANNEL_NAME_RES),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Music alarm notifications"
@@ -184,11 +185,23 @@ object AlarmNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Full-screen intent for alarm ring activity
+        val fullScreenIntent = PendingIntent.getActivity(
+            context,
+            alarm.id.toInt(),
+            Intent(context, AlarmRingActivity::class.java).apply {
+                putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarm.id)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_small)
             .setContentTitle("⏰ ${alarm.label ?: "Music Alarm"}")
             .setContentText("Playing: ${song.title} - ${song.artist ?: "Unknown artist"}")
             .setContentIntent(contentIntent)
+            .setFullScreenIntent(fullScreenIntent, true)
             .setOngoing(true)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -217,24 +230,24 @@ object AlarmNotificationHelper {
 
         // Extend action with dropdown behavior (shown as additional actions in expanded view)
         builder.addAction(
-            android.R.drawable.ic_menu_add,
+            R.drawable.ic_notification_expand_more,
             "Extend ▼",
             createActionPendingIntent(context, alarm.id, AlarmActionReceiver.ACTION_EXTEND_MINUTES, 5)
         )
 
         // Expanded actions (visible when notification is expanded)
         builder.addAction(
-            android.R.drawable.ic_menu_add,
+            R.drawable.ic_notification_snooze,
             "Extend 5 min",
             createActionPendingIntent(context, alarm.id, AlarmActionReceiver.ACTION_EXTEND_MINUTES, 5)
         )
         builder.addAction(
-            android.R.drawable.ic_menu_add,
+            R.drawable.ic_notification_snooze,
             "Extend 10 min",
             createActionPendingIntent(context, alarm.id, AlarmActionReceiver.ACTION_EXTEND_MINUTES, 10)
         )
         builder.addAction(
-            android.R.drawable.ic_menu_add,
+            R.drawable.ic_notification_snooze,
             "Extend 15 min",
             createActionPendingIntent(context, alarm.id, AlarmActionReceiver.ACTION_EXTEND_MINUTES, 15)
         )

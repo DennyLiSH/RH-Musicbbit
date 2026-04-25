@@ -1,5 +1,6 @@
 package com.rabbithole.musicbbit.presentation.playlist
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,6 +25,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -39,14 +41,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.presentation.music.components.SongListItem
+import com.rabbithole.musicbbit.presentation.playlist.components.AddSongsBottomSheet
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,6 +61,8 @@ fun PlaylistDetailScreen(
     viewModel: PlaylistDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val allSongs by viewModel.allSongs.collectAsStateWithLifecycle()
+    var showAddSongsSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -90,8 +97,18 @@ fun PlaylistDetailScreen(
 
                 is PlaylistDetailUiState.Success -> {
                     val playlistWithSongs = state.playlistWithSongs
+                    val existingSongIds = remember(playlistWithSongs.songs) {
+                        playlistWithSongs.songs.map { it.id }.toSet()
+                    }
+                    val availableSongs = remember(allSongs, existingSongIds) {
+                        allSongs.filter { it.id !in existingSongIds }
+                    }
+
                     if (playlistWithSongs.songs.isEmpty()) {
-                        EmptyContent(playlistName = playlistWithSongs.playlist.name)
+                        EmptyContent(
+                            playlistName = playlistWithSongs.playlist.name,
+                            onAddSongsClick = { showAddSongsSheet = true }
+                        )
                     } else {
                         PlaylistDetailContent(
                             songs = playlistWithSongs.songs,
@@ -112,7 +129,18 @@ fun PlaylistDetailScreen(
                                 viewModel.onAction(
                                     PlaylistDetailAction.OnReorderSongs(fromIndex, toIndex)
                                 )
-                            }
+                            },
+                            onAddSongsClick = { showAddSongsSheet = true }
+                        )
+                    }
+
+                    if (showAddSongsSheet) {
+                        AddSongsBottomSheet(
+                            availableSongs = availableSongs,
+                            onSongsSelected = { songIds ->
+                                viewModel.onAction(PlaylistDetailAction.OnAddSongs(songIds))
+                            },
+                            onDismiss = { showAddSongsSheet = false }
                         )
                     }
                 }
@@ -132,11 +160,15 @@ private fun LoadingContent() {
 }
 
 @Composable
-private fun EmptyContent(playlistName: String) {
+private fun EmptyContent(
+    playlistName: String,
+    onAddSongsClick: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(32.dp)
+            .clickable(onClick = onAddSongsClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -147,9 +179,9 @@ private fun EmptyContent(playlistName: String) {
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Add songs from the music library",
+            text = stringResource(R.string.add_songs_title),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center
         )
     }
@@ -161,7 +193,8 @@ private fun PlaylistDetailContent(
     onPlayAll: () -> Unit,
     onSongClick: (Int) -> Unit,
     onRemoveSong: (Long) -> Unit,
-    onReorderSongs: (Int, Int) -> Unit
+    onReorderSongs: (Int, Int) -> Unit,
+    onAddSongsClick: () -> Unit
 ) {
     var reorderedSongs by remember { mutableStateOf(songs) }
     var draggedIndex by remember { mutableIntStateOf(-1) }
@@ -185,7 +218,17 @@ private fun PlaylistDetailContent(
                 contentDescription = null,
                 modifier = Modifier.padding(end = 8.dp)
             )
-            Text("Play All")
+            Text(stringResource(R.string.play_all))
+        }
+
+        OutlinedButton(
+            onClick = onAddSongsClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 8.dp)
+        ) {
+            Text(stringResource(R.string.add_songs_title))
         }
 
         LazyColumn(

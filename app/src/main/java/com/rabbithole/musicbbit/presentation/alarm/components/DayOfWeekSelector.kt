@@ -31,13 +31,13 @@ private val ALL_DAYS = listOf(
 )
 
 private val DAY_LABELS = mapOf(
-    DayOfWeek.MONDAY to "一",
-    DayOfWeek.TUESDAY to "二",
-    DayOfWeek.WEDNESDAY to "三",
-    DayOfWeek.THURSDAY to "四",
-    DayOfWeek.FRIDAY to "五",
-    DayOfWeek.SATURDAY to "六",
-    DayOfWeek.SUNDAY to "日"
+    DayOfWeek.MONDAY to "M",
+    DayOfWeek.TUESDAY to "T",
+    DayOfWeek.WEDNESDAY to "W",
+    DayOfWeek.THURSDAY to "T",
+    DayOfWeek.FRIDAY to "F",
+    DayOfWeek.SATURDAY to "S",
+    DayOfWeek.SUNDAY to "S"
 )
 
 private val WEEKDAYS = setOf(
@@ -95,17 +95,17 @@ fun DayOfWeekSelector(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
         ) {
             ShortcutButton(
-                label = "一次性",
+                label = "One-time",
                 selected = selectedDays.isEmpty(),
                 onClick = { onDaysChanged(emptySet()) }
             )
             ShortcutButton(
-                label = "每天",
+                label = "Daily",
                 selected = selectedDays == EVERYDAY,
                 onClick = { onDaysChanged(EVERYDAY) }
             )
             ShortcutButton(
-                label = "工作日",
+                label = "Weekdays",
                 selected = selectedDays == WEEKDAYS,
                 onClick = { onDaysChanged(WEEKDAYS) }
             )

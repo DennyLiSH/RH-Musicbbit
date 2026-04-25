@@ -33,10 +33,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.service.AlarmActionReceiver
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import dagger.hilt.android.AndroidEntryPoint
@@ -196,7 +198,7 @@ private fun AlarmRingScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = uiState.alarmLabel.ifEmpty { "闹钟" },
+            text = uiState.alarmLabel.ifEmpty { stringResource(R.string.alarm_default_label) },
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
             textAlign = TextAlign.Center
@@ -209,7 +211,7 @@ private fun AlarmRingScreen(
             uiState.currentSongArtist?.let { artist ->
                 "$title - $artist"
             } ?: title
-        } ?: "正在播放..."
+        } ?: stringResource(R.string.now_playing)
 
         Text(
             text = songText,
@@ -231,11 +233,11 @@ private fun AlarmRingScreen(
                 icon = {
                     Icon(
                         imageVector = Icons.Default.Snooze,
-                        contentDescription = "延时",
+                        contentDescription = stringResource(R.string.snooze),
                         modifier = Modifier.size(32.dp)
                     )
                 },
-                label = "延时 5分",
+                label = stringResource(R.string.snooze_5_min),
                 onClick = { viewModel.snooze(context = context, alarmId = alarmId) },
                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -246,11 +248,11 @@ private fun AlarmRingScreen(
                 icon = {
                     Icon(
                         imageVector = if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (uiState.isPlaying) "暂停" else "继续",
+                        contentDescription = if (uiState.isPlaying) stringResource(R.string.pause) else stringResource(R.string.resume),
                         modifier = Modifier.size(32.dp)
                     )
                 },
-                label = if (uiState.isPlaying) "暂停" else "继续",
+                label = if (uiState.isPlaying) stringResource(R.string.pause) else stringResource(R.string.resume),
                 onClick = {
                     if (uiState.isPlaying) {
                         viewModel.pause(context = context)
@@ -267,11 +269,11 @@ private fun AlarmRingScreen(
                 icon = {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "停止",
+                        contentDescription = stringResource(R.string.stop),
                         modifier = Modifier.size(32.dp)
                     )
                 },
-                label = "停止",
+                label = stringResource(R.string.stop),
                 onClick = {
                     viewModel.stop(context = context, alarmId = alarmId)
                     onStop()
