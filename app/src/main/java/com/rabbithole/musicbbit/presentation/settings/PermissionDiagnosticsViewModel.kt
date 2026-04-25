@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.service.AlarmScheduler
+import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -129,18 +130,15 @@ class PermissionDiagnosticsViewModel @Inject constructor(
         )
         Timber.d("Foreground Service: granted=$foregroundServiceGranted")
 
-        // 5. Full Screen Intent (informational)
-        val fullScreenIntentGranted = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.USE_FULL_SCREEN_INTENT
-        ) == PackageManager.PERMISSION_GRANTED
+        // 5. Full Screen Intent (API 34+ runtime gate via NotificationManager)
+        val fullScreenIntentGranted = FullScreenIntentPermissionHelper.isGranted(context)
         list.add(
             PermissionStatus(
                 name = "Full Screen Intent",
-                description = "Required to show the full-screen alarm ringing interface.",
+                description = "Required to show the full-screen alarm ringing interface over the lock screen on Android 14+.",
                 isGranted = fullScreenIntentGranted,
                 isRuntime = false,
-                canRequest = false
+                canRequest = true
             )
         )
         Timber.d("Full Screen Intent: granted=$fullScreenIntentGranted")

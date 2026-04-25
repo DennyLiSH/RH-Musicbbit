@@ -14,6 +14,7 @@ import com.rabbithole.musicbbit.domain.usecase.GetPlaylistsUseCase
 import com.rabbithole.musicbbit.domain.usecase.SaveAlarmUseCase
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.service.AlarmScheduler
+import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,7 +44,8 @@ data class AlarmEditUiState(
     val saveCompleted: Boolean = false,
     val isNewAlarm: Boolean = true,
     val errorMessage: String? = null,
-    val showPermissionDialog: Boolean = false
+    val showPermissionDialog: Boolean = false,
+    val showFullScreenIntentDialog: Boolean = false
 )
 
 /**
@@ -57,6 +59,7 @@ sealed interface AlarmEditAction {
     data class OnAutoStopChanged(val minutes: Int?) : AlarmEditAction
     data object OnSave : AlarmEditAction
     data object OnPermissionDialogDismissed : AlarmEditAction
+    data object OnFullScreenIntentDialogDismissed : AlarmEditAction
 }
 
 @HiltViewModel
@@ -174,6 +177,10 @@ class AlarmEditViewModel @Inject constructor(
             is AlarmEditAction.OnPermissionDialogDismissed -> {
                 _uiState.update { it.copy(showPermissionDialog = false) }
             }
+
+            is AlarmEditAction.OnFullScreenIntentDialogDismissed -> {
+                _uiState.update { it.copy(showFullScreenIntentDialog = false) }
+            }
         }
     }
 
@@ -194,6 +201,13 @@ class AlarmEditViewModel @Inject constructor(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmScheduler.canScheduleExactAlarms()) {
             Timber.w("Save failed: exact alarm permission not granted")
             _uiState.update { it.copy(showPermissionDialog = true) }
+            return
+        }
+
+        // Check full-screen intent permission (API 34+)
+        if (!FullScreenIntentPermissionHelper.isGranted(getApplication())) {
+            Timber.w("Save failed: full-screen intent permission not granted")
+            _uiState.update { it.copy(showFullScreenIntentDialog = true) }
             return
         }
 

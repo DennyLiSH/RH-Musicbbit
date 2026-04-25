@@ -26,6 +26,9 @@
     <string name="go_to_settings">Go to Settings</string>
     <string name="exact_alarm_permission_title">Exact Alarm Permission Required</string>
     <string name="exact_alarm_permission_message">To ensure the alarm rings at the exact time, please allow this app to use exact alarms.</string>
+    <string name="fsi_permission_title">Full-screen alarm permission required</string>
+    <string name="fsi_permission_message">On Android 14 and above, the app needs permission to display alarms over the lock screen. Without it, alarms will still play music but cannot show the full-screen ring interface.</string>
+    <string name="fsi_permission_grant">Grant permission</string>
     <string name="now_playing">Now playing…</string>
     <string name="pause">Pause</string>
     <string name="resume">Resume</string>    <string name="pause">Pause</string>

@@ -42,6 +42,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,19 +89,23 @@ fun PermissionDiagnosticsScreen(
                     PermissionCard(
                         permission = permission,
                         onOpenSettings = {
-                            val intent = when {
+                            when {
                                 permission.name == "Schedule Exact Alarms" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-                                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                                    val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
                                         data = Uri.parse("package:${context.packageName}")
                                     }
+                                    context.startActivity(intent)
+                                }
+                                permission.name == "Full Screen Intent" -> {
+                                    FullScreenIntentPermissionHelper.openSettings(context)
                                 }
                                 else -> {
-                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                                         data = Uri.parse("package:${context.packageName}")
                                     }
+                                    context.startActivity(intent)
                                 }
                             }
-                            context.startActivity(intent)
                         }
                     )
                 }
@@ -221,7 +226,11 @@ private fun PermissionCard(
 
             if (!permission.isGranted) {
                 Spacer(modifier = Modifier.height(8.dp))
-                val buttonTextRes = if (!permission.isRuntime || permission.name == "Schedule Exact Alarms") {
+                val buttonTextRes = if (
+                    !permission.isRuntime ||
+                    permission.name == "Schedule Exact Alarms" ||
+                    permission.name == "Full Screen Intent"
+                ) {
                     R.string.permission_diagnostics_fix
                 } else {
                     R.string.permission_diagnostics_settings

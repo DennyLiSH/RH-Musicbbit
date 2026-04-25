@@ -50,6 +50,7 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import com.rabbithole.musicbbit.presentation.alarm.components.DayOfWeekSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.PlaylistSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.TimePickerDialog
@@ -181,6 +182,35 @@ fun AlarmEditScreen(
                 TextButton(
                     onClick = {
                         viewModel.onAction(AlarmEditAction.OnPermissionDialogDismissed)
+                    }
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (uiState.showFullScreenIntentDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                viewModel.onAction(AlarmEditAction.OnFullScreenIntentDialogDismissed)
+            },
+            title = { Text(stringResource(R.string.fsi_permission_title)) },
+            text = { Text(stringResource(R.string.fsi_permission_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        FullScreenIntentPermissionHelper.openSettings(context)
+                        viewModel.onAction(AlarmEditAction.OnFullScreenIntentDialogDismissed)
+                    }
+                ) {
+                    Text(stringResource(R.string.fsi_permission_grant))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.onAction(AlarmEditAction.OnFullScreenIntentDialogDismissed)
                     }
                 ) {
                     Text(stringResource(R.string.cancel))
