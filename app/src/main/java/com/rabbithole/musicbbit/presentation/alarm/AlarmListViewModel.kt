@@ -57,7 +57,7 @@ class AlarmListViewModel @Inject constructor(
     private val enableAlarmUseCase: EnableAlarmUseCase,
     private val playlistRepository: PlaylistRepository,
     private val refreshHolidaysUseCase: RefreshHolidaysUseCase,
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _isIgnoringBatteryOptimizations = MutableStateFlow(checkBatteryOptimizationStatus())
