@@ -82,6 +82,7 @@ class MusicPlaybackService : Service() {
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
     private var progressSaveJob: Job? = null
+    private var progressTickJob: Job? = null
 
     private val autoStopHandler = Handler(Looper.getMainLooper())
     private var autoStopRunnable: Runnable? = null
@@ -158,6 +159,7 @@ class MusicPlaybackService : Service() {
         createNotificationChannel()
         initExoPlayer()
         initAudioFocusManager()
+        startProgressTickLoop()
     }
 
     private fun initExoPlayer() {
@@ -404,6 +406,7 @@ class MusicPlaybackService : Service() {
         exoPlayer.clearMediaItems()
         _playbackState.update { PlaybackState() }
         progressSaveJob?.cancel()
+        cancelProgressTickLoop()
         cancelAutoStop()
         extendToEnd = false
         releaseAlarmWakeLock()
@@ -430,6 +433,32 @@ class MusicPlaybackService : Service() {
                 saveCurrentProgress()
             }
         }
+    }
+
+    /**
+     * Start a periodic loop that pulls [exoPlayer.currentPosition] into [_playbackState]
+     * every [PROGRESS_TICK_INTERVAL_MS] milliseconds while playback is active.
+     *
+     * The loop runs unconditionally once started; it short-circuits internally when
+     * [_playbackState.value.isPlaying] is false to avoid races with seek/transition
+     * events that already update positionMs through the player listener.
+     */
+    private fun startProgressTickLoop() {
+        progressTickJob?.cancel()
+        progressTickJob = serviceScope.launch {
+            while (isActive) {
+                delay(PROGRESS_TICK_INTERVAL_MS)
+                if (_playbackState.value.isPlaying) {
+                    val currentPos = exoPlayer.currentPosition.coerceAtLeast(0)
+                    _playbackState.update { it.copy(positionMs = currentPos) }
+                }
+            }
+        }
+    }
+
+    private fun cancelProgressTickLoop() {
+        progressTickJob?.cancel()
+        progressTickJob = null
     }
 
     private fun saveCurrentProgress() {
@@ -542,6 +571,7 @@ class MusicPlaybackService : Service() {
         autoStopHandler.removeCallbacksAndMessages(null)
         saveCurrentProgress()
         progressSaveJob?.cancel()
+        cancelProgressTickLoop()
         exoPlayer.removeListener(playerListener)
         exoPlayer.release()
         releaseAlarmWakeLock()
@@ -712,6 +742,7 @@ class MusicPlaybackService : Service() {
         private const val CHANNEL_ID = "music_playback_channel"
         private const val NOTIFICATION_ID = 1
         private const val PROGRESS_SAVE_INTERVAL_MS = 5000L
+        private const val PROGRESS_TICK_INTERVAL_MS = 500L
         private const val ALARM_WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L // 10 minutes
 
         const val ACTION_PLAY_ALARM = "com.rabbithole.musicbbit.action.PLAY_ALARM"

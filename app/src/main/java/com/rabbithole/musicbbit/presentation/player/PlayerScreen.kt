@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -112,16 +113,23 @@ fun PlayerScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         // Progress slider
+        var isUserDragging by remember { mutableStateOf(false) }
         var sliderPosition by remember { mutableFloatStateOf(0f) }
         val positionMs = playbackState.positionMs.toFloat()
         val durationMs = playbackState.durationMs.toFloat().coerceAtLeast(1f)
-        sliderPosition = (positionMs / durationMs).coerceIn(0f, 1f)
+        if (!isUserDragging) {
+            sliderPosition = (positionMs / durationMs).coerceIn(0f, 1f)
+        }
 
         Slider(
             value = sliderPosition,
-            onValueChange = { sliderPosition = it },
+            onValueChange = {
+                isUserDragging = true
+                sliderPosition = it
+            },
             onValueChangeFinished = {
                 viewModel.stateHolder.seekTo((sliderPosition * durationMs).toLong())
+                isUserDragging = false
             },
             modifier = Modifier.fillMaxWidth()
         )
