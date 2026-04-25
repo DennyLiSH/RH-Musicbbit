@@ -10,11 +10,13 @@ import com.rabbithole.musicbbit.service.AlarmActionReceiver
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import com.rabbithole.musicbbit.service.MusicPlaybackService
 import com.rabbithole.musicbbit.service.MusicPlayerStateHolder
+import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -29,7 +31,9 @@ data class AlarmRingUiState(
     val hasPlayback: Boolean = false,
     val currentSongTitle: String? = null,
     val currentSongArtist: String? = null,
-    val alarmLabel: String = ""
+    val alarmLabel: String = "",
+    val breathingEnabled: Boolean = true,
+    val breathingPeriodMs: Long = 3500L
 )
 
 /**
@@ -42,7 +46,8 @@ data class AlarmRingUiState(
 class AlarmRingViewModel @Inject constructor(
     private val stateHolder: MusicPlayerStateHolder,
     private val alarmScheduler: AlarmScheduler,
-    private val alarmDao: AlarmDao
+    private val alarmDao: AlarmDao,
+    private val alarmRingSettingsRepository: AlarmRingSettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AlarmRingUiState())
@@ -51,6 +56,19 @@ class AlarmRingViewModel @Inject constructor(
     init {
         stateHolder.bindService()
         observePlaybackState()
+        observeBreathingSettings()
+    }
+
+    private fun observeBreathingSettings() {
+        combine(
+            alarmRingSettingsRepository.isBreathingEnabled(),
+            alarmRingSettingsRepository.getBreathingPeriodMs()
+        ) { enabled, periodMs ->
+            _uiState.update {
+                it.copy(breathingEnabled = enabled, breathingPeriodMs = periodMs)
+            }
+        }
+            .launchIn(viewModelScope)
     }
 
     private fun observePlaybackState() {

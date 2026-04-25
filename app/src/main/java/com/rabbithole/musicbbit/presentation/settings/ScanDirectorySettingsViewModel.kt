@@ -7,10 +7,12 @@ import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import com.rabbithole.musicbbit.domain.usecase.AddScanDirectoryUseCase
 import com.rabbithole.musicbbit.domain.usecase.GetScanDirectoriesUseCase
 import com.rabbithole.musicbbit.domain.usecase.RemoveScanDirectoryUseCase
+import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -31,7 +33,9 @@ sealed interface ScanDirectorySettingsUiState {
         val directoryCount: Int = 0,
         val lastScanTime: String? = null,
         val pendingDirectory: PendingDirectory? = null,
-        val addError: String? = null
+        val addError: String? = null,
+        val breathingEnabled: Boolean = true,
+        val breathingPeriodMs: Long = 3500L
     ) : ScanDirectorySettingsUiState
 }
 
@@ -41,13 +45,16 @@ sealed interface ScanDirectorySettingsAction {
     data class OnScanDirectoryPreview(val path: String, val name: String) : ScanDirectorySettingsAction
     data object OnConfirmAddDirectory : ScanDirectorySettingsAction
     data object OnCancelDirectoryPreview : ScanDirectorySettingsAction
+    data class OnBreathingEnabledChanged(val enabled: Boolean) : ScanDirectorySettingsAction
+    data class OnBreathingPeriodChanged(val periodMs: Long) : ScanDirectorySettingsAction
 }
 
 @HiltViewModel
 class ScanDirectorySettingsViewModel @Inject constructor(
     private val getScanDirectoriesUseCase: GetScanDirectoriesUseCase,
     private val addScanDirectoryUseCase: AddScanDirectoryUseCase,
-    private val removeScanDirectoryUseCase: RemoveScanDirectoryUseCase
+    private val removeScanDirectoryUseCase: RemoveScanDirectoryUseCase,
+    private val alarmRingSettingsRepository: AlarmRingSettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ScanDirectorySettingsUiState>(ScanDirectorySettingsUiState.Loading)
@@ -55,6 +62,19 @@ class ScanDirectorySettingsViewModel @Inject constructor(
 
     init {
         observeDirectories()
+        observeBreathingSettings()
+    }
+
+    private fun observeBreathingSettings() {
+        combine(
+            alarmRingSettingsRepository.isBreathingEnabled(),
+            alarmRingSettingsRepository.getBreathingPeriodMs()
+        ) { enabled, periodMs ->
+            updateSuccess { currentState ->
+                currentState.copy(breathingEnabled = enabled, breathingPeriodMs = periodMs)
+            }
+        }
+            .launchIn(viewModelScope)
     }
 
     private fun observeDirectories() {
@@ -106,6 +126,18 @@ class ScanDirectorySettingsViewModel @Inject constructor(
             is ScanDirectorySettingsAction.OnCancelDirectoryPreview -> {
                 updateSuccess {
                     it.copy(pendingDirectory = null, addError = null)
+                }
+            }
+
+            is ScanDirectorySettingsAction.OnBreathingEnabledChanged -> {
+                viewModelScope.launch {
+                    alarmRingSettingsRepository.setBreathingEnabled(action.enabled)
+                }
+            }
+
+            is ScanDirectorySettingsAction.OnBreathingPeriodChanged -> {
+                viewModelScope.launch {
+                    alarmRingSettingsRepository.setBreathingPeriodMs(action.periodMs)
                 }
             }
         }

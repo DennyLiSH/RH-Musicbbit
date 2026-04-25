@@ -88,8 +88,6 @@ class AlarmRingActivity : ComponentActivity() {
             )
         }
 
-        startBreathingAnimation()
-
         setContent {
             MaterialTheme {
                 AlarmRingScreen(
@@ -103,14 +101,14 @@ class AlarmRingActivity : ComponentActivity() {
 
     /**
      * Start a breathing light effect that cycles screen brightness
-     * between 0.1 and 1.0 with a 3.5 second period.
+     * between 0.1 and 1.0 with the given period in milliseconds.
      */
-    private fun startBreathingAnimation() {
+    private fun startBreathingAnimation(periodMs: Long) {
         breathingJob?.cancel()
         breathingJob = lifecycleScope.launch {
             while (isActive) {
-                val elapsed = System.currentTimeMillis() % BREATHING_PERIOD_MS
-                val phase = elapsed / BREATHING_PERIOD_MS.toDouble()
+                val elapsed = System.currentTimeMillis() % periodMs
+                val phase = elapsed / periodMs.toDouble()
                 val brightness = (0.55f + 0.45f * kotlin.math.sin(phase * 2 * Math.PI)).toFloat()
                 window.attributes = window.attributes.apply {
                     screenBrightness = brightness.coerceIn(0.1f, 1.0f)
@@ -144,7 +142,6 @@ class AlarmRingActivity : ComponentActivity() {
     }
 
     companion object {
-        private const val BREATHING_PERIOD_MS = 3500L
         private const val BREATHING_UPDATE_INTERVAL_MS = 50L
     }
 }
@@ -164,6 +161,18 @@ private fun AlarmRingScreen(
             Timber.i("Playback stopped, closing AlarmRingActivity")
             delay(500)
             onStop()
+        }
+    }
+
+    // Start/stop breathing animation based on settings
+    LaunchedEffect(uiState.breathingEnabled, uiState.breathingPeriodMs) {
+        val activity = context as? AlarmRingActivity
+        if (uiState.breathingEnabled) {
+            Timber.i("Breathing enabled, period=${uiState.breathingPeriodMs}ms")
+            activity?.startBreathingAnimation(uiState.breathingPeriodMs)
+        } else {
+            Timber.i("Breathing disabled")
+            activity?.stopBreathingAnimation()
         }
     }
 

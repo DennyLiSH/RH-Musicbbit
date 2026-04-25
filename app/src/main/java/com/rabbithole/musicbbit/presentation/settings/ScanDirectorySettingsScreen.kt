@@ -22,6 +22,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -126,6 +128,12 @@ fun ScanDirectorySettingsScreen(
                         },
                         onCancelDirectory = {
                             viewModel.onAction(ScanDirectorySettingsAction.OnCancelDirectoryPreview)
+                        },
+                        onBreathingEnabledChanged = { enabled ->
+                            viewModel.onAction(ScanDirectorySettingsAction.OnBreathingEnabledChanged(enabled))
+                        },
+                        onBreathingPeriodChanged = { periodMs ->
+                            viewModel.onAction(ScanDirectorySettingsAction.OnBreathingPeriodChanged(periodMs))
                         }
                     )
                 }
@@ -142,7 +150,9 @@ private fun SuccessContent(
     onAddDirectory: () -> Unit,
     onRemoveDirectory: (Long) -> Unit,
     onConfirmDirectory: () -> Unit,
-    onCancelDirectory: () -> Unit
+    onCancelDirectory: () -> Unit,
+    onBreathingEnabledChanged: (Boolean) -> Unit,
+    onBreathingPeriodChanged: (Long) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize()
@@ -154,6 +164,16 @@ private fun SuccessContent(
                 ThemeSettingsSection(
                     themeMode = themeMode,
                     onThemeModeChange = onThemeModeChange,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+
+            item(key = "breathing_settings") {
+                BreathingSettingsSection(
+                    enabled = state.breathingEnabled,
+                    periodMs = state.breathingPeriodMs,
+                    onEnabledChanged = onBreathingEnabledChanged,
+                    onPeriodChanged = onBreathingPeriodChanged,
                     modifier = Modifier.padding(16.dp)
                 )
             }
@@ -325,6 +345,52 @@ private fun ConfirmAddDirectoryDialog(
             }
         }
     )
+}
+
+@Composable
+private fun BreathingSettingsSection(
+    enabled: Boolean,
+    periodMs: Long,
+    onEnabledChanged: (Boolean) -> Unit,
+    onPeriodChanged: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = "Alarm Ring",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Breathing light effect",
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Switch(
+                checked = enabled,
+                onCheckedChange = onEnabledChanged
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        val alpha = if (enabled) 1.0f else 0.5f
+        Text(
+            text = "Breathing period: %.1fs".format(periodMs / 1000f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
+        )
+        Slider(
+            value = periodMs.toFloat(),
+            onValueChange = { onPeriodChanged(it.toLong()) },
+            valueRange = 1500f..6000f,
+            steps = 8,
+            enabled = enabled,
+            modifier = Modifier.alpha(alpha)
+        )
+    }
 }
 
 private fun buildStatusText(state: ScanDirectorySettingsUiState.Success): String {
