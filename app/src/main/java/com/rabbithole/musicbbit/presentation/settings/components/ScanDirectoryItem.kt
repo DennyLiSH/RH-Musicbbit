@@ -18,6 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
 
 @Composable
@@ -66,7 +68,7 @@ fun ScanDirectoryItem(
         IconButton(onClick = onRemove) {
             Icon(
                 imageVector = Icons.Default.Delete,
-                contentDescription = "Remove directory",
+                contentDescription = stringResource(R.string.scan_directory_remove),
                 tint = MaterialTheme.colorScheme.error
             )
         }

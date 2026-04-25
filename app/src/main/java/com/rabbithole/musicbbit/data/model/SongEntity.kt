@@ -1,9 +1,13 @@
 package com.rabbithole.musicbbit.data.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "songs")
+@Entity(
+    tableName = "songs",
+    indices = [Index(value = ["path"], unique = true)]
+)
 data class SongEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,

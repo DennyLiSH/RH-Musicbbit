@@ -38,11 +38,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.navigation.PlaylistDetail
 import java.text.SimpleDateFormat
@@ -61,12 +63,12 @@ fun PlaylistListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Playlists") },
+                title = { Text(stringResource(R.string.playlist_list_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -78,7 +80,7 @@ fun PlaylistListScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Create Playlist"
+                    contentDescription = stringResource(R.string.playlist_list_create_button)
                 )
             }
         }
@@ -148,17 +150,17 @@ private fun EmptyContent() {
             contentDescription = null,
             modifier = Modifier
                 .height(64.dp)
-                .padding(bottom = 16.dp),
+            .padding(bottom = 16.dp),
             tint = MaterialTheme.colorScheme.primary
         )
         Text(
-            text = "No playlists yet",
+            text = stringResource(R.string.playlist_list_empty_title),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Tap the + button to create one",
+            text = stringResource(R.string.playlist_list_empty_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -233,7 +235,7 @@ private fun PlaylistCard(
             IconButton(onClick = onDelete) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete Playlist",
+                    contentDescription = stringResource(R.string.playlist_list_delete),
                     tint = MaterialTheme.colorScheme.error
                 )
             }
@@ -251,12 +253,12 @@ private fun CreatePlaylistDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Playlist") },
+        title = { Text(stringResource(R.string.playlist_list_dialog_title)) },
         text = {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Playlist Name") },
+                label = { Text(stringResource(R.string.playlist_list_dialog_name_label)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -266,12 +268,12 @@ private fun CreatePlaylistDialog(
                 onClick = { onConfirm(name.trim()) },
                 enabled = isValid
             ) {
-                Text("Create")
+                Text(stringResource(R.string.common_create))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

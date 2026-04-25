@@ -65,7 +65,7 @@ fun AlarmListScreen(
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -80,7 +80,7 @@ fun AlarmListScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Create Alarm"
+                    contentDescription = stringResource(R.string.alarm_list_create_alarm)
                 )
             }
         }

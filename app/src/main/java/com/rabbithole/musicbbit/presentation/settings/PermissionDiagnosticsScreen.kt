@@ -36,10 +36,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.rabbithole.musicbbit.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,12 +55,12 @@ fun PermissionDiagnosticsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Permission Diagnostics") },
+                title = { Text(stringResource(R.string.permission_diagnostics_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -124,10 +126,10 @@ private fun SummaryCard(allGranted: Boolean) {
     } else {
         Icons.Default.Warning
     }
-    val text = if (allGranted) {
-        "All permissions granted"
+    val textRes = if (allGranted) {
+        R.string.permission_diagnostics_all_granted
     } else {
-        "Some permissions need attention"
+        R.string.permission_diagnostics_need_attention
     }
 
     Card(
@@ -150,7 +152,7 @@ private fun SummaryCard(allGranted: Boolean) {
                 tint = contentColor
             )
             Text(
-                text = text,
+                text = stringResource(textRes),
                 style = MaterialTheme.typography.titleMedium
             )
         }
@@ -189,13 +191,13 @@ private fun PermissionCard(
                 if (permission.isGranted) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Granted",
+                        contentDescription = stringResource(R.string.permission_diagnostics_granted),
                         tint = Color(0xFF4CAF50)
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Default.Error,
-                        contentDescription = "Not granted",
+                        contentDescription = stringResource(R.string.permission_diagnostics_not_granted),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
@@ -212,23 +214,23 @@ private fun PermissionCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = if (permission.isGranted) "Granted" else "Not granted",
+                text = if (permission.isGranted) stringResource(R.string.permission_diagnostics_granted) else stringResource(R.string.permission_diagnostics_not_granted),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (permission.isGranted) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
             )
 
             if (!permission.isGranted) {
                 Spacer(modifier = Modifier.height(8.dp))
-                val buttonText = if (!permission.isRuntime || permission.name == "Schedule Exact Alarms") {
-                    "Fix"
+                val buttonTextRes = if (!permission.isRuntime || permission.name == "Schedule Exact Alarms") {
+                    R.string.permission_diagnostics_fix
                 } else {
-                    "Settings"
+                    R.string.permission_diagnostics_settings
                 }
                 OutlinedButton(
                     onClick = onOpenSettings,
                     modifier = Modifier.align(Alignment.End)
                 ) {
-                    Text(buttonText)
+                    Text(stringResource(buttonTextRes))
                 }
             }
         }

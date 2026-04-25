@@ -11,6 +11,7 @@ import com.rabbithole.musicbbit.domain.usecase.GetSongsUseCase
 import com.rabbithole.musicbbit.domain.usecase.RemoveSongFromPlaylistUseCase
 import com.rabbithole.musicbbit.domain.usecase.ReorderPlaylistSongsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import timber.log.Timber
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -96,8 +97,9 @@ class PlaylistDetailViewModel @Inject constructor(
             }
             is PlaylistDetailAction.OnAddSongs -> {
                 viewModelScope.launch {
-                    action.songIds.forEach { songId ->
-                        addSongToPlaylistUseCase(playlistId, songId)
+                    val result = addSongToPlaylistUseCase(playlistId, action.songIds)
+                    if (result.isFailure) {
+                        Timber.w(result.exceptionOrNull(), "Failed to add songs to playlist $playlistId")
                     }
                 }
             }

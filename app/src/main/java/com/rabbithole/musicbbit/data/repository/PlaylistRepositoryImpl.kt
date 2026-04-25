@@ -15,6 +15,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
@@ -96,6 +97,29 @@ class PlaylistRepositoryImpl @Inject constructor(
             sortOrder = sortOrder
         )
         playlistSongDao.insert(entity)
+    }
+
+    override suspend fun addSongsToPlaylist(
+        playlistId: Long,
+        songIds: List<Long>
+    ) = withContext(ioDispatcher) {
+        if (songIds.isEmpty()) return@withContext
+
+        val existingSongs = playlistSongDao.getByPlaylistId(playlistId).first()
+        val existingSongIds = existingSongs.map { it.songId }.toSet()
+
+        val newSongIds = songIds.filterNot { it in existingSongIds }
+        if (newSongIds.isEmpty()) return@withContext
+
+        val startSortOrder = existingSongs.size
+        val entities = newSongIds.mapIndexed { index, songId ->
+            PlaylistSongEntity(
+                playlistId = playlistId,
+                songId = songId,
+                sortOrder = startSortOrder + index
+            )
+        }
+        playlistSongDao.insertAll(entities)
     }
 
     override suspend fun removeSongFromPlaylist(

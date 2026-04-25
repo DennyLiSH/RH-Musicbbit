@@ -35,11 +35,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.service.PlayMode
 
 @Composable
@@ -65,7 +67,7 @@ fun PlayerScreen(
             IconButton(onClick = { navController.navigateUp() }) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Dismiss"
+                    contentDescription = stringResource(R.string.player_dismiss)
                 )
             }
         }
@@ -93,14 +95,14 @@ fun PlayerScreen(
 
         // Song title and artist
         Text(
-            text = currentSong?.title ?: "Unknown Title",
+            text = currentSong?.title ?: stringResource(R.string.player_unknown_title),
             style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = currentSong?.artist ?: "Unknown Artist",
+            text = currentSong?.artist ?: stringResource(R.string.player_unknown_artist),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -163,7 +165,7 @@ fun PlayerScreen(
                         PlayMode.RANDOM -> Icons.Default.Shuffle
                         PlayMode.REPEAT_ONE -> Icons.Default.RepeatOne
                     },
-                    contentDescription = "Play mode: ${playbackState.playMode.name}"
+                    contentDescription = stringResource(R.string.player_play_mode, playbackState.playMode.name)
                 )
             }
 
@@ -171,7 +173,7 @@ fun PlayerScreen(
             IconButton(onClick = { viewModel.stateHolder.previous() }) {
                 Icon(
                     imageVector = Icons.Default.SkipPrevious,
-                    contentDescription = "Previous",
+                    contentDescription = stringResource(R.string.player_previous),
                     modifier = Modifier.size(36.dp)
                 )
             }
@@ -189,7 +191,7 @@ fun PlayerScreen(
             ) {
                 Icon(
                     imageVector = if (playbackState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (playbackState.isPlaying) "Pause" else "Play",
+                    contentDescription = if (playbackState.isPlaying) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
                     modifier = Modifier.size(48.dp)
                 )
             }
@@ -198,7 +200,7 @@ fun PlayerScreen(
             IconButton(onClick = { viewModel.stateHolder.next() }) {
                 Icon(
                     imageVector = Icons.Default.SkipNext,
-                    contentDescription = "Next",
+                    contentDescription = stringResource(R.string.player_next),
                     modifier = Modifier.size(36.dp)
                 )
             }

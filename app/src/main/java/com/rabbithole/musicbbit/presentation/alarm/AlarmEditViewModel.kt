@@ -1,19 +1,20 @@
 package com.rabbithole.musicbbit.presentation.alarm
 
+import android.app.Application
 import android.os.Build
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
-import androidx.navigation.toRoute
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.Playlist
-import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.domain.usecase.GetAlarmByIdUseCase
 import com.rabbithole.musicbbit.domain.usecase.GetPlaylistsUseCase
 import com.rabbithole.musicbbit.domain.usecase.SaveAlarmUseCase
+import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.time.DayOfWeek
+import javax.inject.Inject
 
 /**
  * UI state for the alarm edit screen.
@@ -59,12 +61,13 @@ sealed interface AlarmEditAction {
 
 @HiltViewModel
 class AlarmEditViewModel @Inject constructor(
+    application: Application,
     savedStateHandle: SavedStateHandle,
     private val getAlarmByIdUseCase: GetAlarmByIdUseCase,
     private val saveAlarmUseCase: SaveAlarmUseCase,
     private val getPlaylistsUseCase: GetPlaylistsUseCase,
     private val alarmScheduler: AlarmScheduler
-) : ViewModel() {
+) : AndroidViewModel(application) {
 
     private val alarmId: Long = savedStateHandle.toRoute<AlarmEdit>().alarmId
 
@@ -124,7 +127,7 @@ class AlarmEditViewModel @Inject constructor(
                     it.copy(
                         isLoading = false,
                         isNewAlarm = false,
-                        errorMessage = "Alarm not found"
+                        errorMessage = getApplication<Application>().getString(R.string.alarm_edit_error_not_found)
                     )
                 }
             }
@@ -183,7 +186,7 @@ class AlarmEditViewModel @Inject constructor(
         // Validate: playlist must be selected
         if (currentState.playlistId <= 0) {
             Timber.w("Save failed: no playlist selected")
-            _uiState.update { it.copy(errorMessage = "Please select a playlist") }
+            _uiState.update { it.copy(errorMessage = getApplication<Application>().getString(R.string.alarm_edit_error_select_playlist)) }
             return
         }
 
@@ -218,7 +221,7 @@ class AlarmEditViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     Timber.e(error, "Failed to save alarm")
-                    _uiState.update { it.copy(isSaving = false, errorMessage = "Failed to save alarm") }
+                    _uiState.update { it.copy(isSaving = false, errorMessage = getApplication<Application>().getString(R.string.alarm_edit_error_save_failed)) }
                 }
             )
         }

@@ -56,12 +56,12 @@ import com.rabbithole.musicbbit.presentation.alarm.components.TimePickerDialog
 import timber.log.Timber
 
 private val AUTO_STOP_OPTIONS = listOf(
-    null to "Do not auto-stop",
-    5 to "5 minutes",
-    10 to "10 minutes",
-    15 to "15 minutes",
-    30 to "30 minutes",
-    60 to "60 minutes"
+    null to R.string.alarm_edit_auto_stop_none,
+    5 to R.string.alarm_edit_auto_stop_5min,
+    10 to R.string.alarm_edit_auto_stop_10min,
+    15 to R.string.alarm_edit_auto_stop_15min,
+    30 to R.string.alarm_edit_auto_stop_30min,
+    60 to R.string.alarm_edit_auto_stop_60min
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,18 +86,18 @@ fun AlarmEditScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    val titleText = when {
-                        uiState.isLoading -> "Alarm"
-                        uiState.isNewAlarm -> "New Alarm"
-                        else -> "Edit Alarm"
+                    val titleTextRes = when {
+                        uiState.isLoading -> R.string.alarm_edit_title_loading
+                        uiState.isNewAlarm -> R.string.alarm_edit_title_new
+                        else -> R.string.alarm_edit_title_edit
                     }
-                    Text(titleText)
+                    Text(stringResource(titleTextRes))
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 },
@@ -113,7 +113,7 @@ fun AlarmEditScreen(
                             )
                         } else {
                             Text(
-                                text = "Save",
+                                text = stringResource(R.string.common_save),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -215,7 +215,7 @@ private fun AlarmEditContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Repeat days
-        SectionTitle(title = "Repeat")
+        SectionTitle(title = stringResource(R.string.alarm_edit_section_repeat))
         Spacer(modifier = Modifier.height(8.dp))
         DayOfWeekSelector(
             selectedDays = uiState.repeatDays,
@@ -227,7 +227,7 @@ private fun AlarmEditContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Playlist selector
-        SectionTitle(title = "Playlist")
+        SectionTitle(title = stringResource(R.string.alarm_edit_section_playlist))
         Spacer(modifier = Modifier.height(8.dp))
         PlaylistSelector(
             playlists = uiState.playlists,
@@ -240,12 +240,12 @@ private fun AlarmEditContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Label input
-        SectionTitle(title = "Label")
+        SectionTitle(title = stringResource(R.string.alarm_edit_section_label))
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = uiState.label,
             onValueChange = { onAction(AlarmEditAction.OnLabelChanged(it)) },
-            placeholder = { Text("Optional label") },
+            placeholder = { Text(stringResource(R.string.alarm_edit_label_placeholder)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -253,7 +253,7 @@ private fun AlarmEditContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Auto-stop dropdown
-        SectionTitle(title = "Auto-stop")
+        SectionTitle(title = stringResource(R.string.alarm_edit_section_auto_stop))
         Spacer(modifier = Modifier.height(8.dp))
         AutoStopDropdown(
             selectedMinutes = uiState.autoStopMinutes,
@@ -289,7 +289,7 @@ private fun AlarmEditContent(
                     color = MaterialTheme.colorScheme.onPrimary
                 )
             } else {
-                Text("Save Alarm")
+                Text(stringResource(R.string.alarm_edit_save_button))
             }
         }
 
@@ -324,7 +324,7 @@ private fun TimeDisplay(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Tap to change time",
+                text = stringResource(R.string.alarm_edit_tap_to_change_time),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
             )
@@ -353,8 +353,8 @@ private fun AutoStopDropdown(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedLabel = AUTO_STOP_OPTIONS.find { it.first == selectedMinutes }?.second
-        ?: "Do not auto-stop"
+    val selectedLabelRes = AUTO_STOP_OPTIONS.find { it.first == selectedMinutes }?.second
+        ?: R.string.alarm_edit_auto_stop_none
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -362,10 +362,10 @@ private fun AutoStopDropdown(
         modifier = modifier.fillMaxWidth()
     ) {
         OutlinedTextField(
-            value = selectedLabel,
+            value = stringResource(selectedLabelRes),
             onValueChange = {},
             readOnly = true,
-            label = { Text("Auto-stop after") },
+            label = { Text(stringResource(R.string.alarm_edit_auto_stop_label)) },
             trailingIcon = {
                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
             },
@@ -378,9 +378,9 @@ private fun AutoStopDropdown(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            AUTO_STOP_OPTIONS.forEach { (minutes, label) ->
+            AUTO_STOP_OPTIONS.forEach { (minutes, labelRes) ->
                 DropdownMenuItem(
-                    text = { Text(label) },
+                    text = { Text(stringResource(labelRes)) },
                     onClick = {
                         onSelectionChange(minutes)
                         expanded = false

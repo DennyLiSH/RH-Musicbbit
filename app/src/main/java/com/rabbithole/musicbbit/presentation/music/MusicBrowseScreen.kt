@@ -42,12 +42,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.navigation.Player
 import com.rabbithole.musicbbit.navigation.ScanDirectorySettings
@@ -94,12 +96,12 @@ fun MusicBrowseScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Music") },
+                title = { Text(stringResource(R.string.music_browse_title)) },
                 actions = {
                     IconButton(onClick = { navController.navigate(ScanDirectorySettings) }) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings"
+                            contentDescription = stringResource(R.string.music_browse_settings)
                         )
                     }
                 }
@@ -176,13 +178,13 @@ private fun NoPermissionContent(
             tint = MaterialTheme.colorScheme.primary
         )
         Text(
-            text = "Storage permission is required to read music files",
+            text = stringResource(R.string.music_browse_permission_required),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onRequestPermission) {
-            Text("Grant Access")
+            Text(stringResource(R.string.music_browse_grant_access))
         }
     }
 }
@@ -207,13 +209,13 @@ private fun NoScanDirectoryContent(
             tint = MaterialTheme.colorScheme.primary
         )
         Text(
-            text = "Please add a music directory first",
+            text = stringResource(R.string.music_browse_no_directory),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onNavigateToSettings) {
-            Text("Go to Settings")
+            Text(stringResource(R.string.music_browse_go_to_settings))
         }
     }
 }
@@ -225,7 +227,7 @@ private fun EmptyContent() {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "No music files found in the directory",
+            text = stringResource(R.string.music_browse_empty),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -251,11 +253,11 @@ private fun SuccessContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text("Search songs...") },
+            placeholder = { Text(stringResource(R.string.music_browse_search_placeholder)) },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "Search"
+                    contentDescription = stringResource(R.string.music_browse_search)
                 )
             },
             singleLine = true,
@@ -285,7 +287,7 @@ private fun SuccessContent(
                     onDismissRequest = { showMenu = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Add to playlist") },
+                        text = { Text(stringResource(R.string.music_browse_add_to_playlist)) },
                         onClick = {
                             showMenu = false
                             selectedSongForPlaylist = song

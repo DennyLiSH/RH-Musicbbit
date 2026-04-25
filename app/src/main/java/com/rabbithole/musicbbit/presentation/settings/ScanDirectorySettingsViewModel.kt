@@ -1,13 +1,15 @@
 package com.rabbithole.musicbbit.presentation.settings
 
+import android.app.Application
 import androidx.compose.runtime.Immutable
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
+import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.usecase.AddScanDirectoryUseCase
 import com.rabbithole.musicbbit.domain.usecase.GetScanDirectoriesUseCase
 import com.rabbithole.musicbbit.domain.usecase.RemoveScanDirectoryUseCase
-import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -51,11 +53,12 @@ sealed interface ScanDirectorySettingsAction {
 
 @HiltViewModel
 class ScanDirectorySettingsViewModel @Inject constructor(
+    application: Application,
     private val getScanDirectoriesUseCase: GetScanDirectoriesUseCase,
     private val addScanDirectoryUseCase: AddScanDirectoryUseCase,
     private val removeScanDirectoryUseCase: RemoveScanDirectoryUseCase,
     private val alarmRingSettingsRepository: AlarmRingSettingsRepository
-) : ViewModel() {
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow<ScanDirectorySettingsUiState>(ScanDirectorySettingsUiState.Loading)
     val uiState: StateFlow<ScanDirectorySettingsUiState> = _uiState.asStateFlow()
@@ -118,7 +121,7 @@ class ScanDirectorySettingsViewModel @Inject constructor(
                     currentState.pendingDirectory?.let { pending ->
                         addDirectory(pending.path, pending.name)
                     } ?: run {
-                        updateSuccess { it.copy(addError = "No directory selected") }
+                        updateSuccess { it.copy(addError = getApplication<Application>().getString(R.string.settings_error_no_directory)) }
                     }
                 }
             }
@@ -148,7 +151,7 @@ class ScanDirectorySettingsViewModel @Inject constructor(
             val file = File(path)
             if (!file.exists() || !file.isDirectory) {
                 updateSuccess {
-                    it.copy(addError = "Invalid directory path", pendingDirectory = null)
+                    it.copy(addError = getApplication<Application>().getString(R.string.settings_error_invalid_path), pendingDirectory = null)
                 }
                 return@launch
             }
@@ -167,7 +170,7 @@ class ScanDirectorySettingsViewModel @Inject constructor(
                 }
             } else {
                 updateSuccess {
-                    it.copy(addError = "Failed to add directory", pendingDirectory = null)
+                    it.copy(addError = getApplication<Application>().getString(R.string.settings_error_add_failed), pendingDirectory = null)
                 }
             }
         }

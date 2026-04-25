@@ -14,4 +14,8 @@ class AddSongToPlaylistUseCase @Inject constructor(
         val sortOrder = currentSongs.size
         playlistRepository.addSongToPlaylist(playlistId, songId, sortOrder)
     }
+
+    suspend operator fun invoke(playlistId: Long, songIds: List<Long>): Result<Unit> = runCatching {
+        playlistRepository.addSongsToPlaylist(playlistId, songIds)
+    }
 }

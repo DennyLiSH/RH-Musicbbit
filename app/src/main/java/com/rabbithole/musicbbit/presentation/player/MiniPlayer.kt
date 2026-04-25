@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.compose.ui.res.stringResource
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.navigation.Player
 
 @Composable
@@ -108,7 +110,7 @@ fun MiniPlayer(
             ) {
                 Icon(
                     imageVector = if (playbackState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (playbackState.isPlaying) "Pause" else "Play"
+                    contentDescription = if (playbackState.isPlaying) stringResource(R.string.mini_player_pause) else stringResource(R.string.mini_player_play)
                 )
             }
 
@@ -117,7 +119,7 @@ fun MiniPlayer(
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipNext,
-                    contentDescription = "Next"
+                    contentDescription = stringResource(R.string.mini_player_next)
                 )
             }
 
@@ -126,7 +128,7 @@ fun MiniPlayer(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Close"
+                    contentDescription = stringResource(R.string.mini_player_close)
                 )
             }
         }

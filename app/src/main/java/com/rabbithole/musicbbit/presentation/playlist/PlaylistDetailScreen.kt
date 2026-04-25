@@ -69,7 +69,7 @@ fun PlaylistDetailScreen(
             TopAppBar(
                 title = {
                     val title = when (val state = uiState) {
-                        is PlaylistDetailUiState.Loading -> "Playlist"
+                        is PlaylistDetailUiState.Loading -> stringResource(R.string.playlist_detail_title_loading)
                         is PlaylistDetailUiState.Success -> state.playlistWithSongs.playlist.name
                     }
                     Text(title)
@@ -78,7 +78,7 @@ fun PlaylistDetailScreen(
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -173,7 +173,7 @@ private fun EmptyContent(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "\"$playlistName\" is empty",
+            text = stringResource(R.string.playlist_detail_empty, playlistName),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
@@ -322,7 +322,7 @@ private fun SongListItemWithDelete(
         ) {
             Icon(
                 imageVector = Icons.Default.DragHandle,
-                contentDescription = "Drag to reorder",
+                contentDescription = stringResource(R.string.playlist_detail_drag_to_reorder),
                 tint = if (isDragging) {
                     MaterialTheme.colorScheme.primary
                 } else {
@@ -340,7 +340,7 @@ private fun SongListItemWithDelete(
         IconButton(onClick = onDelete) {
             Icon(
                 imageVector = Icons.Default.Delete,
-                contentDescription = "Remove from playlist",
+                contentDescription = stringResource(R.string.playlist_detail_remove_from_playlist),
                 tint = MaterialTheme.colorScheme.error
             )
         }

@@ -27,7 +27,7 @@ import com.rabbithole.musicbbit.data.model.SongEntity
         ScanDirectoryEntity::class,
         HolidayEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

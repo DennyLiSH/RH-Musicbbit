@@ -40,10 +40,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ThemeMode
 import com.rabbithole.musicbbit.navigation.PermissionDiagnostics
 import com.rabbithole.musicbbit.presentation.settings.components.ScanDirectoryItem
@@ -71,14 +73,14 @@ fun ScanDirectorySettingsScreen(
                 is TreeUriPathResult.UnsupportedStorage -> {
                     Toast.makeText(
                         context,
-                        "External storage devices are not supported. Please select a folder from internal storage.",
+                        context.getString(R.string.settings_toast_external_storage),
                         Toast.LENGTH_SHORT
                     ).show()
                 }
                 is TreeUriPathResult.ParseFailed -> {
                     Toast.makeText(
                         context,
-                        "Failed to parse folder path. Please try again.",
+                        context.getString(R.string.settings_toast_parse_failed),
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -89,12 +91,12 @@ fun ScanDirectorySettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -193,7 +195,7 @@ private fun SuccessContent(
 
             item(key = "scan_directory_header") {
                 Text(
-                    text = "Scan Directories",
+                    text = stringResource(R.string.settings_scan_directories),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
@@ -224,7 +226,7 @@ private fun SuccessContent(
                     contentDescription = null,
                     modifier = Modifier.padding(end = 8.dp)
                 )
-                Text("Add Scan Directory")
+                Text(stringResource(R.string.settings_add_scan_directory))
             }
 
             if (state.lastScanTime != null || state.directoryCount > 0) {
@@ -257,7 +259,7 @@ private fun ThemeSettingsSection(
 ) {
     Column(modifier = modifier) {
         Text(
-            text = "Theme",
+            text = stringResource(R.string.settings_theme),
             style = MaterialTheme.typography.titleMedium
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -266,19 +268,19 @@ private fun ThemeSettingsSection(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             ThemeModeButton(
-                label = "System",
+                label = stringResource(R.string.settings_theme_system),
                 selected = themeMode == ThemeMode.SYSTEM,
                 onClick = { onThemeModeChange(ThemeMode.SYSTEM) },
                 modifier = Modifier.weight(1f)
             )
             ThemeModeButton(
-                label = "Light",
+                label = stringResource(R.string.settings_theme_light),
                 selected = themeMode == ThemeMode.LIGHT,
                 onClick = { onThemeModeChange(ThemeMode.LIGHT) },
                 modifier = Modifier.weight(1f)
             )
             ThemeModeButton(
-                label = "Dark",
+                label = stringResource(R.string.settings_theme_dark),
                 selected = themeMode == ThemeMode.DARK,
                 onClick = { onThemeModeChange(ThemeMode.DARK) },
                 modifier = Modifier.weight(1f)
@@ -324,7 +326,7 @@ private fun ConfirmAddDirectoryDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Directory") },
+        title = { Text(stringResource(R.string.settings_add_directory_dialog_title)) },
         text = {
             Column {
                 Text(
@@ -349,12 +351,12 @@ private fun ConfirmAddDirectoryDialog(
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Add")
+                Text(stringResource(R.string.settings_add_directory_confirm))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -370,7 +372,7 @@ private fun BreathingSettingsSection(
 ) {
     Column(modifier = modifier) {
         Text(
-            text = "Alarm Ring",
+            text = stringResource(R.string.settings_alarm_ring),
             style = MaterialTheme.typography.titleMedium
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -380,7 +382,7 @@ private fun BreathingSettingsSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Breathing light effect",
+                text = stringResource(R.string.settings_breathing_light),
                 style = MaterialTheme.typography.bodyLarge
             )
             Switch(
@@ -391,7 +393,7 @@ private fun BreathingSettingsSection(
         Spacer(modifier = Modifier.height(8.dp))
         val alpha = if (enabled) 1.0f else 0.5f
         Text(
-            text = "Breathing period: %.1fs".format(periodMs / 1000f),
+            text = stringResource(R.string.settings_breathing_period, periodMs / 1000f),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
         )
@@ -406,12 +408,13 @@ private fun BreathingSettingsSection(
     }
 }
 
+@Composable
 private fun buildStatusText(state: ScanDirectorySettingsUiState.Success): String {
     val parts = mutableListOf<String>()
     if (state.lastScanTime != null) {
-        parts.add("Last scan: ${state.lastScanTime}")
+        parts.add(stringResource(R.string.settings_last_scan, state.lastScanTime))
     }
-    parts.add("${state.directoryCount} directories")
+    parts.add(stringResource(R.string.settings_directory_count, state.directoryCount))
     return parts.joinToString(" · ")
 }
 
@@ -433,12 +436,12 @@ private fun PermissionDiagnosticsCard(
         ) {
             Column {
                 Text(
-                    text = "Permission Diagnostics",
+                    text = stringResource(R.string.settings_permission_diagnostics),
                     style = MaterialTheme.typography.titleMedium
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Check alarm-related permissions",
+                    text = stringResource(R.string.settings_check_permissions),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

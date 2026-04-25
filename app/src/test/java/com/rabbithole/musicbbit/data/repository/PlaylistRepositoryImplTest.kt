@@ -8,6 +8,7 @@ import com.rabbithole.musicbbit.data.model.PlaylistEntity
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
 import com.rabbithole.musicbbit.data.model.SongEntity
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -192,5 +193,60 @@ class PlaylistRepositoryImplTest {
             assertNotNull(second)
             assertEquals("New Name", second!!.playlist.name)
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Scenario 6: addSongsToPlaylist - normal batch insert
+    // ------------------------------------------------------------------
+
+    @Test
+    fun `addSongsToPlaylist - inserts all new songs with correct sortOrder`() = runTest(testDispatcher) {
+        every { playlistSongDao.getByPlaylistId(1L) } returns flowOf(emptyList())
+        coEvery { playlistSongDao.insertAll(any()) } returns Unit
+
+        repository.addSongsToPlaylist(1L, listOf(10L, 20L, 30L))
+
+        coVerify {
+            playlistSongDao.insertAll(match { entities: List<PlaylistSongEntity> ->
+                entities.size == 3 &&
+                entities[0].playlistId == 1L && entities[0].songId == 10L && entities[0].sortOrder == 0 &&
+                entities[1].playlistId == 1L && entities[1].songId == 20L && entities[1].sortOrder == 1 &&
+                entities[2].playlistId == 1L && entities[2].songId == 30L && entities[2].sortOrder == 2
+            })
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Scenario 7: addSongsToPlaylist - filters out existing songs
+    // ------------------------------------------------------------------
+
+    @Test
+    fun `addSongsToPlaylist - filters existing songs and inserts only new ones`() = runTest(testDispatcher) {
+        val existingSongs = listOf(
+            playlistSongEntity(playlistId = 1L, songId = 10L, sortOrder = 0)
+        )
+        every { playlistSongDao.getByPlaylistId(1L) } returns flowOf(existingSongs)
+        coEvery { playlistSongDao.insertAll(any()) } returns Unit
+
+        repository.addSongsToPlaylist(1L, listOf(10L, 20L, 30L))
+
+        coVerify {
+            playlistSongDao.insertAll(match { entities: List<PlaylistSongEntity> ->
+                entities.size == 2 &&
+                entities[0].songId == 20L && entities[0].sortOrder == 1 &&
+                entities[1].songId == 30L && entities[1].sortOrder == 2
+            })
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Scenario 8: addSongsToPlaylist - empty list does nothing
+    // ------------------------------------------------------------------
+
+    @Test
+    fun `addSongsToPlaylist - empty list does not call insertAll`() = runTest(testDispatcher) {
+        repository.addSongsToPlaylist(1L, emptyList())
+
+        coVerify(exactly = 0) { playlistSongDao.insertAll(any()) }
     }
 }
