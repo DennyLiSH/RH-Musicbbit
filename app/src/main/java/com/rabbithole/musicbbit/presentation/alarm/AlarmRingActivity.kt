@@ -103,7 +103,7 @@ class AlarmRingActivity : ComponentActivity() {
      * Start a breathing light effect that cycles screen brightness
      * between 0.1 and 1.0 with the given period in milliseconds.
      */
-    private fun startBreathingAnimation(periodMs: Long) {
+    internal fun startBreathingAnimation(periodMs: Long) {
         breathingJob?.cancel()
         breathingJob = lifecycleScope.launch {
             while (isActive) {
@@ -121,7 +121,7 @@ class AlarmRingActivity : ComponentActivity() {
     /**
      * Stop the breathing animation and restore normal brightness.
      */
-    private fun stopBreathingAnimation() {
+    internal fun stopBreathingAnimation() {
         breathingJob?.cancel()
         breathingJob = null
         window.attributes = window.attributes.apply {
