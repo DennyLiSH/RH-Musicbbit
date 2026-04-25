@@ -30,12 +30,12 @@ class AlarmVolumeController @Inject constructor(
     fun startVolumeRamp(coroutineScope: CoroutineScope) {
         originalVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
 
-        val startVolume = (maxVolume * 0.1f).toInt().coerceAtLeast(1)
+        val startVolume = (maxVolume * 0.3f).toInt().coerceAtLeast(1)
         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, startVolume, 0)
         Timber.d("Starting volume ramp from $startVolume to $maxVolume")
 
-        val steps = 30
-        val delayMs = 1000L
+        val steps = 10
+        val delayMs = 500L
         val volumeStep = (maxVolume - startVolume).toFloat() / steps
 
         volumeJob = coroutineScope.launch {

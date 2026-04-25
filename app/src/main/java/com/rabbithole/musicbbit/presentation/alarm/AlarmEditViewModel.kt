@@ -3,9 +3,11 @@ package com.rabbithole.musicbbit.presentation.alarm
 import android.os.Build
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.navigation.toRoute
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.Playlist
+import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.domain.usecase.GetAlarmByIdUseCase
 import com.rabbithole.musicbbit.domain.usecase.GetPlaylistsUseCase
 import com.rabbithole.musicbbit.domain.usecase.SaveAlarmUseCase
@@ -64,7 +66,7 @@ class AlarmEditViewModel @Inject constructor(
     private val alarmScheduler: AlarmScheduler
 ) : ViewModel() {
 
-    private val alarmId: Long = savedStateHandle.get<Long>("alarmId") ?: 0L
+    private val alarmId: Long = savedStateHandle.toRoute<AlarmEdit>().alarmId
 
     private val _uiState = MutableStateFlow(
         AlarmEditUiState(
