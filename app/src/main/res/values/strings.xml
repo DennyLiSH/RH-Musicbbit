@@ -33,7 +33,6 @@
     <string name="alarm_active_banner_title">Alarm playing</string>
     <string name="alarm_active_banner_stop">Stop alarm</string>
     <string name="pause">Pause</string>
-    <string name="resume">Resume</string>    <string name="pause">Pause</string>
     <string name="resume">Resume</string>
     <string name="stop">Stop</string>
     <string name="notification_channel_name">Music Alarm</string>
