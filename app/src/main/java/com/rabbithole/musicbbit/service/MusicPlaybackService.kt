@@ -9,20 +9,15 @@ import android.content.Context
 import android.content.Intent
 import android.os.Binder
 import android.os.Build
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import androidx.core.app.NotificationCompat
 import com.rabbithole.musicbbit.MainActivity
 import com.rabbithole.musicbbit.R
-import com.rabbithole.musicbbit.data.local.dao.AlarmDao
-import com.rabbithole.musicbbit.data.model.AlarmEntity
-import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Song
-import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
-import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.domain.usecase.GetPlaybackProgressUseCase
 import com.rabbithole.musicbbit.domain.usecase.SavePlaybackProgressUseCase
+import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
+import com.rabbithole.musicbbit.service.alarm.AlarmPlaybackHost
 import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
@@ -43,10 +38,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
@@ -57,7 +50,7 @@ import timber.log.Timber
  * Playback state is exposed via [StateFlow] for UI observation.
  */
 @AndroidEntryPoint
-class MusicPlaybackService : Service() {
+class MusicPlaybackService : Service(), AlarmPlaybackHost {
 
     @Inject
     lateinit var savePlaybackProgressUseCase: SavePlaybackProgressUseCase
@@ -69,15 +62,6 @@ class MusicPlaybackService : Service() {
     lateinit var volumeRampPort: VolumeRampPort
 
     @Inject
-    lateinit var alarmDao: AlarmDao
-
-    @Inject
-    lateinit var playlistRepository: PlaylistRepository
-
-    @Inject
-    lateinit var playbackProgressRepository: PlaybackProgressRepository
-
-    @Inject
     lateinit var playerPort: PlayerPort
 
     @Inject
@@ -85,6 +69,9 @@ class MusicPlaybackService : Service() {
 
     @Inject
     lateinit var notificationPort: NotificationPort
+
+    @Inject
+    lateinit var alarmFireSession: AlarmFireSession
 
     private lateinit var audioFocusManager: AudioFocusManager
     private var wasPausedByFocusLoss = false
@@ -98,11 +85,6 @@ class MusicPlaybackService : Service() {
     private var progressSaveJob: Job? = null
     private var progressTickJob: Job? = null
     private var playerEventsJob: Job? = null
-
-    private val autoStopHandler = Handler(Looper.getMainLooper())
-    private var autoStopRunnable: Runnable? = null
-    private var currentAlarmId: Long = -1
-    private var extendToEnd: Boolean = false
 
     private fun handleIsPlayingChanged(isPlaying: Boolean) {
         Timber.d("Player isPlaying changed: $isPlaying")
@@ -129,8 +111,8 @@ class MusicPlaybackService : Service() {
         }
         updateNotification()
 
-        // Check extend-to-end
-        if (extendToEnd && event.reason == TransitionReason.AUTO) {
+        // Check extend-to-end (owned by AlarmFireSession)
+        if (alarmFireSession.isExtendToEnd() && event.reason == TransitionReason.AUTO) {
             Timber.i("Extend-to-end: stopping after current song")
             stop()
         }
@@ -163,6 +145,7 @@ class MusicPlaybackService : Service() {
         observePlayerEvents()
         initAudioFocusManager()
         startProgressTickLoop()
+        alarmFireSession.bindHost(this)
     }
 
     private fun observePlayerEvents() {
@@ -213,7 +196,11 @@ class MusicPlaybackService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification())
 
         when (intent?.action) {
-            ACTION_PLAY_ALARM -> handlePlayAlarm(intent)
+            ACTION_PLAY_ALARM -> {
+                val alarmId = intent.getLongExtra(EXTRA_ALARM_ID, -1L)
+                val isAlarmTrigger = intent.getBooleanExtra(EXTRA_IS_ALARM_TRIGGER, false)
+                alarmFireSession.fire(alarmId, isAlarmTrigger)
+            }
             AlarmActionReceiver.ACTION_SERVICE_STOP -> stop()
             AlarmActionReceiver.ACTION_SERVICE_PAUSE -> pause()
             AlarmActionReceiver.ACTION_SERVICE_RESUME -> resume()
@@ -379,9 +366,7 @@ class MusicPlaybackService : Service() {
         _playbackState.update { PlaybackState() }
         progressSaveJob?.cancel()
         cancelProgressTickLoop()
-        cancelAutoStop()
-        extendToEnd = false
-        wakeLockPort.release()
+        alarmFireSession.onPlaybackStopped()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -541,178 +526,61 @@ class MusicPlaybackService : Service() {
         Timber.i("MusicPlaybackService destroyed")
         audioFocusManager.abandonFocus()
         volumeRampPort.restoreVolume()
-        cancelAutoStop()
-        autoStopHandler.removeCallbacksAndMessages(null)
         saveCurrentProgress()
         progressSaveJob?.cancel()
         cancelProgressTickLoop()
         playerEventsJob?.cancel()
         // PlayerPort is a Singleton — its underlying ExoPlayer outlives this service.
         // We do not release it here.
+        alarmFireSession.unbindHost(this)
         wakeLockPort.release()
         serviceScope.cancel()
         super.onDestroy()
     }
 
-    private fun preloadFirstSong(uri: android.net.Uri) {
+    // ----- AlarmPlaybackHost --------------------------------------------------
+
+    /** Pre-warm the player with the first alarm song to reduce alarm-time latency. */
+    override fun preloadFirstSong(uri: String) {
         playerPort.setQueue(
-            items = listOf(PlayItem(uri = uri.toString())),
+            items = listOf(PlayItem(uri = uri)),
             startIndex = 0,
             startPositionMs = 0,
         )
         Timber.d("Preloaded first song: $uri")
     }
 
-    private fun handlePlayAlarm(intent: Intent) {
-        val alarmId = intent.getLongExtra(EXTRA_ALARM_ID, -1)
-        val isAlarmTrigger = intent.getBooleanExtra(EXTRA_IS_ALARM_TRIGGER, false)
-
-        if (alarmId == -1L) {
-            Timber.w("Invalid alarm play intent: no alarmId")
-            return
-        }
-
-        // Acquire wake lock for alarm-triggered playback
-        if (isAlarmTrigger) {
-            wakeLockPort.acquire(ALARM_WAKE_LOCK_TIMEOUT_MS)
-        }
-
-        serviceScope.launch(Dispatchers.IO) {
-            val alarm = alarmDao.getById(alarmId)
-            if (alarm == null || !alarm.isEnabled) {
-                Timber.w("Alarm id=$alarmId not found or disabled")
-                return@launch
-            }
-
-            val playlistWithSongs = playlistRepository.getPlaylistWithSongs(alarm.playlistId).first()
-            if (playlistWithSongs == null || playlistWithSongs.songs.isEmpty()) {
-                Timber.w("Playlist id=${alarm.playlistId} is empty or not found for alarm id=$alarmId")
-                notificationPort.showError(
-                    notificationId = alarmId.toInt(),
-                    title = alarm.label ?: "Music Alarm",
-                    message = "Playlist is empty",
-                )
-                return@launch
-            }
-
-            val songs = playlistWithSongs.songs
-            val startIndex = resolveStartIndex(songs, alarm)
-            val startSong = songs[startIndex]
-
-            // Reset playback progress for the starting song to beginning
-            resetPlaybackProgress(startSong, alarm)
-
-            withContext(Dispatchers.Main) {
-                // Preload first song if triggered by alarm
-                if (isAlarmTrigger && songs.isNotEmpty()) {
-                    val firstSongUri = android.net.Uri.parse(songs.first().path)
-                    preloadFirstSong(firstSongUri)
-                }
-
-                playQueue(songs, startIndex, alarm.playlistId)
-                _playbackState.update { it.copy(alarmId = alarmId) }
-
-                // Start volume ramp for alarm-triggered playback
-                if (isAlarmTrigger) {
-                    volumeRampPort.startVolumeRamp(serviceScope)
-                    Timber.i("Started volume ramp for alarm playback")
-                }
-
-                // Schedule auto-stop
-                val autoStopMinutes = alarm.autoStopMinutes
-                if (autoStopMinutes != null && autoStopMinutes > 0) {
-                    scheduleAutoStop(autoStopMinutes, alarmId)
-                }
-
-                // Reset extend-to-end flag
-                extendToEnd = false
-
-                // Show alarm notification
-                notificationPort.showAlarmPlaying(alarm, startSong)
-                Timber.i("Alarm notification shown for alarm id=$alarmId, song=${startSong.title}")
-            }
-        }
+    /** Drive playback for the alarm queue. Tags the playback state with [alarmId]. */
+    override fun playAlarmQueue(
+        songs: List<Song>,
+        startIndex: Int,
+        playlistId: Long,
+        alarmId: Long,
+    ) {
+        playQueue(songs, startIndex, playlistId)
+        _playbackState.update { it.copy(alarmId = alarmId) }
     }
 
-    /**
-     * Resolve the starting song index based on saved playback progress.
-     */
-    private suspend fun resolveStartIndex(songs: List<Song>, alarm: AlarmEntity): Int {
-        val progressList = playbackProgressRepository.getProgressForPlaylist(alarm.playlistId).getOrNull()
-        return if (!progressList.isNullOrEmpty()) {
-            val latestProgress = progressList.maxByOrNull { it.updatedAt }
-            val index = latestProgress?.let { progress ->
-                songs.indexOfFirst { it.id == progress.songId }
-            } ?: 0
-            index.coerceIn(0, songs.lastIndex)
-        } else {
-            0
-        }
+    /** Used by [AlarmFireSession.scheduleAutoStop] to terminate playback after the timer. */
+    override fun stopPlayback() {
+        stop()
     }
 
-    /**
-     * Reset playback progress for the starting song to the beginning.
-     */
-    private suspend fun resetPlaybackProgress(startSong: Song, alarm: AlarmEntity) {
-        val progress = PlaybackProgress(
-            songId = startSong.id,
-            positionMs = 0,
-            updatedAt = System.currentTimeMillis(),
-            playlistId = alarm.playlistId
-        )
-        playbackProgressRepository.saveProgress(progress).onSuccess {
-            Timber.d("Reset progress for song id=${startSong.id}")
-        }.onFailure { error ->
-            Timber.e(error, "Failed to reset progress for song id=${startSong.id}")
-        }
-    }
-
-    private fun scheduleAutoStop(minutes: Int, alarmId: Long) {
-        cancelAutoStop()
-        currentAlarmId = alarmId
-
-        val delayMs = minutes * 60_000L
-        Timber.i("Scheduling auto-stop in $minutes minutes for alarm $alarmId")
-
-        autoStopRunnable = Runnable {
-            Timber.i("Auto-stop triggered for alarm $alarmId")
-            stop()
-            // Send broadcast to clear alarm notification
-            sendBroadcast(Intent(this, AlarmActionReceiver::class.java).apply {
-                action = AlarmActionReceiver.ACTION_STOP
-                putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
-            })
-        }
-        autoStopHandler.postDelayed(autoStopRunnable!!, delayMs)
-    }
-
-    private fun cancelAutoStop() {
-        autoStopRunnable?.let {
-            autoStopHandler.removeCallbacks(it)
-            Timber.d("Auto-stop cancelled")
-        }
-        autoStopRunnable = null
-        currentAlarmId = -1
-    }
+    // ----- Auto-stop / extend delegations ------------------------------------
 
     /**
      * Extend the auto-stop time by the given minutes.
      * Called from AlarmActionReceiver via broadcast.
      */
     fun extendAutoStop(minutes: Int) {
-        autoStopRunnable?.let { currentRunnable ->
-            autoStopHandler.removeCallbacks(currentRunnable)
-            autoStopHandler.postDelayed(currentRunnable, minutes * 60_000L)
-            Timber.i("Auto-stop extended by $minutes minutes")
-        }
+        alarmFireSession.extendAutoStop(minutes)
     }
 
     /**
      * Set extend-to-end mode. When enabled, playback stops after the current song finishes.
      */
     fun setExtendToEnd(enabled: Boolean) {
-        extendToEnd = enabled
-        Timber.i("Extend-to-end mode: $enabled")
+        alarmFireSession.setExtendToEnd(enabled)
     }
 
     companion object {
@@ -720,7 +588,6 @@ class MusicPlaybackService : Service() {
         private const val NOTIFICATION_ID = 1
         private const val PROGRESS_SAVE_INTERVAL_MS = 5000L
         private const val PROGRESS_TICK_INTERVAL_MS = 500L
-        private const val ALARM_WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L // 10 minutes
 
         const val ACTION_PLAY_ALARM = "com.rabbithole.musicbbit.action.PLAY_ALARM"
         const val ACTION_PREVIOUS = "com.rabbithole.musicbbit.action.PREVIOUS"
