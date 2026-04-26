@@ -5,9 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
 import androidx.core.content.ContextCompat
-import com.rabbithole.musicbbit.data.local.dao.AlarmDao
-import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -15,26 +12,16 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /**
- * BroadcastReceiver that handles alarm trigger events from [AlarmManager].
+ * Thin BroadcastReceiver that hands an alarm trigger off to [MusicPlaybackService].
  *
- * Responsibilities:
- * - Acquire a partial wake lock to ensure the device stays awake during processing
- * - Load the triggered alarm and its associated playlist
- * - Determine the starting song index based on saved playback progress
- * - Reset playback progress for the starting song
- * - Start [MusicPlaybackService] as a foreground service
- * - Update the alarm's [lastTriggeredAt] timestamp
- * - Reschedule repeating alarms for their next occurrence
- * - Display an alarm notification via [AlarmNotificationHelper]
+ * Holds a brief partial wake lock during the [goAsync] dispatch so the device stays awake
+ * long enough to start the foreground service.
+ *
+ * All alarm bookkeeping (lastTriggeredAt write, one-time isEnabled flip, repeating-alarm
+ * reschedule) lives in [com.rabbithole.musicbbit.service.alarm.AlarmFireSession.fire] and
+ * runs once playback has actually started.
  */
-@AndroidEntryPoint
 class AlarmReceiver : BroadcastReceiver() {
-
-    @Inject
-    lateinit var alarmDao: AlarmDao
-
-    @Inject
-    lateinit var alarmScheduler: AlarmScheduler
 
     override fun onReceive(context: Context, intent: Intent) {
         Timber.i("AlarmReceiver triggered")
@@ -51,10 +38,6 @@ class AlarmReceiver : BroadcastReceiver() {
                     return@launch
                 }
 
-                Timber.i("Processing alarm id=$alarmId")
-
-                // Immediately start foreground service with just the alarm ID.
-                // The service will acquire its own wake lock and load the playlist.
                 val serviceIntent = MusicPlaybackService.createIntent(context).apply {
                     action = MusicPlaybackService.ACTION_PLAY_ALARM
                     putExtra(MusicPlaybackService.EXTRA_ALARM_ID, alarmId)
@@ -62,38 +45,8 @@ class AlarmReceiver : BroadcastReceiver() {
                 }
                 ContextCompat.startForegroundService(context, serviceIntent)
                 Timber.i("Started MusicPlaybackService for alarm id=$alarmId")
-
-                // Background tasks: validate alarm, update timestamp, reschedule
-                val alarm = alarmDao.getById(alarmId)
-                if (alarm == null) {
-                    Timber.w("Alarm id=$alarmId not found in database")
-                    return@launch
-                }
-
-                if (!alarm.isEnabled) {
-                    Timber.d("Alarm id=$alarmId is disabled, ignoring trigger")
-                    return@launch
-                }
-
-                // One-time alarms (repeatDaysBitmask == 0) are auto-disabled after trigger.
-                // Repeating alarms keep isEnabled=true and are rescheduled for the next occurrence.
-                val isOneTime = alarm.repeatDaysBitmask == 0
-                val updatedAlarm = alarm.copy(
-                    lastTriggeredAt = System.currentTimeMillis(),
-                    isEnabled = if (isOneTime) false else alarm.isEnabled
-                )
-                alarmDao.update(updatedAlarm)
-                Timber.i(
-                    "Updated alarm id=$alarmId: lastTriggeredAt=${updatedAlarm.lastTriggeredAt}, " +
-                        "isEnabled=${updatedAlarm.isEnabled}, isOneTime=$isOneTime"
-                )
-
-                if (!isOneTime) {
-                    Timber.i("Rescheduling repeating alarm id=$alarmId")
-                    alarmScheduler.schedule(updatedAlarm)
-                }
             } catch (e: Exception) {
-                Timber.e(e, "AlarmReceiver processing failed")
+                Timber.e(e, "AlarmReceiver dispatch failed")
             } finally {
                 wakeLock?.let {
                     if (it.isHeld) {

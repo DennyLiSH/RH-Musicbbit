@@ -1,10 +1,12 @@
 package com.rabbithole.musicbbit.service.alarm
 
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
+import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
+import com.rabbithole.musicbbit.service.AlarmScheduler
 import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
@@ -49,6 +51,7 @@ class AlarmFireSession @Inject constructor(
     private val alarmDao: AlarmDao,
     private val playlistRepository: PlaylistRepository,
     private val playbackProgressRepository: PlaybackProgressRepository,
+    private val alarmScheduler: AlarmScheduler,
     private val wakeLockPort: WakeLockPort,
     private val notificationPort: NotificationPort,
     private val volumeRampPort: VolumeRampPort,
@@ -135,6 +138,8 @@ class AlarmFireSession @Inject constructor(
 
                 resetPlaybackProgress(startSong, alarm.playlistId)
 
+                var playbackStarted = false
+
                 withContext(Dispatchers.Main) {
                     val currentHost = host
                     if (currentHost == null) {
@@ -171,8 +176,45 @@ class AlarmFireSession @Inject constructor(
                         alarmId = alarmId,
                         currentSong = startSong,
                     )
+                    playbackStarted = true
+                }
+
+                if (playbackStarted) {
+                    bookkeepAlarmTrigger(alarm)
                 }
             }
+        }
+    }
+
+    /**
+     * Update [com.rabbithole.musicbbit.data.model.AlarmEntity.lastTriggeredAt], auto-disable
+     * one-time alarms (`repeatDaysBitmask == 0`), and reschedule repeating alarms for their
+     * next occurrence.
+     *
+     * Runs on [Dispatchers.IO] (we're already on the outer IO launch). Wrapped in try/catch
+     * so a DAO/scheduler failure does not poison the [AlarmFireState.Playing] state.
+     */
+    private suspend fun bookkeepAlarmTrigger(
+        alarm: AlarmEntity,
+    ) {
+        try {
+            val isOneTime = alarm.repeatDaysBitmask == 0
+            val updatedAlarm = alarm.copy(
+                lastTriggeredAt = clock.nowMs(),
+                isEnabled = if (isOneTime) false else alarm.isEnabled,
+            )
+            alarmDao.update(updatedAlarm)
+            Timber.i(
+                "Updated alarm id=${alarm.id}: lastTriggeredAt=${updatedAlarm.lastTriggeredAt}, " +
+                    "isEnabled=${updatedAlarm.isEnabled}, isOneTime=$isOneTime"
+            )
+
+            if (!isOneTime) {
+                Timber.i("Rescheduling repeating alarm id=${alarm.id}")
+                alarmScheduler.schedule(updatedAlarm)
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "AlarmFireSession.bookkeepAlarmTrigger failed for alarm id=${alarm.id}")
         }
     }
 
