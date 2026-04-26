@@ -3,12 +3,13 @@ package com.rabbithole.musicbbit.service.alarm
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
 import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.service.AlarmScheduler
+import io.mockk.coVerify
+import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -32,16 +33,16 @@ class AlarmStartupReconcilerTest {
     private val testDispatcher = UnconfinedTestDispatcher()
 
     private lateinit var fakeDao: FakeAlarmDao
-    private lateinit var fakeScheduler: FakeAlarmScheduler
+    private lateinit var alarmScheduler: AlarmScheduler
     private lateinit var reconciler: AlarmStartupReconciler
 
     @Before
     fun setUp() {
         fakeDao = FakeAlarmDao()
-        fakeScheduler = FakeAlarmScheduler()
+        alarmScheduler = mockk(relaxed = true)
         reconciler = AlarmStartupReconciler(
             alarmDao = fakeDao,
-            alarmScheduler = fakeScheduler,
+            alarmScheduler = alarmScheduler,
             ioDispatcher = testDispatcher,
         )
     }
@@ -66,7 +67,7 @@ class AlarmStartupReconcilerTest {
         val updated = fakeDao.getById(1L)
         assertNotNull(updated)
         assertFalse(updated!!.isEnabled)
-        assertEquals(0, fakeScheduler.scheduledIds.size)
+        coVerify(exactly = 0) { alarmScheduler.rescheduleAll(any()) }
     }
 
     @Test
@@ -86,7 +87,7 @@ class AlarmStartupReconcilerTest {
 
         reconciler.reconcileInternal()
 
-        assertEquals(listOf(2L), fakeScheduler.scheduledIds)
+        coVerify { alarmScheduler.rescheduleAll(listOf(alarm)) }
         val unchanged = fakeDao.getById(2L)
         assertNotNull(unchanged)
         assertTrue(unchanged!!.isEnabled)
@@ -112,7 +113,7 @@ class AlarmStartupReconcilerTest {
         val unchanged = fakeDao.getById(3L)
         assertNotNull(unchanged)
         assertTrue(unchanged!!.isEnabled)
-        assertEquals(0, fakeScheduler.scheduledIds.size)
+        coVerify(exactly = 0) { alarmScheduler.rescheduleAll(any()) }
     }
 
     // -------------------------------------------------------------------------
@@ -146,26 +147,6 @@ class AlarmStartupReconcilerTest {
             flowOf(rows.values.filter { it.isEnabled })
 
         override suspend fun getById(id: Long): AlarmEntity? = rows[id]
-    }
-
-    private class FakeAlarmScheduler : AlarmScheduler {
-        val scheduledIds = mutableListOf<Long>()
-        val cancelledIds = mutableListOf<Long>()
-
-        override suspend fun schedule(alarm: AlarmEntity) {
-            scheduledIds += alarm.id
-        }
-
-        override fun cancel(alarmId: Long) {
-            cancelledIds += alarmId
-        }
-
-        override suspend fun rescheduleAll(enabledAlarms: List<AlarmEntity>) {
-            enabledAlarms.forEach { cancel(it.id) }
-            enabledAlarms.forEach { schedule(it) }
-        }
-
-        override fun canScheduleExactAlarms(): Boolean = true
     }
 
     companion object {
