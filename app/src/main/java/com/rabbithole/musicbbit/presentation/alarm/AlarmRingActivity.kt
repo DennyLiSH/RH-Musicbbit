@@ -73,7 +73,6 @@ class AlarmRingActivity : ComponentActivity() {
         }
 
         Timber.i("AlarmRingActivity created for alarmId=$alarmId")
-        viewModel.loadAlarmLabel(alarmId)
 
         // Show over lock screen and turn screen on
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -258,7 +257,7 @@ private fun AlarmRingScreen(
                 },
                 label = stringResource(R.string.stop),
                 onClick = {
-                    viewModel.stop(alarmId = alarmId)
+                    viewModel.stop()
                     onStop()
                 },
                 containerColor = MaterialTheme.colorScheme.errorContainer,

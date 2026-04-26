@@ -12,10 +12,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /**
@@ -52,6 +54,7 @@ class AlarmRingViewModel @Inject constructor(
     init {
         observeAlarmFireState()
         observeBreathingSettings()
+        observeAlarmLabel()
     }
 
     private fun observeBreathingSettings() {
@@ -86,16 +89,21 @@ class AlarmRingViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    /**
-     * Load alarm label for display.
-     */
-    fun loadAlarmLabel(alarmId: Long) {
-        viewModelScope.launch {
-            val alarm = alarmDao.getById(alarmId)
-            _uiState.update {
-                it.copy(alarmLabel = alarm?.label ?: "")
+    private fun observeAlarmLabel() {
+        alarmFireSession.state
+            .map { it.alarmIdOrNull }
+            .distinctUntilChanged()
+            .filterNotNull()
+            .onEach { id ->
+                val label = try {
+                    alarmDao.getById(id)?.label
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to load alarm label for id=$id")
+                    null
+                }
+                _uiState.update { it.copy(alarmLabel = label ?: "") }
             }
-        }
+            .launchIn(viewModelScope)
     }
 
     /** Pause playback through the active alarm session. */
@@ -111,8 +119,8 @@ class AlarmRingViewModel @Inject constructor(
     }
 
     /** Stop playback and dismiss the alarm. */
-    fun stop(alarmId: Long) {
-        Timber.i("AlarmRing: stopping playback for alarmId=$alarmId")
+    fun stop() {
+        Timber.i("AlarmRing: stopping playback")
         alarmFireSession.stop()
     }
 }
