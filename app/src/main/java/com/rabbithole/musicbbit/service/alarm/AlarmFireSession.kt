@@ -93,6 +93,55 @@ class AlarmFireSession @Inject constructor(
     }
 
     /**
+     * Pause the active alarm playback. No-op if state is not [AlarmFireState.Playing].
+     * Transitions state to [AlarmFireState.Paused] and shows the paused notification.
+     */
+    fun pause() {
+        val current = _state.value
+        if (current !is AlarmFireState.Playing) {
+            Timber.d("AlarmFireSession.pause: state is not Playing ($current); ignoring")
+            return
+        }
+        Timber.i("AlarmFireSession.pause: alarmId=${current.alarmId}")
+        host?.pauseAlarm()
+        notificationPort.showAlarmPaused(current.alarmId)
+        _state.value = AlarmFireState.Paused(
+            alarmId = current.alarmId,
+            currentSong = current.currentSong,
+            positionMs = current.positionMs,
+        )
+    }
+
+    /**
+     * Resume an alarm session previously paused via [pause]. No-op if state is not
+     * [AlarmFireState.Paused]. Transitions state back to [AlarmFireState.Playing].
+     */
+    fun resume() {
+        val current = _state.value
+        if (current !is AlarmFireState.Paused) {
+            Timber.d("AlarmFireSession.resume: state is not Paused ($current); ignoring")
+            return
+        }
+        Timber.i("AlarmFireSession.resume: alarmId=${current.alarmId}")
+        host?.resumeAlarm()
+        _state.value = AlarmFireState.Playing(
+            alarmId = current.alarmId,
+            currentSong = current.currentSong,
+            positionMs = current.positionMs,
+        )
+    }
+
+    /**
+     * Stop the active alarm session. Delegates to the host, which will then call
+     * [onPlaybackStopped] once playback has actually ended.
+     */
+    fun stop() {
+        val alarmId = _state.value.alarmId
+        Timber.i("AlarmFireSession.stop: alarmId=$alarmId")
+        host?.stopPlayback()
+    }
+
+    /**
      * Fire an alarm. Loads alarm + playlist, resolves start position, drives playback via
      * the bound host, schedules the auto-stop timer, and shows the alarm notification.
      */

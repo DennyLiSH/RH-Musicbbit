@@ -1,24 +1,34 @@
 package com.rabbithole.musicbbit.service
 
-import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import timber.log.Timber
 
 /**
  * BroadcastReceiver that handles user actions from the alarm notification.
  *
- * Supported actions:
- * - [ACTION_STOP]: Stop playback and dismiss the notification
- * - [ACTION_PAUSE]: Pause playback and update notification to paused state
- * - [ACTION_EXTEND_MINUTES]: Extend auto-stop timer by specified minutes
- * - [ACTION_EXTEND_TO_END]: Set auto-stop to trigger at the end of current song
+ * After step 6 of the AlarmFireSession refactor, each action calls
+ * [AlarmFireSession] directly instead of round-tripping through
+ * [MusicPlaybackService] intent + service handler. Notification updates and
+ * state transitions now live inside the session.
  *
- * Each action carries [AlarmScheduler.EXTRA_ALARM_ID] to identify the target alarm.
+ * Supported actions:
+ * - [ACTION_STOP]: Stop the alarm session (host stops playback, session releases
+ *   wake lock + cancels notification)
+ * - [ACTION_PAUSE]: Pause playback and show paused notification
+ * - [ACTION_RESUME]: Resume paused playback
+ * - [ACTION_EXTEND_MINUTES]: Extend the auto-stop timer by [EXTRA_MINUTES] minutes
+ * - [ACTION_EXTEND_TO_END]: Stop playback when the current song finishes
  */
+@AndroidEntryPoint
 class AlarmActionReceiver : BroadcastReceiver() {
+
+    @Inject
+    lateinit var alarmFireSession: AlarmFireSession
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action
@@ -32,110 +42,20 @@ class AlarmActionReceiver : BroadcastReceiver() {
         Timber.i("AlarmActionReceiver action=$action, alarmId=$alarmId")
 
         when (action) {
-            ACTION_STOP -> handleStop(context, alarmId)
-            ACTION_PAUSE -> handlePause(context, alarmId)
-            ACTION_RESUME -> handleResume(context, alarmId)
-            ACTION_EXTEND_MINUTES -> handleExtendMinutes(context, intent, alarmId)
-            ACTION_EXTEND_TO_END -> handleExtendToEnd(context, alarmId)
+            ACTION_STOP -> alarmFireSession.stop()
+            ACTION_PAUSE -> alarmFireSession.pause()
+            ACTION_RESUME -> alarmFireSession.resume()
+            ACTION_EXTEND_MINUTES -> {
+                val minutes = intent.getIntExtra(EXTRA_MINUTES, 0)
+                if (minutes <= 0) {
+                    Timber.w("Invalid extend minutes: $minutes")
+                    return
+                }
+                alarmFireSession.extendAutoStop(minutes)
+            }
+            ACTION_EXTEND_TO_END -> alarmFireSession.setExtendToEnd(true)
             else -> Timber.w("Unknown action received: $action")
         }
-    }
-
-    /**
-     * Stop playback and cancel the alarm notification.
-     *
-     * @param context The context to use.
-     * @param alarmId The ID of the alarm being stopped.
-     */
-    private fun handleStop(context: Context, alarmId: Long) {
-        Timber.i("Stopping alarm playback for alarmId=$alarmId")
-
-        val serviceIntent = MusicPlaybackService.createIntent(context).apply {
-            action = ACTION_SERVICE_STOP
-        }
-        context.startService(serviceIntent)
-
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
-            as NotificationManager
-        notificationManager.cancel(alarmId.toInt())
-        Timber.d("Cancelled notification for alarmId=$alarmId")
-    }
-
-    /**
-     * Pause playback and update the notification to show paused state.
-     *
-     * @param context The context to use.
-     * @param alarmId The ID of the alarm being paused.
-     */
-    private fun handlePause(context: Context, alarmId: Long) {
-        Timber.i("Pausing alarm playback for alarmId=$alarmId")
-
-        val serviceIntent = MusicPlaybackService.createIntent(context).apply {
-            action = ACTION_SERVICE_PAUSE
-        }
-        context.startService(serviceIntent)
-
-        // Update notification to paused state
-        // The song info is retrieved from the service via a broadcast or
-        // we use a placeholder since the service state will be updated
-        AlarmNotificationHelper.updatePaused(context, alarmId)
-        Timber.d("Updated notification to paused state for alarmId=$alarmId")
-    }
-
-    /**
-     * Resume playback. The notification update is handled by the service's player listener.
-     *
-     * @param context The context to use.
-     * @param alarmId The ID of the alarm being resumed.
-     */
-    private fun handleResume(context: Context, alarmId: Long) {
-        Timber.i("Resuming alarm playback for alarmId=$alarmId")
-
-        val serviceIntent = MusicPlaybackService.createIntent(context).apply {
-            action = ACTION_SERVICE_RESUME
-        }
-        context.startService(serviceIntent)
-
-        // Notification will be updated by MusicPlaybackService's player listener
-        Timber.d("Sent resume command to service for alarmId=$alarmId")
-    }
-
-    /**
-     * Extend the auto-stop timer by the specified number of minutes.
-     *
-     * @param context The context to use.
-     * @param intent The intent carrying [EXTRA_MINUTES].
-     * @param alarmId The ID of the alarm being extended.
-     */
-    private fun handleExtendMinutes(context: Context, intent: Intent, alarmId: Long) {
-        val minutes = intent.getIntExtra(EXTRA_MINUTES, 0)
-        if (minutes <= 0) {
-            Timber.w("Invalid extend minutes: $minutes")
-            return
-        }
-
-        Timber.i("Extending alarm id=$alarmId by $minutes minutes")
-
-        val serviceIntent = MusicPlaybackService.createIntent(context).apply {
-            action = ACTION_SERVICE_EXTEND_MINUTES
-            putExtra(EXTRA_MINUTES, minutes)
-        }
-        context.startService(serviceIntent)
-    }
-
-    /**
-     * Set the auto-stop to trigger at the end of the current song.
-     *
-     * @param context The context to use.
-     * @param alarmId The ID of the alarm being extended.
-     */
-    private fun handleExtendToEnd(context: Context, alarmId: Long) {
-        Timber.i("Extending alarm id=$alarmId to end of current song")
-
-        val serviceIntent = MusicPlaybackService.createIntent(context).apply {
-            action = ACTION_SERVICE_EXTEND_TO_END
-        }
-        context.startService(serviceIntent)
     }
 
     companion object {
@@ -147,7 +67,8 @@ class AlarmActionReceiver : BroadcastReceiver() {
 
         const val EXTRA_MINUTES = "extra_minutes"
 
-        // Internal actions sent to MusicPlaybackService
+        // Internal actions still used by AlarmRingViewModel until step 7 wires it directly
+        // to the session. Will be deleted in step 7.
         const val ACTION_SERVICE_STOP = "com.rabbithole.musicbbit.action.SERVICE_STOP"
         const val ACTION_SERVICE_PAUSE = "com.rabbithole.musicbbit.action.SERVICE_PAUSE"
         const val ACTION_SERVICE_RESUME = "com.rabbithole.musicbbit.action.SERVICE_RESUME"

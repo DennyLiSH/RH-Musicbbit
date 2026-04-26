@@ -561,6 +561,16 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
         _playbackState.update { it.copy(alarmId = alarmId) }
     }
 
+    /** Pause playback driven by the alarm session. */
+    override fun pauseAlarm() {
+        pause()
+    }
+
+    /** Resume playback driven by the alarm session. */
+    override fun resumeAlarm() {
+        resume()
+    }
+
     /** Used by [AlarmFireSession.scheduleAutoStop] to terminate playback after the timer. */
     override fun stopPlayback() {
         stop()

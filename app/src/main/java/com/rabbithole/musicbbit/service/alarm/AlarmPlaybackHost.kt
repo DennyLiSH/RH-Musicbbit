@@ -19,6 +19,12 @@ interface AlarmPlaybackHost {
     /** Drive the queue + start position used by the alarm. The host updates its own UI state. */
     fun playAlarmQueue(songs: List<Song>, startIndex: Int, playlistId: Long, alarmId: Long)
 
+    /** Pause playback during an active alarm session (notification action / in-app control). */
+    fun pauseAlarm()
+
+    /** Resume playback during an active alarm session. */
+    fun resumeAlarm()
+
     /** Stop playback (used by the auto-stop timer and external stop()). */
     fun stopPlayback()
 }
