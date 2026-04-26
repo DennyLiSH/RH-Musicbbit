@@ -2,6 +2,8 @@ package com.rabbithole.musicbbit.service.alarm
 
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
 import com.rabbithole.musicbbit.data.model.AlarmEntity
+import com.rabbithole.musicbbit.di.IoDispatcher
+import com.rabbithole.musicbbit.di.MainDispatcher
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
@@ -12,8 +14,8 @@ import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -56,10 +58,12 @@ class AlarmFireSession @Inject constructor(
     private val notificationPort: NotificationPort,
     private val volumeRampPort: VolumeRampPort,
     private val clock: Clock,
+    @MainDispatcher private val mainDispatcher: CoroutineDispatcher,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
 
     private val sessionJob = SupervisorJob()
-    private val sessionScope = CoroutineScope(sessionJob + Dispatchers.Main)
+    private val sessionScope = CoroutineScope(sessionJob + mainDispatcher)
     private val mutex = Mutex()
 
     private val _state = MutableStateFlow<AlarmFireState>(AlarmFireState.Idle)
@@ -155,7 +159,7 @@ class AlarmFireSession @Inject constructor(
             wakeLockPort.acquire(ALARM_WAKE_LOCK_TIMEOUT_MS)
         }
 
-        sessionScope.launch(Dispatchers.IO) {
+        sessionScope.launch(ioDispatcher) {
             mutex.withLock {
                 _state.value = AlarmFireState.Loading(alarmId)
 
@@ -189,7 +193,7 @@ class AlarmFireSession @Inject constructor(
 
                 var playbackStarted = false
 
-                withContext(Dispatchers.Main) {
+                withContext(mainDispatcher) {
                     val currentHost = host
                     if (currentHost == null) {
                         Timber.w("No AlarmPlaybackHost bound; cannot drive playback")
@@ -240,7 +244,7 @@ class AlarmFireSession @Inject constructor(
      * one-time alarms (`repeatDaysBitmask == 0`), and reschedule repeating alarms for their
      * next occurrence.
      *
-     * Runs on [Dispatchers.IO] (we're already on the outer IO launch). Wrapped in try/catch
+     * Runs on the injected IO dispatcher (we're already on the outer IO launch). Wrapped in try/catch
      * so a DAO/scheduler failure does not poison the [AlarmFireState.Playing] state.
      */
     private suspend fun bookkeepAlarmTrigger(
