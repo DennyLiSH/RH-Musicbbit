@@ -14,9 +14,6 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
 import com.rabbithole.musicbbit.MainActivity
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
@@ -27,6 +24,11 @@ import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.domain.usecase.GetPlaybackProgressUseCase
 import com.rabbithole.musicbbit.domain.usecase.SavePlaybackProgressUseCase
+import com.rabbithole.musicbbit.service.playback.PlayItem
+import com.rabbithole.musicbbit.service.playback.PlayerEvent
+import com.rabbithole.musicbbit.service.playback.PlayerPort
+import com.rabbithole.musicbbit.service.playback.PlayerRepeatMode
+import com.rabbithole.musicbbit.service.playback.TransitionReason
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -46,9 +48,10 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
- * Foreground music playback service using ExoPlayer.
+ * Foreground music playback service.
  *
- * Manages audio playback, persists playback progress, and displays a media-style notification.
+ * Manages audio playback through [PlayerPort] (production adapter wraps ExoPlayer),
+ * persists playback progress, and displays a media-style notification.
  * Playback state is exposed via [StateFlow] for UI observation.
  */
 @AndroidEntryPoint
@@ -72,7 +75,9 @@ class MusicPlaybackService : Service() {
     @Inject
     lateinit var playbackProgressRepository: PlaybackProgressRepository
 
-    private lateinit var exoPlayer: ExoPlayer
+    @Inject
+    lateinit var playerPort: PlayerPort
+
     private lateinit var audioFocusManager: AudioFocusManager
     private var wasPausedByFocusLoss = false
 
@@ -84,6 +89,7 @@ class MusicPlaybackService : Service() {
 
     private var progressSaveJob: Job? = null
     private var progressTickJob: Job? = null
+    private var playerEventsJob: Job? = null
 
     private val autoStopHandler = Handler(Looper.getMainLooper())
     private var autoStopRunnable: Runnable? = null
@@ -91,60 +97,49 @@ class MusicPlaybackService : Service() {
     private var extendToEnd: Boolean = false
     private var alarmWakeLock: PowerManager.WakeLock? = null
 
-    private val playerListener = object : Player.Listener {
-        override fun onIsPlayingChanged(isPlaying: Boolean) {
-            Timber.d("Player isPlaying changed: $isPlaying")
-            _playbackState.update { it.copy(isPlaying = isPlaying) }
-            updateNotification()
-            if (isPlaying) {
-                startProgressSaveLoop()
-            } else {
-                progressSaveJob?.cancel()
-                saveCurrentProgress()
-            }
+    private fun handleIsPlayingChanged(isPlaying: Boolean) {
+        Timber.d("Player isPlaying changed: $isPlaying")
+        _playbackState.update { it.copy(isPlaying = isPlaying) }
+        updateNotification()
+        if (isPlaying) {
+            startProgressSaveLoop()
+        } else {
+            progressSaveJob?.cancel()
+            saveCurrentProgress()
         }
+    }
 
-        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            val song = mediaItem?.localConfiguration?.tag as? Song
-            Timber.d("Media item transitioned to: ${song?.title}")
-            _playbackState.update {
-                it.copy(
-                    currentSong = song,
-                    positionMs = 0,
-                    durationMs = song?.durationMs ?: 0,
-                    queueIndex = exoPlayer.currentMediaItemIndex
-                )
-            }
-            updateNotification()
-
-            // Check extend-to-end
-            if (extendToEnd && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-                Timber.i("Extend-to-end: stopping after current song")
-                stop()
-            }
+    private fun handleMediaItemTransition(event: PlayerEvent.MediaItemTransition) {
+        val song = event.itemTag as? Song
+        Timber.d("Media item transitioned to: ${song?.title}")
+        _playbackState.update {
+            it.copy(
+                currentSong = song,
+                positionMs = 0,
+                durationMs = song?.durationMs ?: 0,
+                queueIndex = event.itemIndex
+            )
         }
+        updateNotification()
 
-        override fun onPlaybackStateChanged(playbackState: Int) {
-            val duration = if (playbackState == Player.STATE_READY) {
-                exoPlayer.duration.coerceAtLeast(0)
-            } else {
-                _playbackState.value.durationMs
-            }
-            _playbackState.update { it.copy(durationMs = duration) }
-            updateNotification()
+        // Check extend-to-end
+        if (extendToEnd && event.reason == TransitionReason.AUTO) {
+            Timber.i("Extend-to-end: stopping after current song")
+            stop()
         }
+    }
 
-        override fun onPositionDiscontinuity(
-            oldPosition: Player.PositionInfo,
-            newPosition: Player.PositionInfo,
-            reason: Int
-        ) {
-            _playbackState.update {
-                it.copy(
-                    positionMs = newPosition.positionMs,
-                    queueIndex = exoPlayer.currentMediaItemIndex
-                )
-            }
+    private fun handlePlaybackReady(durationMs: Long) {
+        _playbackState.update { it.copy(durationMs = durationMs) }
+        updateNotification()
+    }
+
+    private fun handlePositionDiscontinuity(event: PlayerEvent.PositionDiscontinuity) {
+        _playbackState.update {
+            it.copy(
+                positionMs = event.newPositionMs,
+                queueIndex = event.itemIndex
+            )
         }
     }
 
@@ -158,14 +153,22 @@ class MusicPlaybackService : Service() {
         super.onCreate()
         Timber.i("MusicPlaybackService created")
         createNotificationChannel()
-        initExoPlayer()
+        observePlayerEvents()
         initAudioFocusManager()
         startProgressTickLoop()
     }
 
-    private fun initExoPlayer() {
-        exoPlayer = ExoPlayer.Builder(this).build().apply {
-            addListener(playerListener)
+    private fun observePlayerEvents() {
+        playerEventsJob?.cancel()
+        playerEventsJob = serviceScope.launch {
+            playerPort.events.collect { event ->
+                when (event) {
+                    is PlayerEvent.IsPlayingChanged -> handleIsPlayingChanged(event.isPlaying)
+                    is PlayerEvent.MediaItemTransition -> handleMediaItemTransition(event)
+                    is PlayerEvent.PlaybackReady -> handlePlaybackReady(event.durationMs)
+                    is PlayerEvent.PositionDiscontinuity -> handlePositionDiscontinuity(event)
+                }
+            }
         }
     }
 
@@ -188,7 +191,7 @@ class MusicPlaybackService : Service() {
             },
             onFocusGain = {
                 Timber.i("Audio focus gained")
-                if (wasPausedByFocusLoss && !exoPlayer.isPlaying && _playbackState.value.currentSong != null) {
+                if (wasPausedByFocusLoss && !playerPort.isPlaying() && _playbackState.value.currentSong != null) {
                     wasPausedByFocusLoss = false
                     resume()
                 }
@@ -267,14 +270,12 @@ class MusicPlaybackService : Service() {
             return
         }
         Timber.i("Playing single song: ${song.title}, playlistId=$playlistId")
-        val mediaItem = MediaItem.Builder()
-            .setUri(song.path)
-            .setTag(song)
-            .build()
-
-        exoPlayer.setMediaItem(mediaItem)
-        exoPlayer.prepare()
-        exoPlayer.play()
+        playerPort.setQueue(
+            items = listOf(PlayItem(uri = song.path, tag = song)),
+            startIndex = 0,
+            startPositionMs = 0,
+        )
+        playerPort.play()
 
         _playbackState.update {
             it.copy(
@@ -313,22 +314,18 @@ class MusicPlaybackService : Service() {
         )
 
         val mediaItems = songs.map { song ->
-            MediaItem.Builder()
-                .setUri(song.path)
-                .setTag(song)
-                .build()
+            PlayItem(uri = song.path, tag = song)
         }
 
-        exoPlayer.setMediaItems(mediaItems, safeIndex, 0)
-        exoPlayer.prepare()
+        playerPort.setQueue(items = mediaItems, startIndex = safeIndex, startPositionMs = 0)
 
         serviceScope.launch {
             val progressResult = getPlaybackProgressUseCase(startSong.id, playlistId)
             progressResult.getOrNull()?.let { progress ->
                 Timber.i("Restoring progress for song ${startSong.id}: ${progress.positionMs}ms")
-                exoPlayer.seekTo(progress.positionMs)
+                playerPort.seekTo(progress.positionMs)
             }
-            exoPlayer.play()
+            playerPort.play()
         }
 
         _playbackState.update {
@@ -348,7 +345,7 @@ class MusicPlaybackService : Service() {
         Timber.i("Pausing playback")
         wasPausedByFocusLoss = false
         alarmVolumeController.restoreVolume()
-        exoPlayer.pause()
+        playerPort.pause()
         saveCurrentProgress()
     }
 
@@ -359,17 +356,17 @@ class MusicPlaybackService : Service() {
             Timber.w("Failed to gain audio focus, cannot resume")
             return
         }
-        if (!exoPlayer.isPlaying) {
-            exoPlayer.play()
+        if (!playerPort.isPlaying()) {
+            playerPort.play()
         }
     }
 
     /** Play the next song in the queue. */
     fun next() {
         Timber.i("Skipping to next")
-        if (exoPlayer.hasNextMediaItem()) {
+        if (playerPort.hasNext()) {
             saveCurrentProgress()
-            exoPlayer.seekToNextMediaItem()
+            playerPort.next()
         } else {
             Timber.d("No next media item")
         }
@@ -378,9 +375,9 @@ class MusicPlaybackService : Service() {
     /** Play the previous song in the queue. */
     fun previous() {
         Timber.i("Skipping to previous")
-        if (exoPlayer.hasPreviousMediaItem()) {
+        if (playerPort.hasPrevious()) {
             saveCurrentProgress()
-            exoPlayer.seekToPreviousMediaItem()
+            playerPort.previous()
         } else {
             Timber.d("No previous media item")
         }
@@ -393,7 +390,7 @@ class MusicPlaybackService : Service() {
      */
     fun seekTo(positionMs: Long) {
         Timber.d("Seeking to $positionMs ms")
-        exoPlayer.seekTo(positionMs)
+        playerPort.seekTo(positionMs)
         _playbackState.update { it.copy(positionMs = positionMs) }
     }
 
@@ -403,8 +400,8 @@ class MusicPlaybackService : Service() {
         audioFocusManager.abandonFocus()
         alarmVolumeController.restoreVolume()
         saveCurrentProgress()
-        exoPlayer.stop()
-        exoPlayer.clearMediaItems()
+        playerPort.stop()
+        playerPort.clearQueue()
         _playbackState.update { PlaybackState() }
         progressSaveJob?.cancel()
         cancelProgressTickLoop()
@@ -418,11 +415,13 @@ class MusicPlaybackService : Service() {
     /** Set the play mode (sequential, random, repeat one). */
     fun setPlayMode(playMode: PlayMode) {
         Timber.i("Setting play mode: $playMode")
-        exoPlayer.shuffleModeEnabled = playMode == PlayMode.RANDOM
-        exoPlayer.repeatMode = when (playMode) {
-            PlayMode.REPEAT_ONE -> Player.REPEAT_MODE_ONE
-            else -> Player.REPEAT_MODE_OFF
-        }
+        playerPort.setShuffleEnabled(playMode == PlayMode.RANDOM)
+        playerPort.setRepeatMode(
+            when (playMode) {
+                PlayMode.REPEAT_ONE -> PlayerRepeatMode.ONE
+                else -> PlayerRepeatMode.OFF
+            }
+        )
         _playbackState.update { it.copy(playMode = playMode) }
     }
 
@@ -437,7 +436,7 @@ class MusicPlaybackService : Service() {
     }
 
     /**
-     * Start a periodic loop that pulls [exoPlayer.currentPosition] into [_playbackState]
+     * Start a periodic loop that pulls [PlayerPort.currentPositionMs] into [_playbackState]
      * every [PROGRESS_TICK_INTERVAL_MS] milliseconds while playback is active.
      *
      * The loop runs unconditionally once started; it short-circuits internally when
@@ -450,7 +449,7 @@ class MusicPlaybackService : Service() {
             while (isActive) {
                 delay(PROGRESS_TICK_INTERVAL_MS)
                 if (_playbackState.value.isPlaying) {
-                    val currentPos = exoPlayer.currentPosition.coerceAtLeast(0)
+                    val currentPos = playerPort.currentPositionMs()
                     _playbackState.update { it.copy(positionMs = currentPos) }
                 }
             }
@@ -465,7 +464,7 @@ class MusicPlaybackService : Service() {
     private fun saveCurrentProgress() {
         val state = _playbackState.value
         val song = state.currentSong ?: return
-        val position = exoPlayer.currentPosition.coerceAtLeast(0)
+        val position = playerPort.currentPositionMs()
 
         serviceScope.launch {
             val result = savePlaybackProgressUseCase(
@@ -573,17 +572,20 @@ class MusicPlaybackService : Service() {
         saveCurrentProgress()
         progressSaveJob?.cancel()
         cancelProgressTickLoop()
-        exoPlayer.removeListener(playerListener)
-        exoPlayer.release()
+        playerEventsJob?.cancel()
+        // PlayerPort is a Singleton — its underlying ExoPlayer outlives this service.
+        // We do not release it here.
         releaseAlarmWakeLock()
         serviceScope.cancel()
         super.onDestroy()
     }
 
     private fun preloadFirstSong(uri: android.net.Uri) {
-        val mediaItem = MediaItem.fromUri(uri)
-        exoPlayer.setMediaItem(mediaItem)
-        exoPlayer.prepare()
+        playerPort.setQueue(
+            items = listOf(PlayItem(uri = uri.toString())),
+            startIndex = 0,
+            startPositionMs = 0,
+        )
         Timber.d("Preloaded first song: $uri")
     }
 
