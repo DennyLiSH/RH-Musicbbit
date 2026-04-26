@@ -11,8 +11,12 @@ class MusicApplication : Application() {
     @Inject
     lateinit var mediaStoreObserver: MediaStoreObserver
 
+    @Inject
+    lateinit var alarmStartupReconciler: AlarmStartupReconciler
+
     override fun onCreate() {
         super.onCreate()
         // MediaStoreObserver auto-registers in its init block when injected
+        alarmStartupReconciler.reconcile()
     }
 }
