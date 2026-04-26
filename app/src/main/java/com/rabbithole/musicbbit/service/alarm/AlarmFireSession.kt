@@ -289,7 +289,7 @@ class AlarmFireSession @Inject constructor(
 
     private fun transitionToError(alarmId: Long, reason: String) {
         Timber.w("AlarmFireSession transitioning to Error: alarmId=$alarmId, reason=$reason")
-        if (wakeLockPort.isHeld()) wakeLockPort.release()
+        if (wakeLockPort.isHeld) wakeLockPort.release()
         _state.value = AlarmFireState.Error(alarmId, reason)
     }
 
@@ -299,7 +299,7 @@ class AlarmFireSession @Inject constructor(
      */
     fun onPlaybackStopped() {
         cancelAutoStop()
-        if (wakeLockPort.isHeld()) {
+        if (wakeLockPort.isHeld) {
             Timber.i("AlarmFireSession: releasing wake lock in onPlaybackStopped")
             wakeLockPort.release()
         }
