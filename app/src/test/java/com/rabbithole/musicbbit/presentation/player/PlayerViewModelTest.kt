@@ -9,10 +9,15 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
@@ -27,7 +32,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlayerViewModelTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
+    private val testDispatcher = StandardTestDispatcher()
 
     private lateinit var stateHolder: MusicPlayerStateHolder
     private lateinit var alarmRepository: AlarmRepository
@@ -35,11 +40,17 @@ class PlayerViewModelTest {
 
     @Before
     fun setUp() {
+        Dispatchers.setMain(testDispatcher)
         playbackStateFlow = MutableStateFlow(PlaybackState())
         stateHolder = mockk(relaxed = true) {
             every { playbackState } returns playbackStateFlow
         }
         alarmRepository = mockk()
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
     }
 
     @Test
@@ -68,6 +79,7 @@ class PlayerViewModelTest {
         playbackStateFlow.value = PlaybackState(alarmId = 1L)
 
         val viewModel = PlayerViewModel(stateHolder, alarmRepository)
+        advanceUntilIdle()
 
         assertEquals("Morning Jog", viewModel.alarmLabel.value)
     }
@@ -89,9 +101,11 @@ class PlayerViewModelTest {
         playbackStateFlow.value = PlaybackState(alarmId = 1L)
 
         val viewModel = PlayerViewModel(stateHolder, alarmRepository)
+        advanceUntilIdle()
         assertEquals("Morning Jog", viewModel.alarmLabel.value)
 
         playbackStateFlow.value = PlaybackState(alarmId = null)
+        advanceUntilIdle()
 
         assertNull(viewModel.alarmLabel.value)
     }

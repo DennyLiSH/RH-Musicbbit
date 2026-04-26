@@ -42,5 +42,5 @@ class PlayerViewModel @Inject constructor(
                 emit(label)
             }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        .stateIn(viewModelScope, SharingStarted.Lazily, null)
 }
