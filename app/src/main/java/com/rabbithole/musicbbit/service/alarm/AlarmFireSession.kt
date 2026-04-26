@@ -140,7 +140,7 @@ class AlarmFireSession @Inject constructor(
      * [onPlaybackStopped] once playback has actually ended.
      */
     fun stop() {
-        val alarmId = _state.value.alarmId
+        val alarmId = _state.value.alarmIdOrNull
         Timber.i("AlarmFireSession.stop: alarmId=$alarmId")
         host?.stopPlayback()
     }
@@ -279,7 +279,7 @@ class AlarmFireSession @Inject constructor(
             Timber.d("extendAutoStop: no auto-stop in flight, ignoring")
             return
         }
-        val alarmId = state.value.alarmId ?: -1L
+        val alarmId = state.value.alarmIdOrNull ?: -1L
         if (alarmId == -1L) {
             Timber.d("extendAutoStop: no active alarmId, ignoring")
             return
@@ -295,7 +295,7 @@ class AlarmFireSession @Inject constructor(
     fun onPlaybackStopped() {
         cancelAutoStop()
         wakeLockPort.release()
-        val alarmId = state.value.alarmId
+        val alarmId = state.value.alarmIdOrNull
         if (alarmId != null) {
             notificationPort.cancel(alarmId)
         }

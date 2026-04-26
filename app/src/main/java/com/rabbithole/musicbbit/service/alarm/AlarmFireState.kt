@@ -38,8 +38,8 @@ sealed class AlarmFireState {
     /** Loading or firing failed. The session is parked until the next fire(). */
     data class Error(val alarmId: Long, val message: String) : AlarmFireState()
 
-    /** The id of the alarm this state describes, if any. */
-    val alarmId: Long?
+    /** The id of the alarm this state describes, or `null` for [Idle] / [Stopped]. */
+    val alarmIdOrNull: Long?
         get() = when (this) {
             is Loading -> alarmId
             is Playing -> alarmId
