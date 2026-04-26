@@ -11,10 +11,8 @@ import timber.log.Timber
 /**
  * BroadcastReceiver that handles user actions from the alarm notification.
  *
- * After step 6 of the AlarmFireSession refactor, each action calls
- * [AlarmFireSession] directly instead of round-tripping through
- * [MusicPlaybackService] intent + service handler. Notification updates and
- * state transitions now live inside the session.
+ * Each action calls [AlarmFireSession] directly. Notification updates and state
+ * transitions live inside the session, so there is no service-intent round trip.
  *
  * Supported actions:
  * - [ACTION_STOP]: Stop the alarm session (host stops playback, session releases
@@ -66,13 +64,5 @@ class AlarmActionReceiver : BroadcastReceiver() {
         const val ACTION_EXTEND_TO_END = "com.rabbithole.musicbbit.action.EXTEND_TO_END"
 
         const val EXTRA_MINUTES = "extra_minutes"
-
-        // Internal actions still used by AlarmRingViewModel until step 7 wires it directly
-        // to the session. Will be deleted in step 7.
-        const val ACTION_SERVICE_STOP = "com.rabbithole.musicbbit.action.SERVICE_STOP"
-        const val ACTION_SERVICE_PAUSE = "com.rabbithole.musicbbit.action.SERVICE_PAUSE"
-        const val ACTION_SERVICE_RESUME = "com.rabbithole.musicbbit.action.SERVICE_RESUME"
-        const val ACTION_SERVICE_EXTEND_MINUTES = "com.rabbithole.musicbbit.action.SERVICE_EXTEND_MINUTES"
-        const val ACTION_SERVICE_EXTEND_TO_END = "com.rabbithole.musicbbit.action.SERVICE_EXTEND_TO_END"
     }
 }

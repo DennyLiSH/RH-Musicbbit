@@ -1,15 +1,11 @@
 package com.rabbithole.musicbbit.presentation.alarm
 
-import android.content.Context
-import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
-import com.rabbithole.musicbbit.data.model.AlarmEntity
-import com.rabbithole.musicbbit.service.AlarmActionReceiver
-import com.rabbithole.musicbbit.service.MusicPlaybackService
-import com.rabbithole.musicbbit.service.MusicPlayerStateHolder
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
+import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
+import com.rabbithole.musicbbit.service.alarm.AlarmFireState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,12 +34,14 @@ data class AlarmRingUiState(
 /**
  * ViewModel for the alarm ring activity.
  *
- * Observes playback state from [MusicPlayerStateHolder] and provides
- * actions to pause, resume, or stop the alarm.
+ * Observes the active [AlarmFireSession] state directly; pause / resume / stop
+ * dispatch to the session in-process rather than round-tripping through a service
+ * intent. The Activity no longer needs to hand a [android.content.Context] to the
+ * ViewModel for these actions.
  */
 @HiltViewModel
 class AlarmRingViewModel @Inject constructor(
-    private val stateHolder: MusicPlayerStateHolder,
+    private val alarmFireSession: AlarmFireSession,
     private val alarmDao: AlarmDao,
     private val alarmRingSettingsRepository: AlarmRingSettingsRepository
 ) : ViewModel() {
@@ -52,8 +50,7 @@ class AlarmRingViewModel @Inject constructor(
     val uiState: StateFlow<AlarmRingUiState> = _uiState.asStateFlow()
 
     init {
-        stateHolder.bindService()
-        observePlaybackState()
+        observeAlarmFireState()
         observeBreathingSettings()
     }
 
@@ -69,15 +66,20 @@ class AlarmRingViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    private fun observePlaybackState() {
-        stateHolder.playbackState
+    private fun observeAlarmFireState() {
+        alarmFireSession.state
             .onEach { state ->
+                val song = when (state) {
+                    is AlarmFireState.Playing -> state.currentSong
+                    is AlarmFireState.Paused -> state.currentSong
+                    else -> null
+                }
                 _uiState.update {
                     it.copy(
-                        isPlaying = state.isPlaying,
-                        hasPlayback = state.currentSong != null,
-                        currentSongTitle = state.currentSong?.title,
-                        currentSongArtist = state.currentSong?.artist
+                        isPlaying = state is AlarmFireState.Playing,
+                        hasPlayback = song != null,
+                        currentSongTitle = song?.title,
+                        currentSongArtist = song?.artist
                     )
                 }
             }
@@ -96,41 +98,21 @@ class AlarmRingViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Pause playback.
-     */
-    fun pause(context: Context) {
+    /** Pause playback through the active alarm session. */
+    fun pause() {
         Timber.i("AlarmRing: pausing playback")
-        val intent = MusicPlaybackService.createIntent(context).apply {
-            action = AlarmActionReceiver.ACTION_SERVICE_PAUSE
-        }
-        context.startService(intent)
+        alarmFireSession.pause()
     }
 
-    /**
-     * Resume playback.
-     */
-    fun resume(context: Context) {
+    /** Resume playback through the active alarm session. */
+    fun resume() {
         Timber.i("AlarmRing: resuming playback")
-        val intent = MusicPlaybackService.createIntent(context).apply {
-            action = AlarmActionReceiver.ACTION_SERVICE_RESUME
-        }
-        context.startService(intent)
+        alarmFireSession.resume()
     }
 
-    /**
-     * Stop playback and dismiss the alarm.
-     */
-    fun stop(context: Context, alarmId: Long) {
+    /** Stop playback and dismiss the alarm. */
+    fun stop(alarmId: Long) {
         Timber.i("AlarmRing: stopping playback for alarmId=$alarmId")
-        val intent = MusicPlaybackService.createIntent(context).apply {
-            action = AlarmActionReceiver.ACTION_SERVICE_STOP
-        }
-        context.startService(intent)
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        stateHolder.unbindService()
+        alarmFireSession.stop()
     }
 }

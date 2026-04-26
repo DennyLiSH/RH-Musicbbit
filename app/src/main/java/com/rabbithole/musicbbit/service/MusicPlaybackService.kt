@@ -18,7 +18,6 @@ import com.rabbithole.musicbbit.domain.usecase.GetPlaybackProgressUseCase
 import com.rabbithole.musicbbit.domain.usecase.SavePlaybackProgressUseCase
 import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
 import com.rabbithole.musicbbit.service.alarm.AlarmPlaybackHost
-import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
 import com.rabbithole.musicbbit.service.playback.PlayItem
@@ -66,9 +65,6 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
 
     @Inject
     lateinit var wakeLockPort: WakeLockPort
-
-    @Inject
-    lateinit var notificationPort: NotificationPort
 
     @Inject
     lateinit var alarmFireSession: AlarmFireSession
@@ -201,14 +197,6 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
                 val isAlarmTrigger = intent.getBooleanExtra(EXTRA_IS_ALARM_TRIGGER, false)
                 alarmFireSession.fire(alarmId, isAlarmTrigger)
             }
-            AlarmActionReceiver.ACTION_SERVICE_STOP -> stop()
-            AlarmActionReceiver.ACTION_SERVICE_PAUSE -> pause()
-            AlarmActionReceiver.ACTION_SERVICE_RESUME -> resume()
-            AlarmActionReceiver.ACTION_SERVICE_EXTEND_MINUTES -> {
-                val minutes = intent.getIntExtra(AlarmActionReceiver.EXTRA_MINUTES, 0)
-                if (minutes > 0) extendAutoStop(minutes)
-            }
-            AlarmActionReceiver.ACTION_SERVICE_EXTEND_TO_END -> setExtendToEnd(true)
             ACTION_PREVIOUS -> previous()
             ACTION_TOGGLE_PLAY_PAUSE -> {
                 if (_playbackState.value.isPlaying) pause() else resume()
@@ -574,23 +562,6 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
     /** Used by [AlarmFireSession.scheduleAutoStop] to terminate playback after the timer. */
     override fun stopPlayback() {
         stop()
-    }
-
-    // ----- Auto-stop / extend delegations ------------------------------------
-
-    /**
-     * Extend the auto-stop time by the given minutes.
-     * Called from AlarmActionReceiver via broadcast.
-     */
-    fun extendAutoStop(minutes: Int) {
-        alarmFireSession.extendAutoStop(minutes)
-    }
-
-    /**
-     * Set extend-to-end mode. When enabled, playback stops after the current song finishes.
-     */
-    fun setExtendToEnd(enabled: Boolean) {
-        alarmFireSession.setExtendToEnd(enabled)
     }
 
     companion object {

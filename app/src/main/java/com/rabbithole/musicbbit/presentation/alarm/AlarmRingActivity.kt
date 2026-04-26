@@ -238,9 +238,9 @@ private fun AlarmRingScreen(
                 label = if (uiState.isPlaying) stringResource(R.string.pause) else stringResource(R.string.resume),
                 onClick = {
                     if (uiState.isPlaying) {
-                        viewModel.pause(context = context)
+                        viewModel.pause()
                     } else {
-                        viewModel.resume(context = context)
+                        viewModel.resume()
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
@@ -258,7 +258,7 @@ private fun AlarmRingScreen(
                 },
                 label = stringResource(R.string.stop),
                 onClick = {
-                    viewModel.stop(context = context, alarmId = alarmId)
+                    viewModel.stop(alarmId = alarmId)
                     onStop()
                 },
                 containerColor = MaterialTheme.colorScheme.errorContainer,
