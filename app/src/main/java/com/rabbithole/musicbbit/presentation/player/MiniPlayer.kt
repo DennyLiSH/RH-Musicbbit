@@ -45,6 +45,7 @@ fun MiniPlayer(
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
     val playbackState by viewModel.stateHolder.playbackState.collectAsStateWithLifecycle()
+    val alarmLabel by viewModel.alarmLabel.collectAsStateWithLifecycle()
     val currentSong = playbackState.currentSong
 
     AnimatedVisibility(
@@ -101,19 +102,35 @@ fun MiniPlayer(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                Text(
-                    text = currentSong?.title ?: "",
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = currentSong?.artist ?: "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                if (isAlarmMode) {
+                    Text(
+                        text = alarmLabel ?: stringResource(R.string.alarm_default_label),
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = currentSong?.title ?: stringResource(R.string.alarm_active_banner_title),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                } else {
+                    Text(
+                        text = currentSong?.title ?: "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = currentSong?.artist ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
 
             // Controls

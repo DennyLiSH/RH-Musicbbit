@@ -60,6 +60,7 @@ fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
     val playbackState by viewModel.stateHolder.playbackState.collectAsStateWithLifecycle()
+    val alarmLabel by viewModel.alarmLabel.collectAsStateWithLifecycle()
     val currentSong = playbackState.currentSong
 
     Column(
@@ -86,6 +87,7 @@ fun PlayerScreen(
         val alarmId = playbackState.alarmId
         if (alarmId != null) {
             AlarmActiveBanner(
+                label = alarmLabel,
                 onClick = {
                     val intent = Intent(context, AlarmRingActivity::class.java).apply {
                         putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
@@ -243,6 +245,7 @@ fun PlayerScreen(
 
 @Composable
 private fun AlarmActiveBanner(
+    label: String?,
     onClick: () -> Unit,
     onStopAlarm: () -> Unit
 ) {
@@ -267,7 +270,8 @@ private fun AlarmActiveBanner(
                 modifier = Modifier.size(24.dp)
             )
             Text(
-                text = stringResource(R.string.alarm_active_banner_title),
+                text = label?.let { "Alarm playing · $it" }
+                    ?: stringResource(R.string.alarm_active_banner_title),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f)
             )

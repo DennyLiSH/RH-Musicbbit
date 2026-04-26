@@ -38,7 +38,6 @@
     <string name="resume">Resume</string>
     <string name="stop">Stop</string>
     <string name="notification_channel_name">Music Alarm</string>
-    <string name="fullscreen_notification_permission_toast">Please enable \'Full-screen notifications\' in app notification settings to ensure alarms display correctly.</string>
     <string name="add_songs_title">Add Songs</string>
     <string name="add_songs_search_placeholder">Search songs...</string>
     <string name="add_songs_no_results">No songs found</string>
