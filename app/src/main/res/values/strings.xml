@@ -23,6 +23,8 @@
     <string name="alarm_sunday">Sun</string>
     <string name="battery_optimization_title">Battery Optimization</string>
     <string name="battery_optimization_message">To ensure alarms work when the screen is off, please allow Music Rabbit to ignore battery optimizations.</string>
+    <string name="full_screen_intent_banner_title">Full-screen intent disabled</string>
+    <string name="full_screen_intent_banner_message">Allow full-screen intent so alarm can wake the screen</string>
     <string name="go_to_settings">Go to Settings</string>
     <string name="exact_alarm_permission_title">Exact Alarm Permission Required</string>
     <string name="exact_alarm_permission_message">To ensure the alarm rings at the exact time, please allow this app to use exact alarms.</string>

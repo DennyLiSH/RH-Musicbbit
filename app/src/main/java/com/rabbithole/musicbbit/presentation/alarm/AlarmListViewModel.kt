@@ -13,6 +13,7 @@ import com.rabbithole.musicbbit.domain.usecase.DeleteAlarmUseCase
 import com.rabbithole.musicbbit.domain.usecase.EnableAlarmUseCase
 import com.rabbithole.musicbbit.domain.usecase.GetAlarmsUseCase
 import com.rabbithole.musicbbit.domain.usecase.RefreshHolidaysUseCase
+import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,6 +63,9 @@ class AlarmListViewModel @Inject constructor(
 
     private val _isIgnoringBatteryOptimizations = MutableStateFlow(checkBatteryOptimizationStatus())
     val isIgnoringBatteryOptimizations: StateFlow<Boolean> = _isIgnoringBatteryOptimizations.asStateFlow()
+
+    private val _isFullScreenIntentGranted = MutableStateFlow(checkFullScreenIntentStatus())
+    val isFullScreenIntentGranted: StateFlow<Boolean> = _isFullScreenIntentGranted.asStateFlow()
 
     private val _uiState = MutableStateFlow<AlarmListUiState>(AlarmListUiState.Loading)
     val uiState: StateFlow<AlarmListUiState> = _uiState.asStateFlow()
@@ -135,6 +139,20 @@ class AlarmListViewModel @Inject constructor(
      */
     fun refreshBatteryOptimizationStatus() {
         _isIgnoringBatteryOptimizations.value = checkBatteryOptimizationStatus()
+    }
+
+    /**
+     * Check whether the app can use full-screen intents.
+     */
+    private fun checkFullScreenIntentStatus(): Boolean {
+        return FullScreenIntentPermissionHelper.isGranted(context)
+    }
+
+    /**
+     * Refresh the full-screen intent permission status.
+     */
+    fun refreshFullScreenIntentStatus() {
+        _isFullScreenIntentGranted.value = checkFullScreenIntentStatus()
     }
 
     /**
