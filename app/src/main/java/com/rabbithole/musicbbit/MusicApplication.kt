@@ -2,6 +2,7 @@ package com.rabbithole.musicbbit
 
 import android.app.Application
 import com.rabbithole.musicbbit.data.local.MediaStoreObserver
+import com.rabbithole.musicbbit.service.alarm.AlarmStartupReconciler
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
