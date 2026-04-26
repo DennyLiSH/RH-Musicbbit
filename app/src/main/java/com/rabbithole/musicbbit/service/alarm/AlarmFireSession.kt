@@ -166,7 +166,7 @@ class AlarmFireSession @Inject constructor(
                 val alarm = alarmDao.getById(alarmId)
                 if (alarm == null || !alarm.isEnabled) {
                     Timber.w("Alarm id=$alarmId not found or disabled")
-                    _state.value = AlarmFireState.Error(alarmId, "Alarm not found or disabled")
+                    transitionToError(alarmId, "Alarm not found or disabled")
                     return@withLock
                 }
 
@@ -181,7 +181,7 @@ class AlarmFireSession @Inject constructor(
                         title = alarm.label ?: "Music Alarm",
                         message = "Playlist is empty",
                     )
-                    _state.value = AlarmFireState.Error(alarmId, "Playlist is empty")
+                    transitionToError(alarmId, "Playlist is empty")
                     return@withLock
                 }
 
@@ -197,8 +197,7 @@ class AlarmFireSession @Inject constructor(
                     val currentHost = host
                     if (currentHost == null) {
                         Timber.w("No AlarmPlaybackHost bound; cannot drive playback")
-                        _state.value =
-                            AlarmFireState.Error(alarmId, "No playback host bound")
+                        transitionToError(alarmId, "No playback host bound")
                         return@withContext
                     }
 
@@ -288,13 +287,22 @@ class AlarmFireSession @Inject constructor(
         Timber.i("Auto-stop extended by $minutes minutes")
     }
 
+    private fun transitionToError(alarmId: Long, reason: String) {
+        Timber.w("AlarmFireSession transitioning to Error: alarmId=$alarmId, reason=$reason")
+        if (wakeLockPort.isHeld()) wakeLockPort.release()
+        _state.value = AlarmFireState.Error(alarmId, reason)
+    }
+
     /**
      * Called by the host when playback is fully stopped (via stop(), autoStop, or end-of-queue)
      * to release wake lock, cancel the auto-stop job, dismiss the notification, and reset state.
      */
     fun onPlaybackStopped() {
         cancelAutoStop()
-        wakeLockPort.release()
+        if (wakeLockPort.isHeld()) {
+            Timber.i("AlarmFireSession: releasing wake lock in onPlaybackStopped")
+            wakeLockPort.release()
+        }
         val alarmId = state.value.alarmIdOrNull
         if (alarmId != null) {
             notificationPort.cancel(alarmId)

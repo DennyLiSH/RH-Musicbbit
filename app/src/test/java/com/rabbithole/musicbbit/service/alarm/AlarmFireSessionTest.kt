@@ -202,6 +202,7 @@ class AlarmFireSessionTest {
         val state = session.state.value
         assertTrue("expected Error, was $state", state is AlarmFireState.Error)
         assertNull("host must not have been driven", host.lastStartIndex)
+        assertEquals(1, wakeLockPort.releaseCount)
         coVerify(exactly = 0) { alarmScheduler.schedule(any()) }
     }
 
@@ -214,6 +215,7 @@ class AlarmFireSessionTest {
         runCurrent()
 
         assertTrue(session.state.value is AlarmFireState.Error)
+        assertEquals(1, wakeLockPort.releaseCount)
         coVerify(exactly = 0) { alarmScheduler.schedule(any()) }
     }
 
@@ -233,6 +235,7 @@ class AlarmFireSessionTest {
 
         assertTrue(session.state.value is AlarmFireState.Error)
         assertEquals(1, notificationPort.errorCount)
+        assertEquals(1, wakeLockPort.releaseCount)
         coVerify(exactly = 0) { alarmScheduler.schedule(any()) }
     }
 
@@ -247,6 +250,7 @@ class AlarmFireSessionTest {
 
         val state = session.state.value
         assertTrue("expected Error when host is null, was $state", state is AlarmFireState.Error)
+        assertEquals(1, wakeLockPort.releaseCount)
         // Bookkeeping must not run if playback never started.
         val updated = alarmDao.getById(9L)
         assertNull("lastTriggeredAt must NOT be written when playback never starts",
@@ -385,6 +389,18 @@ class AlarmFireSessionTest {
         // No additional stop call from session-side.
         assertEquals(1, host.stopCount)
         assertTrue(session.state.value is AlarmFireState.Stopped)
+    }
+
+    @Test
+    fun `onPlaybackStopped releases wake lock exactly once in happy path`() = scope.runTest {
+        firePlaying(alarmId = 18L, playlistId = 180L)
+        assertTrue(wakeLockPort.isHeld)
+        assertEquals("wake lock should be acquired once", 1, wakeLockPort.acquireCount)
+
+        session.onPlaybackStopped()
+
+        assertFalse(wakeLockPort.isHeld)
+        assertEquals("wake lock should be released exactly once", 1, wakeLockPort.releaseCount)
     }
 
     // -------- Helpers --------------------------------------------------------
@@ -531,6 +547,8 @@ class AlarmFireSessionTest {
     private class FakeWakeLockPort : WakeLockPort {
         var acquireCount = 0
             private set
+        var releaseCount = 0
+            private set
         private var held = false
         override val isHeld: Boolean
             get() = held
@@ -541,7 +559,10 @@ class AlarmFireSessionTest {
         }
 
         override fun release() {
-            held = false
+            if (held) {
+                held = false
+                releaseCount++
+            }
         }
     }
 
