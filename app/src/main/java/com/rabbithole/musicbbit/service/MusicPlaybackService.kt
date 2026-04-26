@@ -12,7 +12,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.rabbithole.musicbbit.MainActivity
 import com.rabbithole.musicbbit.R
@@ -24,6 +23,9 @@ import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.domain.usecase.GetPlaybackProgressUseCase
 import com.rabbithole.musicbbit.domain.usecase.SavePlaybackProgressUseCase
+import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
+import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
+import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
 import com.rabbithole.musicbbit.service.playback.PlayItem
 import com.rabbithole.musicbbit.service.playback.PlayerEvent
 import com.rabbithole.musicbbit.service.playback.PlayerPort
@@ -64,7 +66,7 @@ class MusicPlaybackService : Service() {
     lateinit var getPlaybackProgressUseCase: GetPlaybackProgressUseCase
 
     @Inject
-    lateinit var alarmVolumeController: AlarmVolumeController
+    lateinit var volumeRampPort: VolumeRampPort
 
     @Inject
     lateinit var alarmDao: AlarmDao
@@ -77,6 +79,12 @@ class MusicPlaybackService : Service() {
 
     @Inject
     lateinit var playerPort: PlayerPort
+
+    @Inject
+    lateinit var wakeLockPort: WakeLockPort
+
+    @Inject
+    lateinit var notificationPort: NotificationPort
 
     private lateinit var audioFocusManager: AudioFocusManager
     private var wasPausedByFocusLoss = false
@@ -95,7 +103,6 @@ class MusicPlaybackService : Service() {
     private var autoStopRunnable: Runnable? = null
     private var currentAlarmId: Long = -1
     private var extendToEnd: Boolean = false
-    private var alarmWakeLock: PowerManager.WakeLock? = null
 
     private fun handleIsPlayingChanged(isPlaying: Boolean) {
         Timber.d("Player isPlaying changed: $isPlaying")
@@ -226,39 +233,6 @@ class MusicPlaybackService : Service() {
     }
 
     /**
-     * Acquire a partial wake lock for alarm playback.
-     * The lock is released when playback stops.
-     */
-    private fun acquireAlarmWakeLock() {
-        try {
-            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-            alarmWakeLock = powerManager.newWakeLock(
-                PowerManager.PARTIAL_WAKE_LOCK,
-                "RH-Musicbbit::AlarmPlaybackWakeLock"
-            ).apply {
-                setReferenceCounted(false)
-                acquire(ALARM_WAKE_LOCK_TIMEOUT_MS)
-            }
-            Timber.d("Alarm wake lock acquired")
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to acquire alarm wake lock")
-        }
-    }
-
-    /**
-     * Release the alarm wake lock if held.
-     */
-    private fun releaseAlarmWakeLock() {
-        alarmWakeLock?.let {
-            if (it.isHeld) {
-                it.release()
-                Timber.d("Alarm wake lock released")
-            }
-        }
-        alarmWakeLock = null
-    }
-
-    /**
      * Play a single song.
      *
      * @param song The song to play.
@@ -344,7 +318,7 @@ class MusicPlaybackService : Service() {
     fun pause() {
         Timber.i("Pausing playback")
         wasPausedByFocusLoss = false
-        alarmVolumeController.restoreVolume()
+        volumeRampPort.restoreVolume()
         playerPort.pause()
         saveCurrentProgress()
     }
@@ -398,7 +372,7 @@ class MusicPlaybackService : Service() {
     fun stop() {
         Timber.i("Stopping playback")
         audioFocusManager.abandonFocus()
-        alarmVolumeController.restoreVolume()
+        volumeRampPort.restoreVolume()
         saveCurrentProgress()
         playerPort.stop()
         playerPort.clearQueue()
@@ -407,7 +381,7 @@ class MusicPlaybackService : Service() {
         cancelProgressTickLoop()
         cancelAutoStop()
         extendToEnd = false
-        releaseAlarmWakeLock()
+        wakeLockPort.release()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -566,7 +540,7 @@ class MusicPlaybackService : Service() {
     override fun onDestroy() {
         Timber.i("MusicPlaybackService destroyed")
         audioFocusManager.abandonFocus()
-        alarmVolumeController.restoreVolume()
+        volumeRampPort.restoreVolume()
         cancelAutoStop()
         autoStopHandler.removeCallbacksAndMessages(null)
         saveCurrentProgress()
@@ -575,7 +549,7 @@ class MusicPlaybackService : Service() {
         playerEventsJob?.cancel()
         // PlayerPort is a Singleton — its underlying ExoPlayer outlives this service.
         // We do not release it here.
-        releaseAlarmWakeLock()
+        wakeLockPort.release()
         serviceScope.cancel()
         super.onDestroy()
     }
@@ -600,7 +574,7 @@ class MusicPlaybackService : Service() {
 
         // Acquire wake lock for alarm-triggered playback
         if (isAlarmTrigger) {
-            acquireAlarmWakeLock()
+            wakeLockPort.acquire(ALARM_WAKE_LOCK_TIMEOUT_MS)
         }
 
         serviceScope.launch(Dispatchers.IO) {
@@ -613,11 +587,10 @@ class MusicPlaybackService : Service() {
             val playlistWithSongs = playlistRepository.getPlaylistWithSongs(alarm.playlistId).first()
             if (playlistWithSongs == null || playlistWithSongs.songs.isEmpty()) {
                 Timber.w("Playlist id=${alarm.playlistId} is empty or not found for alarm id=$alarmId")
-                AlarmNotificationHelper.showErrorNotification(
-                    this@MusicPlaybackService,
-                    alarmId.toInt(),
-                    alarm.label ?: "Music Alarm",
-                    "Playlist is empty"
+                notificationPort.showError(
+                    notificationId = alarmId.toInt(),
+                    title = alarm.label ?: "Music Alarm",
+                    message = "Playlist is empty",
                 )
                 return@launch
             }
@@ -641,7 +614,7 @@ class MusicPlaybackService : Service() {
 
                 // Start volume ramp for alarm-triggered playback
                 if (isAlarmTrigger) {
-                    alarmVolumeController.startVolumeRamp(serviceScope)
+                    volumeRampPort.startVolumeRamp(serviceScope)
                     Timber.i("Started volume ramp for alarm playback")
                 }
 
@@ -655,7 +628,7 @@ class MusicPlaybackService : Service() {
                 extendToEnd = false
 
                 // Show alarm notification
-                AlarmNotificationHelper.show(this@MusicPlaybackService, alarm, startSong)
+                notificationPort.showAlarmPlaying(alarm, startSong)
                 Timber.i("Alarm notification shown for alarm id=$alarmId, song=${startSong.title}")
             }
         }

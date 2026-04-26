@@ -2,6 +2,7 @@ package com.rabbithole.musicbbit.service
 
 import android.content.Context
 import android.media.AudioManager
+import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,7 +15,7 @@ import timber.log.Timber
 @Singleton
 class AlarmVolumeController @Inject constructor(
     @param:ApplicationContext private val context: Context
-) {
+) : VolumeRampPort {
     private val audioManager: AudioManager =
         context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
@@ -27,7 +28,7 @@ class AlarmVolumeController @Inject constructor(
     private val maxVolume: Int
         get() = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
 
-    fun startVolumeRamp(coroutineScope: CoroutineScope) {
+    override fun startVolumeRamp(scope: CoroutineScope) {
         originalVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
 
         val startVolume = (maxVolume * 0.3f).toInt().coerceAtLeast(1)
@@ -38,7 +39,7 @@ class AlarmVolumeController @Inject constructor(
         val delayMs = 500L
         val volumeStep = (maxVolume - startVolume).toFloat() / steps
 
-        volumeJob = coroutineScope.launch {
+        volumeJob = scope.launch {
             repeat(steps) { i ->
                 delay(delayMs)
 
@@ -66,7 +67,7 @@ class AlarmVolumeController @Inject constructor(
         }
     }
 
-    fun restoreVolume() {
+    override fun restoreVolume() {
         volumeJob?.cancel()
 
         val targetVolume = when {
