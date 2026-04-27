@@ -6,9 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
+import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
 import com.rabbithole.musicbbit.domain.usecase.AddScanDirectoryUseCase
-import com.rabbithole.musicbbit.domain.usecase.GetScanDirectoriesUseCase
-import com.rabbithole.musicbbit.domain.usecase.RemoveScanDirectoryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,9 +51,8 @@ sealed interface ScanDirectorySettingsAction {
 
 @HiltViewModel
 class ScanDirectorySettingsViewModel @Inject constructor(
-    private val getScanDirectoriesUseCase: GetScanDirectoriesUseCase,
+    private val scanDirectoryRepository: ScanDirectoryRepository,
     private val addScanDirectoryUseCase: AddScanDirectoryUseCase,
-    private val removeScanDirectoryUseCase: RemoveScanDirectoryUseCase,
     private val alarmRingSettingsRepository: AlarmRingSettingsRepository
 ) : ViewModel() {
 
@@ -79,7 +77,7 @@ class ScanDirectorySettingsViewModel @Inject constructor(
     }
 
     private fun observeDirectories() {
-        getScanDirectoriesUseCase()
+        scanDirectoryRepository.getAll()
             .onEach { directories ->
                 updateSuccess { currentState ->
                     currentState.copy(directories = directories)
@@ -99,7 +97,7 @@ class ScanDirectorySettingsViewModel @Inject constructor(
         when (action) {
             is ScanDirectorySettingsAction.OnRemoveDirectory -> {
                 viewModelScope.launch {
-                    removeScanDirectoryUseCase(action.id)
+                    scanDirectoryRepository.remove(action.id)
                 }
             }
 

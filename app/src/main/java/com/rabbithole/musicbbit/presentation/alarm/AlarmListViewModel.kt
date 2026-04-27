@@ -8,11 +8,9 @@ import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.domain.repository.AlarmRepository
+import com.rabbithole.musicbbit.domain.repository.HolidayRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
-import com.rabbithole.musicbbit.domain.usecase.DeleteAlarmUseCase
-import com.rabbithole.musicbbit.domain.usecase.EnableAlarmUseCase
-import com.rabbithole.musicbbit.domain.usecase.GetAlarmsUseCase
-import com.rabbithole.musicbbit.domain.usecase.RefreshHolidaysUseCase
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -53,11 +51,9 @@ sealed interface AlarmListAction {
 
 @HiltViewModel
 class AlarmListViewModel @Inject constructor(
-    private val getAlarmsUseCase: GetAlarmsUseCase,
-    private val deleteAlarmUseCase: DeleteAlarmUseCase,
-    private val enableAlarmUseCase: EnableAlarmUseCase,
+    private val alarmRepository: AlarmRepository,
+    private val holidayRepository: HolidayRepository,
     private val playlistRepository: PlaylistRepository,
-    private val refreshHolidaysUseCase: RefreshHolidaysUseCase,
     @param:ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -76,7 +72,7 @@ class AlarmListViewModel @Inject constructor(
     private val playlistNameCache = mutableMapOf<Long, String>()
 
     init {
-        getAlarmsUseCase()
+        alarmRepository.getAllAlarms()
             .onEach { alarms ->
                 val alarmItems = alarms.map { alarm ->
                     val playlistName = resolvePlaylistName(alarm.playlistId)
@@ -89,7 +85,7 @@ class AlarmListViewModel @Inject constructor(
         // Refresh holiday data in the background
         viewModelScope.launch {
             val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
-            refreshHolidaysUseCase(currentYear)
+            runCatching { holidayRepository.refreshHolidays(currentYear) }
                 .onSuccess {
                     Timber.i("Holiday data refreshed for year $currentYear")
                 }
@@ -106,13 +102,13 @@ class AlarmListViewModel @Inject constructor(
         when (action) {
             is AlarmListAction.OnToggleEnabled -> {
                 viewModelScope.launch {
-                    enableAlarmUseCase(action.alarmId, action.enabled)
+                    runCatching { alarmRepository.enableAlarm(action.alarmId, action.enabled) }
                 }
             }
 
             is AlarmListAction.OnDeleteAlarm -> {
                 viewModelScope.launch {
-                    deleteAlarmUseCase(action.alarm)
+                    runCatching { alarmRepository.deleteAlarm(action.alarm) }
                 }
             }
 

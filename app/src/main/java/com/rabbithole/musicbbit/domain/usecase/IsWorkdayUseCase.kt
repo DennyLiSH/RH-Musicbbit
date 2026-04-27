@@ -19,7 +19,6 @@ import javax.inject.Inject
  */
 class IsWorkdayUseCase @Inject constructor(
     private val holidayRepository: HolidayRepository,
-    private val refreshHolidaysUseCase: RefreshHolidaysUseCase,
     private val dataStore: DataStore<Preferences>
 ) {
     /**
@@ -51,7 +50,7 @@ class IsWorkdayUseCase @Inject constructor(
             }
 
             Timber.i("Triggering holiday refresh for year $year (last call: $lastCallMonth, current: $currentMonth)")
-            val result = refreshHolidaysUseCase(year)
+            val result = runCatching { holidayRepository.refreshHolidays(year) }
 
             result.onSuccess {
                 dataStore.edit { prefs ->

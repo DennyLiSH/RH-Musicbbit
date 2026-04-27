@@ -3,8 +3,8 @@ package com.rabbithole.musicbbit.presentation.player.components
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.domain.model.Playlist
+import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.domain.usecase.AddSongToPlaylistUseCase
-import com.rabbithole.musicbbit.domain.usecase.GetPlaylistsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +21,7 @@ sealed interface AddToPlaylistUiState {
 
 @HiltViewModel
 class AddToPlaylistBottomSheetViewModel @Inject constructor(
-    private val getPlaylistsUseCase: GetPlaylistsUseCase,
+    private val playlistRepository: PlaylistRepository,
     private val addSongToPlaylistUseCase: AddSongToPlaylistUseCase
 ) : ViewModel() {
 
@@ -29,7 +29,7 @@ class AddToPlaylistBottomSheetViewModel @Inject constructor(
     val uiState: StateFlow<AddToPlaylistUiState> = _uiState.asStateFlow()
 
     init {
-        getPlaylistsUseCase()
+        playlistRepository.getAllPlaylists()
             .onEach { playlists ->
                 _uiState.value = AddToPlaylistUiState.Success(playlists)
             }

@@ -13,9 +13,9 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.rabbithole.musicbbit.MainActivity
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Song
-import com.rabbithole.musicbbit.domain.usecase.GetPlaybackProgressUseCase
-import com.rabbithole.musicbbit.domain.usecase.SavePlaybackProgressUseCase
+import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
 import com.rabbithole.musicbbit.service.alarm.AlarmPlaybackHost
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
@@ -52,10 +52,7 @@ import timber.log.Timber
 class MusicPlaybackService : Service(), AlarmPlaybackHost {
 
     @Inject
-    lateinit var savePlaybackProgressUseCase: SavePlaybackProgressUseCase
-
-    @Inject
-    lateinit var getPlaybackProgressUseCase: GetPlaybackProgressUseCase
+    lateinit var playbackProgressRepository: PlaybackProgressRepository
 
     @Inject
     lateinit var volumeRampPort: VolumeRampPort
@@ -275,7 +272,7 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
         playerPort.setQueue(items = mediaItems, startIndex = safeIndex, startPositionMs = 0)
 
         serviceScope.launch {
-            val progressResult = getPlaybackProgressUseCase(startSong.id, playlistId)
+            val progressResult = playbackProgressRepository.getProgress(startSong.id, playlistId)
             progressResult.getOrNull()?.let { progress ->
                 Timber.i("Restoring progress for song ${startSong.id}: ${progress.positionMs}ms")
                 playerPort.seekTo(progress.positionMs)
@@ -420,11 +417,13 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
         val position = playerPort.currentPositionMs()
 
         serviceScope.launch {
-            val result = savePlaybackProgressUseCase(
+            val progress = PlaybackProgress(
                 songId = song.id,
                 positionMs = position,
+                updatedAt = System.currentTimeMillis(),
                 playlistId = state.currentPlaylistId
             )
+            val result = playbackProgressRepository.saveProgress(progress)
             result.onSuccess {
                 Timber.d("Progress saved: songId=${song.id}, position=$position")
             }.onFailure { error ->

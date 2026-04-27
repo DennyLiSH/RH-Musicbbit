@@ -3,9 +3,8 @@ package com.rabbithole.musicbbit.presentation.music
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.domain.model.Song
-import com.rabbithole.musicbbit.domain.usecase.GetScanDirectoriesUseCase
-import com.rabbithole.musicbbit.domain.usecase.GetSongsUseCase
-import com.rabbithole.musicbbit.domain.usecase.SearchSongsUseCase
+import com.rabbithole.musicbbit.domain.repository.MusicRepository
+import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -40,9 +39,8 @@ sealed interface MusicBrowseAction {
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MusicBrowseViewModel @Inject constructor(
-    private val getSongsUseCase: GetSongsUseCase,
-    private val searchSongsUseCase: SearchSongsUseCase,
-    private val getScanDirectoriesUseCase: GetScanDirectoriesUseCase
+    private val musicRepository: MusicRepository,
+    private val scanDirectoryRepository: ScanDirectoryRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<MusicUiState>(MusicUiState.Loading)
@@ -56,12 +54,12 @@ class MusicBrowseViewModel @Inject constructor(
 
     private fun observeData() {
         combine(
-            getScanDirectoriesUseCase(),
+            scanDirectoryRepository.getAll(),
             _searchQuery
                 .debounce(300)
                 .distinctUntilChanged()
                 .flatMapLatest { query ->
-                    if (query.isBlank()) getSongsUseCase() else searchSongsUseCase(query)
+                    if (query.isBlank()) musicRepository.getAllSongs() else musicRepository.searchSongs(query)
                 }
         ) { directories, songs ->
             when {

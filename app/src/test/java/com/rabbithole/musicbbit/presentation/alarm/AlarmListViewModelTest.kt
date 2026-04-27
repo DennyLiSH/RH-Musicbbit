@@ -2,11 +2,9 @@ package com.rabbithole.musicbbit.presentation.alarm
 
 import android.content.Context
 import android.os.Build
+import com.rabbithole.musicbbit.domain.repository.AlarmRepository
+import com.rabbithole.musicbbit.domain.repository.HolidayRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
-import com.rabbithole.musicbbit.domain.usecase.DeleteAlarmUseCase
-import com.rabbithole.musicbbit.domain.usecase.EnableAlarmUseCase
-import com.rabbithole.musicbbit.domain.usecase.GetAlarmsUseCase
-import com.rabbithole.musicbbit.domain.usecase.RefreshHolidaysUseCase
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import io.mockk.coEvery
 import io.mockk.every
@@ -37,24 +35,18 @@ class AlarmListViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
 
     private lateinit var context: Context
-    private lateinit var getAlarmsUseCase: GetAlarmsUseCase
-    private lateinit var deleteAlarmUseCase: DeleteAlarmUseCase
-    private lateinit var enableAlarmUseCase: EnableAlarmUseCase
+    private lateinit var alarmRepository: AlarmRepository
+    private lateinit var holidayRepository: HolidayRepository
     private lateinit var playlistRepository: PlaylistRepository
-    private lateinit var refreshHolidaysUseCase: RefreshHolidaysUseCase
 
     @Before
     fun setUp() {
         context = RuntimeEnvironment.getApplication()
-        getAlarmsUseCase = mockk {
-            every { this@mockk.invoke() } returns flowOf(emptyList())
+        alarmRepository = mockk {
+            every { getAllAlarms() } returns flowOf(emptyList())
         }
-        deleteAlarmUseCase = mockk(relaxed = true)
-        enableAlarmUseCase = mockk(relaxed = true)
+        holidayRepository = mockk(relaxed = true)
         playlistRepository = mockk(relaxed = true)
-        refreshHolidaysUseCase = mockk {
-            coEvery { this@mockk.invoke(any()) } returns Result.success(Unit)
-        }
         mockkObject(FullScreenIntentPermissionHelper)
     }
 
@@ -106,11 +98,9 @@ class AlarmListViewModelTest {
 
     private fun createViewModel(): AlarmListViewModel {
         return AlarmListViewModel(
-            getAlarmsUseCase = getAlarmsUseCase,
-            deleteAlarmUseCase = deleteAlarmUseCase,
-            enableAlarmUseCase = enableAlarmUseCase,
+            alarmRepository = alarmRepository,
+            holidayRepository = holidayRepository,
             playlistRepository = playlistRepository,
-            refreshHolidaysUseCase = refreshHolidaysUseCase,
             context = context
         )
     }

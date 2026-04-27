@@ -9,9 +9,8 @@ import androidx.navigation.toRoute
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.Playlist
-import com.rabbithole.musicbbit.domain.usecase.GetAlarmByIdUseCase
-import com.rabbithole.musicbbit.domain.usecase.GetPlaylistsUseCase
-import com.rabbithole.musicbbit.domain.usecase.SaveAlarmUseCase
+import com.rabbithole.musicbbit.domain.repository.AlarmRepository
+import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
@@ -67,9 +66,8 @@ sealed interface AlarmEditAction {
 class AlarmEditViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle,
-    private val getAlarmByIdUseCase: GetAlarmByIdUseCase,
-    private val saveAlarmUseCase: SaveAlarmUseCase,
-    private val getPlaylistsUseCase: GetPlaylistsUseCase,
+    private val alarmRepository: AlarmRepository,
+    private val playlistRepository: PlaylistRepository,
     private val alarmScheduler: AlarmScheduler
 ) : ViewModel() {
 
@@ -92,10 +90,10 @@ class AlarmEditViewModel @Inject constructor(
     }
 
     /**
-     * Collect playlists from the use case to populate the selector.
+     * Collect playlists from the repository to populate the selector.
      */
     private fun observePlaylists() {
-        getPlaylistsUseCase()
+        playlistRepository.getAllPlaylists()
             .onEach { playlists ->
                 Timber.d("Loaded %d playlists", playlists.size)
                 _uiState.update { it.copy(playlists = playlists) }
@@ -109,7 +107,7 @@ class AlarmEditViewModel @Inject constructor(
     private fun loadAlarm() {
         viewModelScope.launch {
             Timber.i("Loading alarm with id=%d", alarmId)
-            val alarm = getAlarmByIdUseCase(alarmId)
+            val alarm = alarmRepository.getAlarmById(alarmId)
             if (alarm != null) {
                 Timber.i("Alarm loaded: hour=%d, minute=%d", alarm.hour, alarm.minute)
                 _uiState.update {
@@ -228,7 +226,7 @@ class AlarmEditViewModel @Inject constructor(
 
         viewModelScope.launch {
             Timber.i("Saving alarm: id=%d, hour=%d, minute=%d, playlistId=%d", alarm.id, alarm.hour, alarm.minute, alarm.playlistId)
-            val result = saveAlarmUseCase(alarm)
+            val result = runCatching { alarmRepository.saveAlarm(alarm) }
             result.fold(
                 onSuccess = { savedId ->
                     Timber.i("Alarm saved successfully, id=%d", savedId)

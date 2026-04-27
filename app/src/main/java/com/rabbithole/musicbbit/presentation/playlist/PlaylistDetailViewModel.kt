@@ -5,11 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.domain.model.PlaylistWithSongs
 import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.domain.repository.MusicRepository
+import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.domain.usecase.AddSongToPlaylistUseCase
-import com.rabbithole.musicbbit.domain.usecase.GetPlaylistWithSongsUseCase
-import com.rabbithole.musicbbit.domain.usecase.GetSongsUseCase
-import com.rabbithole.musicbbit.domain.usecase.RemoveSongFromPlaylistUseCase
-import com.rabbithole.musicbbit.domain.usecase.ReorderPlaylistSongsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import timber.log.Timber
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,10 +35,8 @@ sealed interface PlaylistDetailAction {
 @HiltViewModel
 class PlaylistDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val getPlaylistWithSongsUseCase: GetPlaylistWithSongsUseCase,
-    private val removeSongFromPlaylistUseCase: RemoveSongFromPlaylistUseCase,
-    private val reorderPlaylistSongsUseCase: ReorderPlaylistSongsUseCase,
-    private val getSongsUseCase: GetSongsUseCase,
+    private val playlistRepository: PlaylistRepository,
+    private val musicRepository: MusicRepository,
     private val addSongToPlaylistUseCase: AddSongToPlaylistUseCase
 ) : ViewModel() {
 
@@ -49,11 +45,11 @@ class PlaylistDetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<PlaylistDetailUiState>(PlaylistDetailUiState.Loading)
     val uiState: StateFlow<PlaylistDetailUiState> = _uiState.asStateFlow()
 
-    val allSongs: StateFlow<List<Song>> = getSongsUseCase()
+    val allSongs: StateFlow<List<Song>> = musicRepository.getAllSongs()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
-        getPlaylistWithSongsUseCase(playlistId)
+        playlistRepository.getPlaylistWithSongs(playlistId)
             .onEach { playlistWithSongs ->
                 if (playlistWithSongs != null) {
                     _uiState.value = PlaylistDetailUiState.Success(playlistWithSongs)
@@ -66,7 +62,7 @@ class PlaylistDetailViewModel @Inject constructor(
         when (action) {
             is PlaylistDetailAction.OnRemoveSong -> {
                 viewModelScope.launch {
-                    removeSongFromPlaylistUseCase(playlistId, action.songId)
+                    runCatching { playlistRepository.removeSongFromPlaylist(playlistId, action.songId) }
                 }
             }
             is PlaylistDetailAction.OnReorderSongs -> {
@@ -87,7 +83,7 @@ class PlaylistDetailViewModel @Inject constructor(
 
                 viewModelScope.launch {
                     val songIds = reordered.map { it.id }
-                    val result = reorderPlaylistSongsUseCase(playlistId, songIds)
+                    val result = runCatching { playlistRepository.reorderPlaylistSongs(playlistId, songIds) }
                     if (result.isFailure) {
                         _uiState.value = PlaylistDetailUiState.Success(
                             currentState.playlistWithSongs.copy(songs = songs)
@@ -103,7 +99,7 @@ class PlaylistDetailViewModel @Inject constructor(
                     }
                 }
             }
-            else -> { /* Play handled in UI via StateHolder */ }
+            else -> { /* Play handled in UI via PlayerViewModel */ }
         }
     }
 }
