@@ -59,7 +59,7 @@ fun PlayerScreen(
     modifier: Modifier = Modifier,
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
-    val playbackState by viewModel.stateHolder.playbackState.collectAsStateWithLifecycle()
+    val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
     val alarmLabel by viewModel.alarmLabel.collectAsStateWithLifecycle()
     val currentSong = playbackState.currentSong
 
@@ -95,7 +95,7 @@ fun PlayerScreen(
                     }
                     context.startActivity(intent)
                 },
-                onStopAlarm = { viewModel.stateHolder.stop() }
+                onStopAlarm = { viewModel.stop() }
             )
             Spacer(modifier = Modifier.height(8.dp))
         }
@@ -155,7 +155,7 @@ fun PlayerScreen(
                 sliderPosition = it
             },
             onValueChangeFinished = {
-                viewModel.stateHolder.seekTo((sliderPosition * durationMs).toLong())
+                viewModel.seekTo((sliderPosition * durationMs).toLong())
                 isUserDragging = false
             },
             modifier = Modifier.fillMaxWidth()
@@ -192,7 +192,7 @@ fun PlayerScreen(
                     PlayMode.RANDOM -> PlayMode.REPEAT_ONE
                     PlayMode.REPEAT_ONE -> PlayMode.SEQUENTIAL
                 }
-                viewModel.stateHolder.setPlayMode(nextMode)
+                viewModel.setPlayMode(nextMode)
             }) {
                 Icon(
                     imageVector = when (playbackState.playMode) {
@@ -205,7 +205,7 @@ fun PlayerScreen(
             }
 
             // Previous button
-            IconButton(onClick = { viewModel.stateHolder.previous() }) {
+            IconButton(onClick = { viewModel.previous() }) {
                 Icon(
                     imageVector = Icons.Default.SkipPrevious,
                     contentDescription = stringResource(R.string.player_previous),
@@ -217,9 +217,9 @@ fun PlayerScreen(
             IconButton(
                 onClick = {
                     if (playbackState.isPlaying) {
-                        viewModel.stateHolder.pause()
+                        viewModel.pause()
                     } else {
-                        viewModel.stateHolder.resume()
+                        viewModel.resume()
                     }
                 },
                 modifier = Modifier.size(72.dp)
@@ -232,7 +232,7 @@ fun PlayerScreen(
             }
 
             // Next button
-            IconButton(onClick = { viewModel.stateHolder.next() }) {
+            IconButton(onClick = { viewModel.next() }) {
                 Icon(
                     imageVector = Icons.Default.SkipNext,
                     contentDescription = stringResource(R.string.player_next),
