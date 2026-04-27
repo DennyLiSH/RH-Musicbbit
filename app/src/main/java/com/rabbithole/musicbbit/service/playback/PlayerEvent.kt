@@ -38,6 +38,11 @@ sealed class PlayerEvent {
         val newPositionMs: Long,
         val itemIndex: Int,
     ) : PlayerEvent()
+
+    /**
+     * Emitted when the player reaches the end of the queue (STATE_ENDED).
+     */
+    data object QueueEnded : PlayerEvent()
 }
 
 enum class TransitionReason { AUTO, SEEK, REPEAT, OTHER }

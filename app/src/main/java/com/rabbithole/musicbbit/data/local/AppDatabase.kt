@@ -2,6 +2,7 @@ package com.rabbithole.musicbbit.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
 import com.rabbithole.musicbbit.data.local.dao.HolidayDao
 import com.rabbithole.musicbbit.data.local.dao.PlaybackProgressDao
@@ -11,6 +12,7 @@ import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
 import com.rabbithole.musicbbit.data.local.model.HolidayEntity
 import com.rabbithole.musicbbit.data.model.AlarmEntity
+import com.rabbithole.musicbbit.data.model.AutoStopConverter
 import com.rabbithole.musicbbit.data.model.PlaybackProgressEntity
 import com.rabbithole.musicbbit.data.model.PlaylistEntity
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
@@ -27,9 +29,10 @@ import com.rabbithole.musicbbit.data.model.SongEntity
         ScanDirectoryEntity::class,
         HolidayEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
+@TypeConverters(AutoStopConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun songDao(): SongDao
     abstract fun playlistDao(): PlaylistDao

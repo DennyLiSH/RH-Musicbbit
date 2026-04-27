@@ -57,7 +57,7 @@ class AlarmStartupReconcilerTest {
             playlistId = 10L,
             isEnabled = true,
             label = "Test",
-            autoStopMinutes = 10,
+            autoStop = null,
             lastTriggeredAt = FIXED_NOW_MS - 1000L,
         )
         fakeDao.upsert(alarm)
@@ -80,7 +80,7 @@ class AlarmStartupReconcilerTest {
             playlistId = 10L,
             isEnabled = true,
             label = "Daily",
-            autoStopMinutes = 10,
+            autoStop = null,
             lastTriggeredAt = null,
         )
         fakeDao.upsert(alarm)
@@ -103,7 +103,7 @@ class AlarmStartupReconcilerTest {
             playlistId = 10L,
             isEnabled = true,
             label = "Future",
-            autoStopMinutes = 10,
+            autoStop = null,
             lastTriggeredAt = null,
         )
         fakeDao.upsert(alarm)

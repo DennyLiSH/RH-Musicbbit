@@ -13,7 +13,7 @@ import java.time.DayOfWeek
  * @property playlistId ID of the playlist to play when the alarm triggers
  * @property isEnabled Whether the alarm is currently active
  * @property label Optional user-defined label for the alarm
- * @property autoStopMinutes Optional duration in minutes after which playback auto-stops. Null means no auto-stop.
+ * @property autoStop Optional auto-stop configuration. Null means no auto-stop.
  * @property lastTriggeredAt Unix timestamp (ms) of the last trigger, or null
  */
 data class Alarm(
@@ -25,7 +25,7 @@ data class Alarm(
     val playlistId: Long,
     val isEnabled: Boolean,
     val label: String?,
-    val autoStopMinutes: Int?,
+    val autoStop: AutoStop?,
     val lastTriggeredAt: Long?
 )
 

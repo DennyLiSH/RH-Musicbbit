@@ -2,6 +2,7 @@ package com.rabbithole.musicbbit.data.repository
 
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
 import com.rabbithole.musicbbit.data.model.AlarmEntity
+import com.rabbithole.musicbbit.data.model.AutoStopConverter
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.toBitmask
@@ -93,7 +94,7 @@ class AlarmRepositoryImpl @Inject constructor(
             playlistId = playlistId,
             isEnabled = isEnabled,
             label = label,
-            autoStopMinutes = autoStopMinutes,
+            autoStop = AutoStopConverter.toAutoStop(autoStop),
             lastTriggeredAt = lastTriggeredAt
         )
     }
@@ -108,7 +109,7 @@ class AlarmRepositoryImpl @Inject constructor(
             playlistId = playlistId,
             isEnabled = isEnabled,
             label = label,
-            autoStopMinutes = autoStopMinutes,
+            autoStop = AutoStopConverter.fromAutoStop(autoStop),
             lastTriggeredAt = lastTriggeredAt
         )
     }

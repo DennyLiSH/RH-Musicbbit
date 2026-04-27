@@ -53,6 +53,9 @@ class ExoPlayerAdapter @Inject constructor(
                     )
                 )
             }
+            if (playbackState == Player.STATE_ENDED) {
+                tryEmit(PlayerEvent.QueueEnded)
+            }
         }
 
         override fun onPositionDiscontinuity(

@@ -1,7 +1,9 @@
 package com.rabbithole.musicbbit.service.alarm
 
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
+import com.rabbithole.musicbbit.data.model.AutoStopConverter
 import com.rabbithole.musicbbit.data.model.AlarmEntity
+import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.model.PlaylistWithSongs
@@ -325,7 +327,7 @@ class AlarmFireSessionTest {
 
     @Test
     fun `autoStop fires after configured delay and calls host stopPlayback`() = scope.runTest {
-        alarmDao.upsert(repeatingAlarm(id = 14L, playlistId = 140L).copy(autoStopMinutes = 30))
+        alarmDao.upsert(repeatingAlarm(id = 14L, playlistId = 140L).copy(autoStop = AutoStopConverter.fromAutoStop(AutoStop.ByMinutes(30))))
         playlistRepository.set(140L, threeSongPlaylist(id = 140L))
 
         session.fire(alarmId = 14L, isAlarmTrigger = true)
@@ -339,7 +341,7 @@ class AlarmFireSessionTest {
 
     @Test
     fun `extendAutoStop cancels prior timer and reschedules`() = scope.runTest {
-        alarmDao.upsert(repeatingAlarm(id = 15L, playlistId = 150L).copy(autoStopMinutes = 10))
+        alarmDao.upsert(repeatingAlarm(id = 15L, playlistId = 150L).copy(autoStop = AutoStopConverter.fromAutoStop(AutoStop.ByMinutes(10))))
         playlistRepository.set(150L, threeSongPlaylist(id = 150L))
 
         session.fire(alarmId = 15L, isAlarmTrigger = true)
@@ -373,6 +375,120 @@ class AlarmFireSessionTest {
         assertFalse(session.isExtendToEnd())
     }
 
+    // -------- song counter auto-stop ----------------------------------------
+
+    @Test
+    fun `fire with BySongCount(3) stops after 3 songs`() = scope.runTest {
+        alarmDao.upsert(
+            repeatingAlarm(id = 19L, playlistId = 190L).copy(
+                autoStop = AutoStopConverter.fromAutoStop(AutoStop.BySongCount(3))
+            )
+        )
+        playlistRepository.set(190L, threeSongPlaylist(id = 190L))
+
+        session.fire(alarmId = 19L, isAlarmTrigger = true)
+        runCurrent()
+        assertEquals(0, host.stopCount)
+
+        // First song completed
+        session.onSongCompleted()
+        assertEquals(0, host.stopCount)
+
+        // Second song completed
+        session.onSongCompleted()
+        assertEquals(0, host.stopCount)
+
+        // Third song completed — counter reaches zero
+        session.onSongCompleted()
+        assertEquals(1, host.stopCount)
+    }
+
+    @Test
+    fun `fire with BySongCount(1) stops after first song`() = scope.runTest {
+        alarmDao.upsert(
+            repeatingAlarm(id = 20L, playlistId = 200L).copy(
+                autoStop = AutoStopConverter.fromAutoStop(AutoStop.BySongCount(1))
+            )
+        )
+        playlistRepository.set(200L, threeSongPlaylist(id = 200L))
+
+        session.fire(alarmId = 20L, isAlarmTrigger = true)
+        runCurrent()
+
+        session.onSongCompleted()
+        assertEquals(1, host.stopCount)
+    }
+
+    @Test
+    fun `onSongCompleted does nothing when no counter active`() = scope.runTest {
+        firePlaying(alarmId = 21L, playlistId = 210L)
+
+        session.onSongCompleted()
+
+        assertEquals(0, host.stopCount)
+    }
+
+    @Test
+    fun `onQueueEnded stops when song counter active`() = scope.runTest {
+        alarmDao.upsert(
+            repeatingAlarm(id = 22L, playlistId = 220L).copy(
+                autoStop = AutoStopConverter.fromAutoStop(AutoStop.BySongCount(5))
+            )
+        )
+        playlistRepository.set(220L, threeSongPlaylist(id = 220L))
+
+        session.fire(alarmId = 22L, isAlarmTrigger = true)
+        runCurrent()
+
+        // Queue ends before counter reaches zero
+        session.onQueueEnded()
+        assertEquals(1, host.stopCount)
+    }
+
+    @Test
+    fun `onPlaybackStopped resets song counter`() = scope.runTest {
+        alarmDao.upsert(
+            repeatingAlarm(id = 23L, playlistId = 230L).copy(
+                autoStop = AutoStopConverter.fromAutoStop(AutoStop.BySongCount(2))
+            )
+        )
+        playlistRepository.set(230L, threeSongPlaylist(id = 230L))
+
+        session.fire(alarmId = 23L, isAlarmTrigger = true)
+        runCurrent()
+
+        session.onPlaybackStopped()
+
+        // Counter should be reset; calling onSongCompleted should do nothing
+        session.onSongCompleted()
+        assertEquals(0, host.stopCount)
+    }
+
+    @Test
+    fun `transitionToError resets song counter`() = scope.runTest {
+        alarmDao.upsert(
+            repeatingAlarm(id = 24L, playlistId = 240L).copy(
+                autoStop = AutoStopConverter.fromAutoStop(AutoStop.BySongCount(2))
+            )
+        )
+        playlistRepository.set(240L, threeSongPlaylist(id = 240L))
+        // Simulate Service having already acquired the wake lock
+        wakeLockPort.acquire(10 * 60 * 1000L)
+
+        session.fire(alarmId = 24L, isAlarmTrigger = true)
+        runCurrent()
+
+        // Force an error by unbinding host and calling fire again
+        session.unbindHost(host)
+        session.fire(alarmId = 25L, isAlarmTrigger = true)
+        runCurrent()
+
+        assertTrue(session.state.value is AlarmFireState.Error)
+        // Counter should be reset; calling onSongCompleted should do nothing
+        session.onSongCompleted()
+        assertEquals(0, host.stopCount)
+    }
+
     // -------- onPlaybackStopped lifecycle -----------------------------------
 
     @Test
@@ -390,7 +506,7 @@ class AlarmFireSessionTest {
 
     @Test
     fun `onPlaybackStopped after autoStop does not call host stopPlayback again`() = scope.runTest {
-        alarmDao.upsert(repeatingAlarm(id = 17L, playlistId = 170L).copy(autoStopMinutes = 1))
+        alarmDao.upsert(repeatingAlarm(id = 17L, playlistId = 170L).copy(autoStop = AutoStopConverter.fromAutoStop(AutoStop.ByMinutes(1))))
         playlistRepository.set(170L, threeSongPlaylist(id = 170L))
 
         session.fire(alarmId = 17L, isAlarmTrigger = true)
@@ -438,7 +554,7 @@ class AlarmFireSessionTest {
         playlistId = playlistId,
         isEnabled = true,
         label = "Repeating $id",
-        autoStopMinutes = null,
+        autoStop = null,
         lastTriggeredAt = null,
     )
 

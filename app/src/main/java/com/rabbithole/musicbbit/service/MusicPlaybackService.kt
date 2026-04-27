@@ -110,6 +110,10 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
         }
         updateNotification()
 
+        if (event.reason == TransitionReason.AUTO) {
+            alarmFireSession.onSongCompleted()
+        }
+
         // Check extend-to-end (owned by AlarmFireSession)
         if (alarmFireSession.isExtendToEnd() && event.reason == TransitionReason.AUTO) {
             Timber.i("Extend-to-end: stopping after current song")
@@ -156,6 +160,7 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
                     is PlayerEvent.MediaItemTransition -> handleMediaItemTransition(event)
                     is PlayerEvent.PlaybackReady -> handlePlaybackReady(event.durationMs)
                     is PlayerEvent.PositionDiscontinuity -> handlePositionDiscontinuity(event)
+                    is PlayerEvent.QueueEnded -> alarmFireSession.onQueueEnded()
                 }
             }
         }
@@ -588,7 +593,6 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
         const val EXTRA_SONGS = "extra_songs"
         const val EXTRA_START_INDEX = "extra_start_index"
         const val EXTRA_PLAYLIST_ID = "extra_playlist_id"
-        const val EXTRA_AUTO_STOP_MINUTES = "extra_auto_stop_minutes"
         const val EXTRA_ALARM_ID = "extra_alarm_id"
         const val EXTRA_IS_ALARM_TRIGGER = "extra_is_alarm_trigger"
 

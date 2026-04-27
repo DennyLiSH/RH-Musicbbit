@@ -56,7 +56,7 @@ class PlayerViewModelTest {
             playlistId = 10L,
             isEnabled = true,
             label = "Morning Jog",
-            autoStopMinutes = 10,
+            autoStop = null,
             lastTriggeredAt = null
         )
         coEvery { alarmRepository.getAlarmById(1L) } returns alarm
@@ -78,7 +78,7 @@ class PlayerViewModelTest {
             playlistId = 10L,
             isEnabled = true,
             label = "Morning Jog",
-            autoStopMinutes = 10,
+            autoStop = null,
             lastTriggeredAt = null
         )
         coEvery { alarmRepository.getAlarmById(1L) } returns alarm

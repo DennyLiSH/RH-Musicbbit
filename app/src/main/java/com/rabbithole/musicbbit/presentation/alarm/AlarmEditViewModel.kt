@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
@@ -38,7 +39,7 @@ data class AlarmEditUiState(
     val excludeHolidays: Boolean = false,
     val playlistId: Long = 0,
     val label: String = "",
-    val autoStopMinutes: Int? = null,
+    val autoStop: AutoStop? = null,
     val isEnabled: Boolean = true,
     val playlists: List<Playlist> = emptyList(),
     val isLoading: Boolean = false,
@@ -59,7 +60,7 @@ sealed interface AlarmEditAction {
     data class OnExcludeHolidaysChanged(val exclude: Boolean) : AlarmEditAction
     data class OnPlaylistSelected(val playlistId: Long) : AlarmEditAction
     data class OnLabelChanged(val label: String) : AlarmEditAction
-    data class OnAutoStopChanged(val minutes: Int?) : AlarmEditAction
+    data class OnAutoStopChanged(val autoStop: AutoStop?) : AlarmEditAction
     data object OnSave : AlarmEditAction
     data object OnPermissionDialogDismissed : AlarmEditAction
     data object OnFullScreenIntentDialogDismissed : AlarmEditAction
@@ -125,7 +126,7 @@ class AlarmEditViewModel @Inject constructor(
                         excludeHolidays = alarm.excludeHolidays,
                         playlistId = alarm.playlistId,
                         label = alarm.label ?: "",
-                        autoStopMinutes = alarm.autoStopMinutes,
+                        autoStop = alarm.autoStop,
                         isEnabled = alarm.isEnabled,
                         isLoading = false,
                         isNewAlarm = false
@@ -180,8 +181,8 @@ class AlarmEditViewModel @Inject constructor(
             }
 
             is AlarmEditAction.OnAutoStopChanged -> {
-                Timber.d("Auto-stop changed: %s minutes", action.minutes?.toString() ?: "null")
-                _uiState.update { it.copy(autoStopMinutes = action.minutes, errorMessageResId = null) }
+                Timber.d("Auto-stop changed: %s", action.autoStop?.toString() ?: "null")
+                _uiState.update { it.copy(autoStop = action.autoStop, errorMessageResId = null) }
             }
 
             is AlarmEditAction.OnSave -> saveAlarm()
@@ -234,7 +235,7 @@ class AlarmEditViewModel @Inject constructor(
             playlistId = currentState.playlistId,
             isEnabled = currentState.isEnabled,
             label = currentState.label.takeIf { it.isNotBlank() },
-            autoStopMinutes = currentState.autoStopMinutes,
+            autoStop = currentState.autoStop,
             lastTriggeredAt = null
         )
 

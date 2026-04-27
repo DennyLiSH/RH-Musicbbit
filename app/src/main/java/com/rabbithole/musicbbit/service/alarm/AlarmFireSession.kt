@@ -2,8 +2,10 @@ package com.rabbithole.musicbbit.service.alarm
 
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
 import com.rabbithole.musicbbit.data.model.AlarmEntity
+import com.rabbithole.musicbbit.data.model.AutoStopConverter
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.di.MainDispatcher
+import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
@@ -71,6 +73,7 @@ class AlarmFireSession @Inject constructor(
 
     private var host: AlarmPlaybackHost? = null
     private var autoStopJob: Job? = null
+    private var songsRemaining: Int = 0
     private var extendToEnd: Boolean = false
 
     /** Register the playback host. Called from MusicPlaybackService.onCreate. */
@@ -211,9 +214,13 @@ class AlarmFireSession @Inject constructor(
                         Timber.i("Started volume ramp for alarm playback")
                     }
 
-                    val autoStopMinutes = alarm.autoStopMinutes
-                    if (autoStopMinutes != null && autoStopMinutes > 0) {
-                        scheduleAutoStop(autoStopMinutes, alarmId)
+                    when (val stop = AutoStopConverter.toAutoStop(alarm.autoStop)) {
+                        is AutoStop.ByMinutes -> scheduleAutoStop(stop.minutes, alarmId)
+                        is AutoStop.BySongCount -> {
+                            songsRemaining = stop.count
+                            Timber.i("Song counter set to ${stop.count} for alarm $alarmId")
+                        }
+                        null -> {}
                     }
 
                     extendToEnd = false
@@ -289,7 +296,36 @@ class AlarmFireSession @Inject constructor(
     private fun transitionToError(alarmId: Long, reason: String) {
         Timber.w("AlarmFireSession transitioning to Error: alarmId=$alarmId, reason=$reason")
         if (wakeLockPort.isHeld) wakeLockPort.release()
+        songsRemaining = 0
         _state.value = AlarmFireState.Error(alarmId, reason)
+    }
+
+    /**
+     * Called by the host when a song completes naturally (auto-advance).
+     * Decrements the song counter; when it reaches zero, stops playback.
+     * Only active when the session is in [AlarmFireState.Playing].
+     */
+    fun onSongCompleted() {
+        if (_state.value !is AlarmFireState.Playing) return
+        if (songsRemaining <= 0) return
+        songsRemaining--
+        Timber.d("Song completed, songsRemaining=$songsRemaining")
+        if (songsRemaining <= 0) {
+            Timber.i("Song counter reached zero, stopping playback")
+            host?.stopPlayback()
+        }
+    }
+
+    /**
+     * Called by the host when the queue ends before the song counter reaches zero.
+     * Stops playback if a song counter is active and the session is [AlarmFireState.Playing].
+     */
+    fun onQueueEnded() {
+        if (_state.value !is AlarmFireState.Playing) return
+        if (songsRemaining > 0) {
+            Timber.i("Queue ended with songsRemaining=$songsRemaining, stopping")
+            host?.stopPlayback()
+        }
     }
 
     /**
@@ -298,6 +334,7 @@ class AlarmFireSession @Inject constructor(
      */
     fun onPlaybackStopped() {
         cancelAutoStop()
+        songsRemaining = 0
         if (wakeLockPort.isHeld) {
             Timber.i("AlarmFireSession: releasing wake lock in onPlaybackStopped")
             wakeLockPort.release()
@@ -324,6 +361,7 @@ class AlarmFireSession @Inject constructor(
     private fun cancelAutoStop() {
         autoStopJob?.cancel()
         autoStopJob = null
+        songsRemaining = 0
         Timber.d("Auto-stop cancelled")
     }
 

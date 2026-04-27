@@ -71,6 +71,12 @@
     <string name="alarm_edit_auto_stop_15min">15 minutes</string>
     <string name="alarm_edit_auto_stop_30min">30 minutes</string>
     <string name="alarm_edit_auto_stop_60min">60 minutes</string>
+    <string name="alarm_edit_auto_stop_1song">1 song</string>
+    <string name="alarm_edit_auto_stop_2songs">2 songs</string>
+    <string name="alarm_edit_auto_stop_3songs">3 songs</string>
+    <string name="alarm_edit_auto_stop_4songs">4 songs</string>
+    <string name="alarm_edit_auto_stop_5songs">5 songs</string>
+    <string name="alarm_edit_auto_stop_10songs">10 songs</string>
     <string name="alarm_edit_error_not_found">Alarm not found</string>
     <string name="alarm_edit_error_select_playlist">Please select a playlist</string>
     <string name="alarm_edit_error_save_failed">Failed to save alarm</string>

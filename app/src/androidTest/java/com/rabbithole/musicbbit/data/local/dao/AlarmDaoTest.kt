@@ -21,7 +21,7 @@ class AlarmDaoTest : DatabaseTest() {
             playlistId = 1L,
             isEnabled = true,
             label = "Morning Alarm",
-            autoStopMinutes = 30,
+            autoStop = null,
             lastTriggeredAt = null
         )
 
@@ -39,7 +39,7 @@ class AlarmDaoTest : DatabaseTest() {
             playlistId = 1L,
             isEnabled = true,
             label = "Morning Alarm",
-            autoStopMinutes = 30,
+            autoStop = null,
             lastTriggeredAt = null
         )
         val id = dao.insert(alarm)
@@ -69,7 +69,7 @@ class AlarmDaoTest : DatabaseTest() {
             playlistId = 1L,
             isEnabled = true,
             label = null,
-            autoStopMinutes = null,
+            autoStop = null,
             lastTriggeredAt = null
         )
         val alarm2 = AlarmEntity(
@@ -79,7 +79,7 @@ class AlarmDaoTest : DatabaseTest() {
             playlistId = 2L,
             isEnabled = false,
             label = null,
-            autoStopMinutes = null,
+            autoStop = null,
             lastTriggeredAt = null
         )
         dao.insert(alarm1)
@@ -101,7 +101,7 @@ class AlarmDaoTest : DatabaseTest() {
             playlistId = 1L,
             isEnabled = true,
             label = null,
-            autoStopMinutes = null,
+            autoStop = null,
             lastTriggeredAt = null
         )
         val disabledAlarm = AlarmEntity(
@@ -111,7 +111,7 @@ class AlarmDaoTest : DatabaseTest() {
             playlistId = 2L,
             isEnabled = false,
             label = null,
-            autoStopMinutes = null,
+            autoStop = null,
             lastTriggeredAt = null
         )
         dao.insert(enabledAlarm)
@@ -132,7 +132,7 @@ class AlarmDaoTest : DatabaseTest() {
             playlistId = 1L,
             isEnabled = true,
             label = "Old Label",
-            autoStopMinutes = null,
+            autoStop = null,
             lastTriggeredAt = null
         )
         val id = dao.insert(alarm)
@@ -155,7 +155,7 @@ class AlarmDaoTest : DatabaseTest() {
             playlistId = 1L,
             isEnabled = true,
             label = null,
-            autoStopMinutes = null,
+            autoStop = null,
             lastTriggeredAt = null
         )
         val id = dao.insert(alarm)

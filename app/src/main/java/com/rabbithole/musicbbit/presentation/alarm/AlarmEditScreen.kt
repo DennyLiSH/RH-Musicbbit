@@ -37,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.annotation.StringRes
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -50,19 +51,66 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import com.rabbithole.musicbbit.presentation.alarm.components.DayOfWeekSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.PlaylistSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.TimePickerDialog
 import timber.log.Timber
 
+private sealed interface AutoStopOption {
+    data object None : AutoStopOption
+    data class Minutes(val value: Int) : AutoStopOption
+    data class Songs(val value: Int) : AutoStopOption
+}
+
+private fun AutoStopOption.toAutoStop(): AutoStop? = when (this) {
+    is AutoStopOption.Minutes -> AutoStop.ByMinutes(value)
+    is AutoStopOption.Songs -> AutoStop.BySongCount(value)
+    AutoStopOption.None -> null
+}
+
+private fun AutoStop?.toOption(): AutoStopOption = when (this) {
+    is AutoStop.ByMinutes -> AutoStopOption.Minutes(minutes)
+    is AutoStop.BySongCount -> AutoStopOption.Songs(count)
+    null -> AutoStopOption.None
+}
+
+@StringRes
+private fun AutoStopOption.labelRes(): Int = when (this) {
+    AutoStopOption.None -> R.string.alarm_edit_auto_stop_none
+    is AutoStopOption.Minutes -> when (value) {
+        5 -> R.string.alarm_edit_auto_stop_5min
+        10 -> R.string.alarm_edit_auto_stop_10min
+        15 -> R.string.alarm_edit_auto_stop_15min
+        30 -> R.string.alarm_edit_auto_stop_30min
+        60 -> R.string.alarm_edit_auto_stop_60min
+        else -> R.string.alarm_edit_auto_stop_none
+    }
+    is AutoStopOption.Songs -> when (value) {
+        1 -> R.string.alarm_edit_auto_stop_1song
+        2 -> R.string.alarm_edit_auto_stop_2songs
+        3 -> R.string.alarm_edit_auto_stop_3songs
+        4 -> R.string.alarm_edit_auto_stop_4songs
+        5 -> R.string.alarm_edit_auto_stop_5songs
+        10 -> R.string.alarm_edit_auto_stop_10songs
+        else -> R.string.alarm_edit_auto_stop_none
+    }
+}
+
 private val AUTO_STOP_OPTIONS = listOf(
-    null to R.string.alarm_edit_auto_stop_none,
-    5 to R.string.alarm_edit_auto_stop_5min,
-    10 to R.string.alarm_edit_auto_stop_10min,
-    15 to R.string.alarm_edit_auto_stop_15min,
-    30 to R.string.alarm_edit_auto_stop_30min,
-    60 to R.string.alarm_edit_auto_stop_60min
+    AutoStopOption.None,
+    AutoStopOption.Minutes(5),
+    AutoStopOption.Minutes(10),
+    AutoStopOption.Minutes(15),
+    AutoStopOption.Minutes(30),
+    AutoStopOption.Minutes(60),
+    AutoStopOption.Songs(1),
+    AutoStopOption.Songs(2),
+    AutoStopOption.Songs(3),
+    AutoStopOption.Songs(4),
+    AutoStopOption.Songs(5),
+    AutoStopOption.Songs(10),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -290,9 +338,9 @@ private fun AlarmEditContent(
         SectionTitle(title = stringResource(R.string.alarm_edit_section_auto_stop))
         Spacer(modifier = Modifier.height(8.dp))
         AutoStopDropdown(
-            selectedMinutes = uiState.autoStopMinutes,
-            onSelectionChange = { minutes ->
-                onAction(AlarmEditAction.OnAutoStopChanged(minutes))
+            selectedAutoStop = uiState.autoStop,
+            onSelectionChange = { autoStop ->
+                onAction(AlarmEditAction.OnAutoStopChanged(autoStop))
             }
         )
 
@@ -382,13 +430,13 @@ private fun SectionTitle(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AutoStopDropdown(
-    selectedMinutes: Int?,
-    onSelectionChange: (Int?) -> Unit,
+    selectedAutoStop: AutoStop?,
+    onSelectionChange: (AutoStop?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedLabelRes = AUTO_STOP_OPTIONS.find { it.first == selectedMinutes }?.second
-        ?: R.string.alarm_edit_auto_stop_none
+    val selectedOption = selectedAutoStop.toOption()
+    val selectedLabelRes = selectedOption.labelRes()
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -412,11 +460,11 @@ private fun AutoStopDropdown(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            AUTO_STOP_OPTIONS.forEach { (minutes, labelRes) ->
+            AUTO_STOP_OPTIONS.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(stringResource(labelRes)) },
+                    text = { Text(stringResource(option.labelRes())) },
                     onClick = {
-                        onSelectionChange(minutes)
+                        onSelectionChange(option.toAutoStop())
                         expanded = false
                     }
                 )
