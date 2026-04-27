@@ -84,14 +84,20 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
 
     private fun handleIsPlayingChanged(isPlaying: Boolean) {
         Timber.d("Player isPlaying changed: $isPlaying")
-        _playbackState.update { it.copy(isPlaying = isPlaying) }
-        updateNotification()
         if (isPlaying) {
+            _playbackState.update {
+                it.copy(
+                    isPlaying = true,
+                    positionMs = playerPort.currentPositionMs()
+                )
+            }
             startProgressSaveLoop()
         } else {
+            _playbackState.update { it.copy(isPlaying = false) }
             progressSaveJob?.cancel()
             saveCurrentProgress()
         }
+        updateNotification()
     }
 
     private fun handleMediaItemTransition(event: PlayerEvent.MediaItemTransition) {
