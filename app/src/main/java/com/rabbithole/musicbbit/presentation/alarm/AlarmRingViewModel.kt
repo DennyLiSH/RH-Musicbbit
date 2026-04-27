@@ -32,7 +32,8 @@ data class AlarmRingUiState(
     val currentSongArtist: String? = null,
     val alarmLabel: String = "",
     val breathingEnabled: Boolean = true,
-    val breathingPeriodMs: Long = 3500L
+    val breathingPeriodMs: Long = 3500L,
+    val errorMessageResId: Int? = null
 )
 
 /**
@@ -98,9 +99,9 @@ class AlarmRingViewModel @Inject constructor(
             .filterNotNull()
             .flatMapLatest { id ->
                 flow {
-                    val label = try {
+                    val label = runCatching {
                         alarmRepository.getAlarmById(id)?.label
-                    } catch (e: Exception) {
+                    }.getOrElse { e ->
                         Timber.e(e, "Failed to load alarm label for id=$id")
                         null
                     }

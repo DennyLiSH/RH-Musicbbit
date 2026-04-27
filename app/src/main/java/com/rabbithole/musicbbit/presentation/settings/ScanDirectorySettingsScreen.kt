@@ -246,7 +246,7 @@ private fun SuccessContent(
     if (state.pendingDirectory != null) {
         ConfirmAddDirectoryDialog(
             directory = state.pendingDirectory,
-            errorResId = state.addErrorResId,
+            errorResId = state.errorMessageResId,
             onConfirm = onConfirmDirectory,
             onDismiss = onCancelDirectory
         )

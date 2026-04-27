@@ -37,6 +37,13 @@ class PlayerViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
 ) : ViewModel() {
 
+    data class PlayerUiState(
+        val errorMessageResId: Int? = null
+    )
+
+    private val _uiState = MutableStateFlow(PlayerUiState())
+    val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
+
     internal val _playbackState = MutableStateFlow(PlaybackState())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
@@ -140,9 +147,9 @@ class PlayerViewModel @Inject constructor(
         .flatMapLatest { alarmId ->
             flow {
                 val label = if (alarmId != null) {
-                    try {
+                    runCatching {
                         alarmRepository.getAlarmById(alarmId)?.label
-                    } catch (e: Exception) {
+                    }.getOrElse { e ->
                         Timber.e(e, "Failed to load alarm label for id=$alarmId")
                         null
                     }

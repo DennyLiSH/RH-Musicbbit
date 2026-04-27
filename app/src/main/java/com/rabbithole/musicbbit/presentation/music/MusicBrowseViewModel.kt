@@ -26,7 +26,8 @@ sealed interface MusicUiState {
     data object Empty : MusicUiState
     data class Success(
         val songs: List<Song>,
-        val searchQuery: String = ""
+        val searchQuery: String = "",
+        val errorMessageResId: Int? = null
     ) : MusicUiState
 }
 

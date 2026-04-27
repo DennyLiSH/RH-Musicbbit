@@ -11,12 +11,19 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.rabbithole.musicbbit.R
+import timber.log.Timber
+
 sealed interface AddToPlaylistUiState {
     data object Loading : AddToPlaylistUiState
-    data class Success(val playlists: List<Playlist>) : AddToPlaylistUiState
+    data class Success(
+        val playlists: List<Playlist>,
+        val errorMessageResId: Int? = null
+    ) : AddToPlaylistUiState
 }
 
 @HiltViewModel
@@ -39,6 +46,13 @@ class AddToPlaylistBottomSheetViewModel @Inject constructor(
     fun onPlaylistSelected(playlistId: Long, songId: Long) {
         viewModelScope.launch {
             addSongToPlaylistUseCase(playlistId, songId)
+                .onFailure { e ->
+                    Timber.w(e, "Failed to add song $songId to playlist $playlistId")
+                    val current = _uiState.value
+                    if (current is AddToPlaylistUiState.Success) {
+                        _uiState.value = current.copy(errorMessageResId = R.string.playlist_error_add_song_failed)
+                    }
+                }
         }
     }
 }

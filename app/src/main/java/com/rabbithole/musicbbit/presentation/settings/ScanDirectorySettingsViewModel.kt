@@ -33,7 +33,7 @@ sealed interface ScanDirectorySettingsUiState {
         val directoryCount: Int = 0,
         val lastScanTime: String? = null,
         val pendingDirectory: PendingDirectory? = null,
-        val addErrorResId: Int? = null,
+        val errorMessageResId: Int? = null,
         val breathingEnabled: Boolean = true,
         val breathingPeriodMs: Long = 3500L
     ) : ScanDirectorySettingsUiState
@@ -107,7 +107,7 @@ class ScanDirectorySettingsViewModel @Inject constructor(
 
             is ScanDirectorySettingsAction.OnScanDirectoryPreview -> {
                 updateSuccess {
-                    it.copy(pendingDirectory = PendingDirectory(action.path, action.name), addErrorResId = null)
+                    it.copy(pendingDirectory = PendingDirectory(action.path, action.name), errorMessageResId = null)
                 }
             }
 
@@ -117,26 +117,34 @@ class ScanDirectorySettingsViewModel @Inject constructor(
                     currentState.pendingDirectory?.let { pending ->
                         addDirectory(pending.path, pending.name)
                     } ?: run {
-                        updateSuccess { it.copy(addErrorResId = R.string.settings_error_no_directory) }
+                        updateSuccess { it.copy(errorMessageResId = R.string.settings_error_no_directory) }
                     }
                 }
             }
 
             is ScanDirectorySettingsAction.OnCancelDirectoryPreview -> {
                 updateSuccess {
-                    it.copy(pendingDirectory = null, addErrorResId = null)
+                    it.copy(pendingDirectory = null, errorMessageResId = null)
                 }
             }
 
             is ScanDirectorySettingsAction.OnBreathingEnabledChanged -> {
                 viewModelScope.launch {
                     alarmRingSettingsRepository.setBreathingEnabled(action.enabled)
+                        .onFailure { e ->
+                            Timber.w(e, "Failed to set breathing enabled")
+                            updateSuccess { it.copy(errorMessageResId = R.string.alarm_ring_error_breathing_settings_failed) }
+                        }
                 }
             }
 
             is ScanDirectorySettingsAction.OnBreathingPeriodChanged -> {
                 viewModelScope.launch {
                     alarmRingSettingsRepository.setBreathingPeriodMs(action.periodMs)
+                        .onFailure { e ->
+                            Timber.w(e, "Failed to set breathing period")
+                            updateSuccess { it.copy(errorMessageResId = R.string.alarm_ring_error_breathing_settings_failed) }
+                        }
                 }
             }
         }
@@ -147,7 +155,7 @@ class ScanDirectorySettingsViewModel @Inject constructor(
             val file = File(path)
             if (!file.exists() || !file.isDirectory) {
                 updateSuccess {
-                    it.copy(addErrorResId = R.string.settings_error_invalid_path, pendingDirectory = null)
+                    it.copy(errorMessageResId = R.string.settings_error_invalid_path, pendingDirectory = null)
                 }
                 return@launch
             }
@@ -159,16 +167,18 @@ class ScanDirectorySettingsViewModel @Inject constructor(
                 addedAt = System.currentTimeMillis()
             )
 
-            val result = addScanDirectoryUseCase(directory)
-            if (result.isSuccess) {
-                updateSuccess {
-                    it.copy(pendingDirectory = null, addErrorResId = null)
+            addScanDirectoryUseCase(directory)
+                .onSuccess {
+                    updateSuccess {
+                        it.copy(pendingDirectory = null, errorMessageResId = null)
+                    }
                 }
-            } else {
-                updateSuccess {
-                    it.copy(addErrorResId = R.string.settings_error_add_failed, pendingDirectory = null)
+                .onFailure { e ->
+                    Timber.w(e, "Failed to add scan directory: $path")
+                    updateSuccess {
+                        it.copy(errorMessageResId = R.string.settings_error_add_failed, pendingDirectory = null)
+                    }
                 }
-            }
         }
     }
 
