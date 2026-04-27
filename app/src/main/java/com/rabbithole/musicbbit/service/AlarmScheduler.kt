@@ -59,6 +59,7 @@ class AlarmScheduler @Inject constructor(
             alarm.hour,
             alarm.minute,
             alarm.repeatDaysBitmask,
+            alarm.excludeHolidays,
         )
 
         val pendingIntent = createPendingIntent(alarm.id)
