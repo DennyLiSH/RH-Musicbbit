@@ -35,6 +35,7 @@ data class AlarmEditUiState(
     val hour: Int = 7,
     val minute: Int = 30,
     val repeatDays: Set<DayOfWeek> = emptySet(),
+    val excludeHolidays: Boolean = false,
     val playlistId: Long = 0,
     val label: String = "",
     val autoStopMinutes: Int? = null,
@@ -55,6 +56,7 @@ data class AlarmEditUiState(
 sealed interface AlarmEditAction {
     data class OnTimeChanged(val hour: Int, val minute: Int) : AlarmEditAction
     data class OnRepeatDaysChanged(val days: Set<DayOfWeek>) : AlarmEditAction
+    data class OnExcludeHolidaysChanged(val exclude: Boolean) : AlarmEditAction
     data class OnPlaylistSelected(val playlistId: Long) : AlarmEditAction
     data class OnLabelChanged(val label: String) : AlarmEditAction
     data class OnAutoStopChanged(val minutes: Int?) : AlarmEditAction
@@ -120,6 +122,7 @@ class AlarmEditViewModel @Inject constructor(
                         hour = alarm.hour,
                         minute = alarm.minute,
                         repeatDays = alarm.repeatDays,
+                        excludeHolidays = alarm.excludeHolidays,
                         playlistId = alarm.playlistId,
                         label = alarm.label ?: "",
                         autoStopMinutes = alarm.autoStopMinutes,
@@ -160,6 +163,11 @@ class AlarmEditViewModel @Inject constructor(
             is AlarmEditAction.OnRepeatDaysChanged -> {
                 Timber.d("Repeat days changed: %s", action.days)
                 _uiState.update { it.copy(repeatDays = action.days, errorMessageResId = null) }
+            }
+
+            is AlarmEditAction.OnExcludeHolidaysChanged -> {
+                Timber.d("Exclude holidays changed: %s", action.exclude)
+                _uiState.update { it.copy(excludeHolidays = action.exclude, errorMessageResId = null) }
             }
 
             is AlarmEditAction.OnPlaylistSelected -> {
@@ -222,6 +230,7 @@ class AlarmEditViewModel @Inject constructor(
             hour = currentState.hour,
             minute = currentState.minute,
             repeatDays = currentState.repeatDays,
+            excludeHolidays = currentState.excludeHolidays,
             playlistId = currentState.playlistId,
             isEnabled = currentState.isEnabled,
             label = currentState.label.takeIf { it.isNotBlank() },
