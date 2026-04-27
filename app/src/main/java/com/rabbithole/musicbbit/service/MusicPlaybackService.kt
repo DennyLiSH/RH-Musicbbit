@@ -198,6 +198,11 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
             ACTION_PLAY_ALARM -> {
                 val alarmId = intent.getLongExtra(EXTRA_ALARM_ID, -1L)
                 val isAlarmTrigger = intent.getBooleanExtra(EXTRA_IS_ALARM_TRIGGER, false)
+
+                if (isAlarmTrigger) {
+                    wakeLockPort.acquire(ALARM_WAKE_LOCK_TIMEOUT_MS)
+                }
+
                 alarmFireSession.fire(alarmId, isAlarmTrigger)
             }
             ACTION_PREVIOUS -> previous()
@@ -574,6 +579,7 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
         private const val NOTIFICATION_ID = 1
         private const val PROGRESS_SAVE_INTERVAL_MS = 5000L
         private const val PROGRESS_TICK_INTERVAL_MS = 500L
+        private const val ALARM_WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
 
         const val ACTION_PLAY_ALARM = "com.rabbithole.musicbbit.action.PLAY_ALARM"
         const val ACTION_PREVIOUS = "com.rabbithole.musicbbit.action.PREVIOUS"
