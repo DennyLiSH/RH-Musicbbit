@@ -1,8 +1,7 @@
 package com.rabbithole.musicbbit.presentation.settings
 
-import android.app.Application
 import androidx.compose.runtime.Immutable
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
@@ -35,7 +34,7 @@ sealed interface ScanDirectorySettingsUiState {
         val directoryCount: Int = 0,
         val lastScanTime: String? = null,
         val pendingDirectory: PendingDirectory? = null,
-        val addError: String? = null,
+        val addErrorResId: Int? = null,
         val breathingEnabled: Boolean = true,
         val breathingPeriodMs: Long = 3500L
     ) : ScanDirectorySettingsUiState
@@ -53,12 +52,11 @@ sealed interface ScanDirectorySettingsAction {
 
 @HiltViewModel
 class ScanDirectorySettingsViewModel @Inject constructor(
-    application: Application,
     private val getScanDirectoriesUseCase: GetScanDirectoriesUseCase,
     private val addScanDirectoryUseCase: AddScanDirectoryUseCase,
     private val removeScanDirectoryUseCase: RemoveScanDirectoryUseCase,
     private val alarmRingSettingsRepository: AlarmRingSettingsRepository
-) : AndroidViewModel(application) {
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ScanDirectorySettingsUiState>(ScanDirectorySettingsUiState.Loading)
     val uiState: StateFlow<ScanDirectorySettingsUiState> = _uiState.asStateFlow()
@@ -111,7 +109,7 @@ class ScanDirectorySettingsViewModel @Inject constructor(
 
             is ScanDirectorySettingsAction.OnScanDirectoryPreview -> {
                 updateSuccess {
-                    it.copy(pendingDirectory = PendingDirectory(action.path, action.name), addError = null)
+                    it.copy(pendingDirectory = PendingDirectory(action.path, action.name), addErrorResId = null)
                 }
             }
 
@@ -121,14 +119,14 @@ class ScanDirectorySettingsViewModel @Inject constructor(
                     currentState.pendingDirectory?.let { pending ->
                         addDirectory(pending.path, pending.name)
                     } ?: run {
-                        updateSuccess { it.copy(addError = getApplication<Application>().getString(R.string.settings_error_no_directory)) }
+                        updateSuccess { it.copy(addErrorResId = R.string.settings_error_no_directory) }
                     }
                 }
             }
 
             is ScanDirectorySettingsAction.OnCancelDirectoryPreview -> {
                 updateSuccess {
-                    it.copy(pendingDirectory = null, addError = null)
+                    it.copy(pendingDirectory = null, addErrorResId = null)
                 }
             }
 
@@ -151,7 +149,7 @@ class ScanDirectorySettingsViewModel @Inject constructor(
             val file = File(path)
             if (!file.exists() || !file.isDirectory) {
                 updateSuccess {
-                    it.copy(addError = getApplication<Application>().getString(R.string.settings_error_invalid_path), pendingDirectory = null)
+                    it.copy(addErrorResId = R.string.settings_error_invalid_path, pendingDirectory = null)
                 }
                 return@launch
             }
@@ -166,11 +164,11 @@ class ScanDirectorySettingsViewModel @Inject constructor(
             val result = addScanDirectoryUseCase(directory)
             if (result.isSuccess) {
                 updateSuccess {
-                    it.copy(pendingDirectory = null, addError = null)
+                    it.copy(pendingDirectory = null, addErrorResId = null)
                 }
             } else {
                 updateSuccess {
-                    it.copy(addError = getApplication<Application>().getString(R.string.settings_error_add_failed), pendingDirectory = null)
+                    it.copy(addErrorResId = R.string.settings_error_add_failed, pendingDirectory = null)
                 }
             }
         }

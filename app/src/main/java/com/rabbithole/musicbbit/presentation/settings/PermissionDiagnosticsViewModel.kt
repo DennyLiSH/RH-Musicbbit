@@ -65,7 +65,7 @@ class PermissionDiagnosticsViewModel @Inject constructor(
             val canSchedule = alarmScheduler.canScheduleExactAlarms()
             list.add(
                 PermissionStatus(
-                    name = "Schedule Exact Alarms",
+                    name = PERMISSION_NAME_SCHEDULE_EXACT_ALARMS,
                     description = "Required for precise alarm scheduling. Must be enabled in system settings.",
                     isGranted = canSchedule,
                     isRuntime = false,
@@ -83,7 +83,7 @@ class PermissionDiagnosticsViewModel @Inject constructor(
             ) == PackageManager.PERMISSION_GRANTED
             list.add(
                 PermissionStatus(
-                    name = "Post Notifications",
+                    name = PERMISSION_NAME_POST_NOTIFICATIONS,
                     description = "Required to show alarm notifications and playback controls.",
                     isGranted = granted,
                     isRuntime = true,
@@ -105,7 +105,7 @@ class PermissionDiagnosticsViewModel @Inject constructor(
         ) == PackageManager.PERMISSION_GRANTED
         list.add(
             PermissionStatus(
-                name = "Read Media Audio",
+                name = PERMISSION_NAME_READ_MEDIA_AUDIO,
                 description = "Required to access local music files on your device.",
                 isGranted = readMediaGranted,
                 isRuntime = true,
@@ -121,7 +121,7 @@ class PermissionDiagnosticsViewModel @Inject constructor(
         ) == PackageManager.PERMISSION_GRANTED
         list.add(
             PermissionStatus(
-                name = "Foreground Service",
+                name = PERMISSION_NAME_FOREGROUND_SERVICE,
                 description = "Required for continuous music playback in the background.",
                 isGranted = foregroundServiceGranted,
                 isRuntime = false,
@@ -134,7 +134,7 @@ class PermissionDiagnosticsViewModel @Inject constructor(
         val fullScreenIntentGranted = FullScreenIntentPermissionHelper.isGranted(context)
         list.add(
             PermissionStatus(
-                name = "Full Screen Intent",
+                name = PERMISSION_NAME_FULL_SCREEN_INTENT,
                 description = "Required to show the full-screen alarm ringing interface over the lock screen on Android 14+.",
                 isGranted = fullScreenIntentGranted,
                 isRuntime = false,
@@ -150,7 +150,7 @@ class PermissionDiagnosticsViewModel @Inject constructor(
         ) == PackageManager.PERMISSION_GRANTED
         list.add(
             PermissionStatus(
-                name = "Boot Completed",
+                name = PERMISSION_NAME_BOOT_COMPLETED,
                 description = "Required to restore alarms after device reboot.",
                 isGranted = bootCompletedGranted,
                 isRuntime = false,
@@ -160,5 +160,14 @@ class PermissionDiagnosticsViewModel @Inject constructor(
         Timber.d("Boot Completed: granted=$bootCompletedGranted")
 
         return list
+    }
+
+    companion object {
+        const val PERMISSION_NAME_SCHEDULE_EXACT_ALARMS = "Schedule Exact Alarms"
+        const val PERMISSION_NAME_POST_NOTIFICATIONS = "Post Notifications"
+        const val PERMISSION_NAME_READ_MEDIA_AUDIO = "Read Media Audio"
+        const val PERMISSION_NAME_FOREGROUND_SERVICE = "Foreground Service"
+        const val PERMISSION_NAME_FULL_SCREEN_INTENT = "Full Screen Intent"
+        const val PERMISSION_NAME_BOOT_COMPLETED = "Boot Completed"
     }
 }

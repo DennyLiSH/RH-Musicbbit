@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -94,14 +96,19 @@ class AlarmRingViewModel @Inject constructor(
             .map { it.alarmIdOrNull }
             .distinctUntilChanged()
             .filterNotNull()
-            .onEach { id ->
-                val label = try {
-                    alarmDao.getById(id)?.label
-                } catch (e: Exception) {
-                    Timber.e(e, "Failed to load alarm label for id=$id")
-                    null
+            .flatMapLatest { id ->
+                flow {
+                    val label = try {
+                        alarmDao.getById(id)?.label
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to load alarm label for id=$id")
+                        null
+                    }
+                    emit(label ?: "")
                 }
-                _uiState.update { it.copy(alarmLabel = label ?: "") }
+            }
+            .onEach { label ->
+                _uiState.update { it.copy(alarmLabel = label) }
             }
             .launchIn(viewModelScope)
     }

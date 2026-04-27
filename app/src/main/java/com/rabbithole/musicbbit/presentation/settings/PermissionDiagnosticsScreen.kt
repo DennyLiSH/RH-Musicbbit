@@ -90,13 +90,13 @@ fun PermissionDiagnosticsScreen(
                         permission = permission,
                         onOpenSettings = {
                             when {
-                                permission.name == "Schedule Exact Alarms" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+                                permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_SCHEDULE_EXACT_ALARMS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
                                     val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
                                         data = Uri.parse("package:${context.packageName}")
                                     }
                                     context.startActivity(intent)
                                 }
-                                permission.name == "Full Screen Intent" -> {
+                                permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_FULL_SCREEN_INTENT -> {
                                     FullScreenIntentPermissionHelper.openSettings(context)
                                 }
                                 else -> {
@@ -228,8 +228,8 @@ private fun PermissionCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 val buttonTextRes = if (
                     !permission.isRuntime ||
-                    permission.name == "Schedule Exact Alarms" ||
-                    permission.name == "Full Screen Intent"
+                    permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_SCHEDULE_EXACT_ALARMS ||
+                    permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_FULL_SCREEN_INTENT
                 ) {
                     R.string.permission_diagnostics_fix
                 } else {

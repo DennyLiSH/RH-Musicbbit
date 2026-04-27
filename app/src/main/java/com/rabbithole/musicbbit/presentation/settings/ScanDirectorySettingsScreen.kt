@@ -246,7 +246,7 @@ private fun SuccessContent(
     if (state.pendingDirectory != null) {
         ConfirmAddDirectoryDialog(
             directory = state.pendingDirectory,
-            error = state.addError,
+            errorResId = state.addErrorResId,
             onConfirm = onConfirmDirectory,
             onDismiss = onCancelDirectory
         )
@@ -322,7 +322,7 @@ private fun ThemeModeButton(
 @Composable
 private fun ConfirmAddDirectoryDialog(
     directory: PendingDirectory,
-    error: String?,
+    errorResId: Int?,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -341,10 +341,10 @@ private fun ConfirmAddDirectoryDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (error != null) {
+                if (errorResId != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = error,
+                        text = stringResource(errorResId),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall
                     )

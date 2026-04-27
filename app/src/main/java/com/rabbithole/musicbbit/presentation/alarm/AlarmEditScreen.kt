@@ -293,10 +293,10 @@ private fun AlarmEditContent(
         )
 
         // Error message
-        if (uiState.errorMessage != null) {
+        if (uiState.errorMessageResId != null) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = uiState.errorMessage,
+                text = stringResource(uiState.errorMessageResId),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.fillMaxWidth(),

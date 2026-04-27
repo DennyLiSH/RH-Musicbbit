@@ -1,9 +1,9 @@
 package com.rabbithole.musicbbit.presentation.alarm
 
-import android.app.Application
+import android.content.Context
 import android.os.Build
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.rabbithole.musicbbit.R
@@ -16,6 +16,7 @@ import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,7 +44,7 @@ data class AlarmEditUiState(
     val isSaving: Boolean = false,
     val saveCompleted: Boolean = false,
     val isNewAlarm: Boolean = true,
-    val errorMessage: String? = null,
+    val errorMessageResId: Int? = null,
     val showPermissionDialog: Boolean = false,
     val showFullScreenIntentDialog: Boolean = false
 )
@@ -64,13 +65,13 @@ sealed interface AlarmEditAction {
 
 @HiltViewModel
 class AlarmEditViewModel @Inject constructor(
-    application: Application,
+    @param:ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle,
     private val getAlarmByIdUseCase: GetAlarmByIdUseCase,
     private val saveAlarmUseCase: SaveAlarmUseCase,
     private val getPlaylistsUseCase: GetPlaylistsUseCase,
     private val alarmScheduler: AlarmScheduler
-) : AndroidViewModel(application) {
+) : ViewModel() {
 
     private val alarmId: Long = savedStateHandle.toRoute<AlarmEdit>().alarmId
 
@@ -130,7 +131,7 @@ class AlarmEditViewModel @Inject constructor(
                     it.copy(
                         isLoading = false,
                         isNewAlarm = false,
-                        errorMessage = getApplication<Application>().getString(R.string.alarm_edit_error_not_found)
+                        errorMessageResId = R.string.alarm_edit_error_not_found
                     )
                 }
             }
@@ -148,28 +149,28 @@ class AlarmEditViewModel @Inject constructor(
                     it.copy(
                         hour = action.hour,
                         minute = action.minute,
-                        errorMessage = null
+                        errorMessageResId = null
                     )
                 }
             }
 
             is AlarmEditAction.OnRepeatDaysChanged -> {
                 Timber.d("Repeat days changed: %s", action.days)
-                _uiState.update { it.copy(repeatDays = action.days, errorMessage = null) }
+                _uiState.update { it.copy(repeatDays = action.days, errorMessageResId = null) }
             }
 
             is AlarmEditAction.OnPlaylistSelected -> {
                 Timber.d("Playlist selected: id=%d", action.playlistId)
-                _uiState.update { it.copy(playlistId = action.playlistId, errorMessage = null) }
+                _uiState.update { it.copy(playlistId = action.playlistId, errorMessageResId = null) }
             }
 
             is AlarmEditAction.OnLabelChanged -> {
-                _uiState.update { it.copy(label = action.label, errorMessage = null) }
+                _uiState.update { it.copy(label = action.label, errorMessageResId = null) }
             }
 
             is AlarmEditAction.OnAutoStopChanged -> {
                 Timber.d("Auto-stop changed: %s minutes", action.minutes?.toString() ?: "null")
-                _uiState.update { it.copy(autoStopMinutes = action.minutes, errorMessage = null) }
+                _uiState.update { it.copy(autoStopMinutes = action.minutes, errorMessageResId = null) }
             }
 
             is AlarmEditAction.OnSave -> saveAlarm()
@@ -193,7 +194,7 @@ class AlarmEditViewModel @Inject constructor(
         // Validate: playlist must be selected
         if (currentState.playlistId <= 0) {
             Timber.w("Save failed: no playlist selected")
-            _uiState.update { it.copy(errorMessage = getApplication<Application>().getString(R.string.alarm_edit_error_select_playlist)) }
+            _uiState.update { it.copy(errorMessageResId = R.string.alarm_edit_error_select_playlist) }
             return
         }
 
@@ -205,13 +206,13 @@ class AlarmEditViewModel @Inject constructor(
         }
 
         // Check full-screen intent permission (API 34+)
-        if (!FullScreenIntentPermissionHelper.isGranted(getApplication())) {
+        if (!FullScreenIntentPermissionHelper.isGranted(context)) {
             Timber.w("Save failed: full-screen intent permission not granted")
             _uiState.update { it.copy(showFullScreenIntentDialog = true) }
             return
         }
 
-        _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+        _uiState.update { it.copy(isSaving = true, errorMessageResId = null) }
 
         val alarm = Alarm(
             id = alarmId,
@@ -235,7 +236,7 @@ class AlarmEditViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     Timber.e(error, "Failed to save alarm")
-                    _uiState.update { it.copy(isSaving = false, errorMessage = getApplication<Application>().getString(R.string.alarm_edit_error_save_failed)) }
+                    _uiState.update { it.copy(isSaving = false, errorMessageResId = R.string.alarm_edit_error_save_failed) }
                 }
             )
         }
