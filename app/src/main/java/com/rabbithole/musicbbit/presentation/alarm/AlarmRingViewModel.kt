@@ -2,7 +2,7 @@ package com.rabbithole.musicbbit.presentation.alarm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rabbithole.musicbbit.data.local.dao.AlarmDao
+import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
 import com.rabbithole.musicbbit.service.alarm.AlarmFireState
@@ -46,7 +46,7 @@ data class AlarmRingUiState(
 @HiltViewModel
 class AlarmRingViewModel @Inject constructor(
     private val alarmFireSession: AlarmFireSession,
-    private val alarmDao: AlarmDao,
+    private val alarmRepository: AlarmRepository,
     private val alarmRingSettingsRepository: AlarmRingSettingsRepository
 ) : ViewModel() {
 
@@ -99,7 +99,7 @@ class AlarmRingViewModel @Inject constructor(
             .flatMapLatest { id ->
                 flow {
                     val label = try {
-                        alarmDao.getById(id)?.label
+                        alarmRepository.getAlarmById(id)?.label
                     } catch (e: Exception) {
                         Timber.e(e, "Failed to load alarm label for id=$id")
                         null
