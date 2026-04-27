@@ -48,6 +48,14 @@ import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -287,7 +295,7 @@ private fun AlarmListContent(
             items = alarms,
             key = { it.alarm.id }
         ) { alarmItem ->
-            AlarmListItem(
+            SwipeableAlarmItem(
                 alarmItem = alarmItem,
                 onClick = { onAlarmClick(alarmItem.alarm.id) },
                 onToggleEnabled = { enabled ->
@@ -300,58 +308,117 @@ private fun AlarmListContent(
 }
 
 @Composable
-private fun AlarmListItem(
+private fun SwipeableAlarmItem(
     alarmItem: AlarmItem,
     onClick: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
     onDelete: () -> Unit
 ) {
     val alarm = alarmItem.alarm
+    val scope = rememberCoroutineScope()
+    val offsetX = remember { Animatable(0f) }
+    val maxSwipePx = with(LocalDensity.current) { 80.dp.toPx() }
 
-    Card(
-        onClick = onClick,
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Row(
+        // Background delete layer
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .matchParentSize()
+                .background(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = MaterialTheme.shapes.medium
+                ),
+            contentAlignment = Alignment.CenterEnd
         ) {
-            // Left: time display
-            Text(
-                text = formatTime(alarm.hour, alarm.minute),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Center: label + repeat rule + playlist name
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = alarm.label ?: stringResource(R.string.alarm_default_label),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${formatRepeatDays(alarm.repeatDays)} · ${alarmItem.playlistName}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        offsetX.animateTo(0f)
+                    }
+                    onDelete()
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete alarm",
+                    tint = MaterialTheme.colorScheme.onErrorContainer
                 )
             }
+        }
 
-            // Right: enable/disable switch
-            Switch(
-                checked = alarm.isEnabled,
-                onCheckedChange = onToggleEnabled
+        // Foreground Card
+        Card(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(offsetX.value.toInt(), 0) }
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            scope.launch {
+                                val threshold = maxSwipePx * 0.3f
+                                val target = when {
+                                    offsetX.value > threshold -> maxSwipePx
+                                    offsetX.value < -threshold -> -maxSwipePx
+                                    else -> 0f
+                                }
+                                offsetX.animateTo(target)
+                            }
+                        }
+                    ) { change, dragAmount ->
+                        change.consume()
+                        scope.launch {
+                            val newValue = (offsetX.value + dragAmount)
+                                .coerceIn(-maxSwipePx, maxSwipePx)
+                            offsetX.snapTo(newValue)
+                        }
+                    }
+                },
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Left: time display
+                Text(
+                    text = formatTime(alarm.hour, alarm.minute),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Center: label + repeat rule + playlist name
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = alarm.label ?: stringResource(R.string.alarm_default_label),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "${formatRepeatDays(alarm.repeatDays, alarm.excludeHolidays)} · ${alarmItem.playlistName}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // Right: enable/disable switch
+                Switch(
+                    checked = alarm.isEnabled,
+                    onCheckedChange = onToggleEnabled
+                )
+            }
         }
     }
 }
@@ -367,10 +434,11 @@ private fun formatTime(hour: Int, minute: Int): String {
  * Formats a set of [DayOfWeek] into a human-readable repeat description.
  */
 @Composable
-private fun formatRepeatDays(days: Set<DayOfWeek>): String {
+private fun formatRepeatDays(days: Set<DayOfWeek>, excludeHolidays: Boolean): String {
     return when {
         days.isEmpty() -> stringResource(R.string.alarm_one_time)
-        days.size == 7 -> stringResource(R.string.alarm_daily)
+        days.size == 7 && !excludeHolidays -> stringResource(R.string.alarm_daily)
+        days.size == 7 && excludeHolidays -> stringResource(R.string.alarm_excluding_holidays)
         days == setOf(
             DayOfWeek.MONDAY,
             DayOfWeek.TUESDAY,
