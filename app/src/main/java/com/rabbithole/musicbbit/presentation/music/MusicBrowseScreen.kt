@@ -135,7 +135,7 @@ fun MusicBrowseScreen(
                         onSearchQueryChange = { viewModel.onAction(MusicBrowseAction.OnSearchQueryChange(it)) },
                         onSongClick = { song ->
                             viewModel.onAction(MusicBrowseAction.OnSongClick(song))
-                            playerViewModel.stateHolder.play(song, playlistId = -1)
+                            playerViewModel.play(song, playlistId = -1)
                             navController.navigate(Player)
                         },
                         onAddToPlaylist = { song ->

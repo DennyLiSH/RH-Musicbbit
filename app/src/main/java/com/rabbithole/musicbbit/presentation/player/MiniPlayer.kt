@@ -44,7 +44,7 @@ fun MiniPlayer(
     modifier: Modifier = Modifier,
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
-    val playbackState by viewModel.stateHolder.playbackState.collectAsStateWithLifecycle()
+    val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
     val alarmLabel by viewModel.alarmLabel.collectAsStateWithLifecycle()
     val currentSong = playbackState.currentSong
 
@@ -137,9 +137,9 @@ fun MiniPlayer(
             IconButton(
                 onClick = {
                     if (playbackState.isPlaying) {
-                        viewModel.stateHolder.pause()
+                        viewModel.pause()
                     } else {
-                        viewModel.stateHolder.resume()
+                        viewModel.resume()
                     }
                 }
             ) {
@@ -150,7 +150,7 @@ fun MiniPlayer(
             }
 
             IconButton(
-                onClick = { viewModel.stateHolder.next() }
+                onClick = { viewModel.next() }
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipNext,
@@ -159,7 +159,7 @@ fun MiniPlayer(
             }
 
             IconButton(
-                onClick = { viewModel.stateHolder.stop() }
+                onClick = { viewModel.stop() }
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,

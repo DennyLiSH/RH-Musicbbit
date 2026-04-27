@@ -46,6 +46,7 @@ data class AlarmRingUiState(
  * intent. The Activity no longer needs to hand a [android.content.Context] to the
  * ViewModel for these actions.
  */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class AlarmRingViewModel @Inject constructor(
     private val alarmFireSession: AlarmFireSession,
