@@ -58,7 +58,7 @@ fun ScanDirectorySettingsScreen(
     themeViewModel: ThemeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val themeMode by themeViewModel.themeMode.collectAsStateWithLifecycle()
+    val themeUiState by themeViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val externalStorageMessage = stringResource(R.string.settings_toast_external_storage)
     val parseFailedMessage = stringResource(R.string.settings_toast_parse_failed)
@@ -123,7 +123,7 @@ fun ScanDirectorySettingsScreen(
                 is ScanDirectorySettingsUiState.Success -> {
                     SuccessContent(
                         state = state,
-                        themeMode = themeMode,
+                        themeMode = themeUiState.themeMode,
                         navController = navController,
                         onThemeModeChange = { mode ->
                             themeViewModel.setThemeMode(mode)
