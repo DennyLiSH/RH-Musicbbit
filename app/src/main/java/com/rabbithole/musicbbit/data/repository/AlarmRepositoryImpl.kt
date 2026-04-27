@@ -42,36 +42,44 @@ class AlarmRepositoryImpl @Inject constructor(
         alarmDao.getById(id)?.toDomain()
     }
 
-    override suspend fun saveAlarm(alarm: Alarm): Long = withContext(ioDispatcher) {
-        val entity = alarm.toEntity()
-        val id = alarmDao.insert(entity)
-        Timber.i("Alarm saved with id=$id, scheduling")
-        alarmScheduler.schedule(entity.copy(id = id))
-        id
+    override suspend fun saveAlarm(alarm: Alarm): Result<Long> = runCatching {
+        withContext(ioDispatcher) {
+            val entity = alarm.toEntity()
+            val id = alarmDao.insert(entity)
+            Timber.i("Alarm saved with id=$id, scheduling")
+            alarmScheduler.schedule(entity.copy(id = id))
+            id
+        }
     }
 
-    override suspend fun updateAlarm(alarm: Alarm) = withContext(ioDispatcher) {
-        val entity = alarm.toEntity()
-        alarmDao.update(entity)
-        Timber.i("Alarm updated id=${alarm.id}, re-scheduling")
-        alarmScheduler.schedule(entity)
+    override suspend fun updateAlarm(alarm: Alarm): Result<Unit> = runCatching {
+        withContext(ioDispatcher) {
+            val entity = alarm.toEntity()
+            alarmDao.update(entity)
+            Timber.i("Alarm updated id=${alarm.id}, re-scheduling")
+            alarmScheduler.schedule(entity)
+        }
     }
 
-    override suspend fun deleteAlarm(alarm: Alarm) = withContext(ioDispatcher) {
-        Timber.i("Deleting alarm id=${alarm.id}, cancelling first")
-        alarmScheduler.cancel(alarm.id)
-        alarmDao.delete(alarm.toEntity())
+    override suspend fun deleteAlarm(alarm: Alarm): Result<Unit> = runCatching {
+        withContext(ioDispatcher) {
+            Timber.i("Deleting alarm id=${alarm.id}, cancelling first")
+            alarmScheduler.cancel(alarm.id)
+            alarmDao.delete(alarm.toEntity())
+        }
     }
 
-    override suspend fun enableAlarm(id: Long, enabled: Boolean) = withContext(ioDispatcher) {
-        val existing = alarmDao.getById(id)
-        if (existing != null) {
-            val updated = existing.copy(isEnabled = enabled)
-            alarmDao.update(updated)
-            Timber.i("Alarm id=$id enabled=$enabled, updating scheduler")
-            alarmScheduler.schedule(updated)
-        } else {
-            Timber.w("Attempted to enable/disable non-existent alarm id=$id")
+    override suspend fun enableAlarm(id: Long, enabled: Boolean): Result<Unit> = runCatching {
+        withContext(ioDispatcher) {
+            val existing = alarmDao.getById(id)
+            if (existing != null) {
+                val updated = existing.copy(isEnabled = enabled)
+                alarmDao.update(updated)
+                Timber.i("Alarm id=$id enabled=$enabled, updating scheduler")
+                alarmScheduler.schedule(updated)
+            } else {
+                Timber.w("Attempted to enable/disable non-existent alarm id=$id")
+            }
         }
     }
 

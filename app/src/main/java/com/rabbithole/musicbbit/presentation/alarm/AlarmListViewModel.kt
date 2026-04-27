@@ -28,7 +28,10 @@ import javax.inject.Inject
  */
 sealed interface AlarmListUiState {
     data object Loading : AlarmListUiState
-    data class Success(val alarms: List<AlarmItem>) : AlarmListUiState
+    data class Success(
+        val alarms: List<AlarmItem>,
+        val errorMessageResId: Int? = null
+    ) : AlarmListUiState
 }
 
 /**
@@ -78,7 +81,7 @@ class AlarmListViewModel @Inject constructor(
                     val playlistName = resolvePlaylistName(alarm.playlistId)
                     AlarmItem(alarm = alarm, playlistName = playlistName)
                 }
-                _uiState.value = AlarmListUiState.Success(alarmItems)
+                _uiState.value = AlarmListUiState.Success(alarmItems, errorMessageResId = null)
             }
             .launchIn(viewModelScope)
 
@@ -102,13 +105,31 @@ class AlarmListViewModel @Inject constructor(
         when (action) {
             is AlarmListAction.OnToggleEnabled -> {
                 viewModelScope.launch {
-                    runCatching { alarmRepository.enableAlarm(action.alarmId, action.enabled) }
+                    alarmRepository.enableAlarm(action.alarmId, action.enabled)
+                        .onFailure { e ->
+                            Timber.w(e, "Failed to update alarm enable state")
+                            val current = _uiState.value
+                            if (current is AlarmListUiState.Success) {
+                                _uiState.update {
+                                    current.copy(errorMessageResId = R.string.alarm_error_enable_failed)
+                                }
+                            }
+                        }
                 }
             }
 
             is AlarmListAction.OnDeleteAlarm -> {
                 viewModelScope.launch {
-                    runCatching { alarmRepository.deleteAlarm(action.alarm) }
+                    alarmRepository.deleteAlarm(action.alarm)
+                        .onFailure { e ->
+                            Timber.w(e, "Failed to delete alarm")
+                            val current = _uiState.value
+                            if (current is AlarmListUiState.Success) {
+                                _uiState.update {
+                                    current.copy(errorMessageResId = R.string.alarm_error_delete_failed)
+                                }
+                            }
+                        }
                 }
             }
 

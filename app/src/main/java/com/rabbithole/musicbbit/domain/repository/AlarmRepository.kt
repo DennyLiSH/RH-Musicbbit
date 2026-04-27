@@ -26,20 +26,20 @@ interface AlarmRepository {
      * Inserts a new alarm or updates an existing one.
      * Returns the ID of the saved alarm.
      */
-    suspend fun saveAlarm(alarm: Alarm): Long
+    suspend fun saveAlarm(alarm: Alarm): Result<Long>
 
     /**
      * Updates an existing alarm.
      */
-    suspend fun updateAlarm(alarm: Alarm)
+    suspend fun updateAlarm(alarm: Alarm): Result<Unit>
 
     /**
      * Deletes an alarm.
      */
-    suspend fun deleteAlarm(alarm: Alarm)
+    suspend fun deleteAlarm(alarm: Alarm): Result<Unit>
 
     /**
      * Toggles the enabled state of an alarm.
      */
-    suspend fun enableAlarm(id: Long, enabled: Boolean)
+    suspend fun enableAlarm(id: Long, enabled: Boolean): Result<Unit>
 }

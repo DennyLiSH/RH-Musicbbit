@@ -73,6 +73,9 @@
     <string name="alarm_edit_error_not_found">Alarm not found</string>
     <string name="alarm_edit_error_select_playlist">Please select a playlist</string>
     <string name="alarm_edit_error_save_failed">Failed to save alarm</string>
+    <string name="alarm_error_save_failed">Failed to save alarm</string>
+    <string name="alarm_error_enable_failed">Failed to update alarm</string>
+    <string name="alarm_error_delete_failed">Failed to delete alarm</string>
 
     <!-- Playlist Detail -->
     <string name="playlist_detail_title_loading">Playlist</string>

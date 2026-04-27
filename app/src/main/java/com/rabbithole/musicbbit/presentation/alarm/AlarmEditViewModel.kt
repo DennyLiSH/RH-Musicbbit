@@ -226,17 +226,15 @@ class AlarmEditViewModel @Inject constructor(
 
         viewModelScope.launch {
             Timber.i("Saving alarm: id=%d, hour=%d, minute=%d, playlistId=%d", alarm.id, alarm.hour, alarm.minute, alarm.playlistId)
-            val result = runCatching { alarmRepository.saveAlarm(alarm) }
-            result.fold(
-                onSuccess = { savedId ->
+            alarmRepository.saveAlarm(alarm)
+                .onSuccess { savedId ->
                     Timber.i("Alarm saved successfully, id=%d", savedId)
                     _uiState.update { it.copy(isSaving = false, saveCompleted = true) }
-                },
-                onFailure = { error ->
+                }
+                .onFailure { error ->
                     Timber.e(error, "Failed to save alarm")
                     _uiState.update { it.copy(isSaving = false, errorMessageResId = R.string.alarm_edit_error_save_failed) }
                 }
-            )
         }
     }
 }
