@@ -148,15 +148,14 @@ class AlarmFireSession @Inject constructor(
     /**
      * Fire an alarm. Loads alarm + playlist, resolves start position, drives playback via
      * the bound host, schedules the auto-stop timer, and shows the alarm notification.
+     *
+     * Precondition: if this is an alarm trigger (isAlarmTrigger=true), the caller must have
+     * already acquired the wake lock (e.g. [MusicPlaybackService.onStartCommand]).
      */
     fun fire(alarmId: Long, isAlarmTrigger: Boolean) {
         if (alarmId == -1L) {
             Timber.w("AlarmFireSession.fire: invalid alarmId")
             return
-        }
-
-        if (isAlarmTrigger) {
-            wakeLockPort.acquire(ALARM_WAKE_LOCK_TIMEOUT_MS)
         }
 
         sessionScope.launch(ioDispatcher) {
@@ -357,6 +356,6 @@ class AlarmFireSession @Inject constructor(
     }
 
     companion object {
-        private const val ALARM_WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
+        // ALARM_WAKE_LOCK_TIMEOUT_MS moved to MusicPlaybackService
     }
 }
