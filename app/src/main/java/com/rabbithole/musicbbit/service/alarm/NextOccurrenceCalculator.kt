@@ -23,7 +23,7 @@ class NextOccurrenceCalculator @Inject constructor(
     private val clock: Clock,
 ) {
 
-    suspend fun nextOccurrence(hour: Int, minute: Int, repeatDaysBitmask: Int): Long {
+    suspend fun nextOccurrence(hour: Int, minute: Int, repeatDaysBitmask: Int, excludeHolidays: Boolean = false): Long {
         val now = Calendar.getInstance().apply { timeInMillis = clock.nowMs() }
         val candidate = (now.clone() as Calendar).apply {
             set(Calendar.HOUR_OF_DAY, hour)
@@ -54,11 +54,19 @@ class NextOccurrenceCalculator @Inject constructor(
             if (repeatDaysBitmask == 0) {
                 if (isWorkday) return candidate.timeInMillis
             } else {
-                if (dayMatches && isWorkday) return candidate.timeInMillis
-                if (!dayMatches && isWorkday) {
-                    val dayOfWeek = candidate.get(Calendar.DAY_OF_WEEK)
-                    if (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY) {
-                        return candidate.timeInMillis
+                val isEveryday = repeatDaysBitmask == 0b1111111
+
+                if (!excludeHolidays && isEveryday) {
+                    // Daily mode: ring every day regardless of holidays
+                    if (dayMatches) return candidate.timeInMillis
+                } else {
+                    // All other modes (including excluding-holidays): check workday + adjusted workday logic
+                    if (dayMatches && isWorkday) return candidate.timeInMillis
+                    if (!dayMatches && isWorkday) {
+                        val dayOfWeek = candidate.get(Calendar.DAY_OF_WEEK)
+                        if (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY) {
+                            return candidate.timeInMillis
+                        }
                     }
                 }
             }
