@@ -9,6 +9,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -39,6 +40,13 @@ class AddToPlaylistBottomSheetViewModel @Inject constructor(
         playlistRepository.getAllPlaylists()
             .onEach { playlists ->
                 _uiState.value = AddToPlaylistUiState.Success(playlists)
+            }
+            .catch { e ->
+                Timber.e(e, "Failed to load playlists")
+                val current = _uiState.value
+                if (current is AddToPlaylistUiState.Success) {
+                    _uiState.update { current.copy(errorMessageResId = R.string.error_load_failed) }
+                }
             }
             .launchIn(viewModelScope)
     }

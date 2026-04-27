@@ -149,6 +149,7 @@
     <string name="scan_directory_remove">Remove directory</string>
     <string name="theme_error_set_failed">Failed to update theme</string>
     <string name="alarm_ring_error_breathing_settings_failed">Failed to update breathing settings</string>
+    <string name="error_load_failed">Failed to load data</string>
 
     <!-- Permission Diagnostics -->
     <string name="permission_diagnostics_title">Permission Diagnostics</string>

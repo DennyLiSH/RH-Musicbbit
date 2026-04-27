@@ -11,6 +11,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import com.rabbithole.musicbbit.R
 import timber.log.Timber
 
 /**
@@ -69,6 +71,10 @@ class AlarmRingViewModel @Inject constructor(
                 it.copy(breathingEnabled = enabled, breathingPeriodMs = periodMs)
             }
         }
+            .catch { e ->
+                Timber.e(e, "Breathing settings flow failed")
+                _uiState.update { it.copy(errorMessageResId = R.string.error_load_failed) }
+            }
             .launchIn(viewModelScope)
     }
 
@@ -88,6 +94,10 @@ class AlarmRingViewModel @Inject constructor(
                         currentSongArtist = song?.artist
                     )
                 }
+            }
+            .catch { e ->
+                Timber.e(e, "Alarm fire state flow failed")
+                _uiState.update { it.copy(errorMessageResId = R.string.error_load_failed) }
             }
             .launchIn(viewModelScope)
     }

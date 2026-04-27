@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
@@ -158,6 +159,10 @@ class PlayerViewModel @Inject constructor(
                 }
                 emit(label)
             }
+        }
+        .catch { e ->
+            Timber.e(e, "Alarm label flow failed")
+            emit(null)
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 }

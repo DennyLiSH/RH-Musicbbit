@@ -12,11 +12,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
 
@@ -73,6 +75,10 @@ class ScanDirectorySettingsViewModel @Inject constructor(
                 currentState.copy(breathingEnabled = enabled, breathingPeriodMs = periodMs)
             }
         }
+            .catch { e ->
+                Timber.e(e, "Breathing settings flow failed")
+                updateSuccess { it.copy(errorMessageResId = R.string.error_load_failed) }
+            }
             .launchIn(viewModelScope)
     }
 
@@ -89,6 +95,10 @@ class ScanDirectorySettingsViewModel @Inject constructor(
                         directoryCount = directories.size
                     )
                 }
+            }
+            .catch { e ->
+                Timber.e(e, "Failed to load scan directories")
+                updateSuccess { it.copy(errorMessageResId = R.string.error_load_failed) }
             }
             .launchIn(viewModelScope)
     }

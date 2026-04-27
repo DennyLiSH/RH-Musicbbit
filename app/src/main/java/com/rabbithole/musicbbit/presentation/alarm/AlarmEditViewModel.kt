@@ -19,6 +19,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -97,6 +98,10 @@ class AlarmEditViewModel @Inject constructor(
             .onEach { playlists ->
                 Timber.d("Loaded %d playlists", playlists.size)
                 _uiState.update { it.copy(playlists = playlists) }
+            }
+            .catch { e ->
+                Timber.e(e, "Failed to load playlists")
+                _uiState.update { it.copy(errorMessageResId = R.string.error_load_failed) }
             }
             .launchIn(viewModelScope)
     }

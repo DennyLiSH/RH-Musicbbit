@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -58,6 +59,13 @@ class PlaylistDetailViewModel @Inject constructor(
             .onEach { playlistWithSongs ->
                 if (playlistWithSongs != null) {
                     _uiState.value = PlaylistDetailUiState.Success(playlistWithSongs)
+                }
+            }
+            .catch { e ->
+                Timber.e(e, "Failed to load playlist with songs")
+                val current = _uiState.value
+                if (current is PlaylistDetailUiState.Success) {
+                    _uiState.update { current.copy(errorMessageResId = R.string.error_load_failed) }
                 }
             }
             .launchIn(viewModelScope)

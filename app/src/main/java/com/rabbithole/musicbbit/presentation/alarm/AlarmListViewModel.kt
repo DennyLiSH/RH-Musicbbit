@@ -17,6 +17,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -82,6 +83,13 @@ class AlarmListViewModel @Inject constructor(
                     AlarmItem(alarm = alarm, playlistName = playlistName)
                 }
                 _uiState.value = AlarmListUiState.Success(alarmItems, errorMessageResId = null)
+            }
+            .catch { e ->
+                Timber.e(e, "Failed to load alarms")
+                val current = _uiState.value
+                if (current is AlarmListUiState.Success) {
+                    _uiState.update { current.copy(errorMessageResId = R.string.error_load_failed) }
+                }
             }
             .launchIn(viewModelScope)
 

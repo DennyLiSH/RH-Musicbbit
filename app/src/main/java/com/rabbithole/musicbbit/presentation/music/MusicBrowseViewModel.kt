@@ -11,6 +11,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -18,7 +19,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import timber.log.Timber
 import javax.inject.Inject
+import com.rabbithole.musicbbit.R
 
 sealed interface MusicUiState {
     data object Loading : MusicUiState
@@ -73,6 +76,17 @@ class MusicBrowseViewModel @Inject constructor(
             }
         }
             .onEach { state -> _uiState.value = state }
+            .catch { e ->
+                Timber.e(e, "Flow collection failed: MusicBrowse data")
+                _uiState.update {
+                    when (it) {
+                        is MusicUiState.Success -> it.copy(errorMessageResId = R.string.error_load_failed)
+                        is MusicUiState.Loading -> it
+                        is MusicUiState.NoScanDirectory -> it
+                        is MusicUiState.Empty -> it
+                    }
+                }
+            }
             .launchIn(viewModelScope)
     }
 
