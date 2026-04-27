@@ -164,21 +164,23 @@ class AlarmFireSessionTest {
     }
 
     @Test
-    fun `fire with isAlarmTrigger=true acquires wake lock and starts volume ramp`() = scope.runTest {
+    fun `fire with isAlarmTrigger=true starts volume ramp`() = scope.runTest {
         val alarm = repeatingAlarm(id = 4L, playlistId = 40L)
         alarmDao.upsert(alarm)
         playlistRepository.set(40L, threeSongPlaylist(id = 40L))
 
+        // Simulate Service having already acquired the wake lock
+        wakeLockPort.acquire(10 * 60 * 1000L)
+
         session.fire(alarmId = 4L, isAlarmTrigger = true)
         runCurrent()
 
-        assertTrue(wakeLockPort.acquireCount > 0)
         assertTrue(volumeRampPort.startCount > 0)
         assertEquals("preloaded the first song's URI", SONG_1.path, host.lastPreloadUri)
     }
 
     @Test
-    fun `fire with isAlarmTrigger=false skips wake lock and volume ramp`() = scope.runTest {
+    fun `fire with isAlarmTrigger=false skips volume ramp`() = scope.runTest {
         val alarm = repeatingAlarm(id = 5L, playlistId = 50L)
         alarmDao.upsert(alarm)
         playlistRepository.set(50L, threeSongPlaylist(id = 50L))
@@ -196,6 +198,9 @@ class AlarmFireSessionTest {
     @Test
     fun `fire fails with Error and skips bookkeeping when alarm not found`() = scope.runTest {
         // No alarm inserted into DAO.
+        // Simulate Service having already acquired the wake lock
+        wakeLockPort.acquire(10 * 60 * 1000L)
+
         session.fire(alarmId = 99L, isAlarmTrigger = true)
         runCurrent()
 
@@ -210,6 +215,9 @@ class AlarmFireSessionTest {
     fun `fire fails with Error when alarm is disabled`() = scope.runTest {
         alarmDao.upsert(repeatingAlarm(id = 7L, playlistId = 70L).copy(isEnabled = false))
         playlistRepository.set(70L, threeSongPlaylist(id = 70L))
+
+        // Simulate Service having already acquired the wake lock
+        wakeLockPort.acquire(10 * 60 * 1000L)
 
         session.fire(alarmId = 7L, isAlarmTrigger = true)
         runCurrent()
@@ -230,6 +238,9 @@ class AlarmFireSessionTest {
             ),
         )
 
+        // Simulate Service having already acquired the wake lock
+        wakeLockPort.acquire(10 * 60 * 1000L)
+
         session.fire(alarmId = 8L, isAlarmTrigger = true)
         runCurrent()
 
@@ -244,6 +255,9 @@ class AlarmFireSessionTest {
         session.unbindHost(host)
         alarmDao.upsert(repeatingAlarm(id = 9L, playlistId = 90L))
         playlistRepository.set(90L, threeSongPlaylist(id = 90L))
+
+        // Simulate Service having already acquired the wake lock
+        wakeLockPort.acquire(10 * 60 * 1000L)
 
         session.fire(alarmId = 9L, isAlarmTrigger = true)
         runCurrent()
@@ -405,10 +419,13 @@ class AlarmFireSessionTest {
 
     // -------- Helpers --------------------------------------------------------
 
-    /** Drive the session through a successful fire so subsequent assertions can act on Playing. */
+    /** Drive the session through a successful fire so subsequent assertions can act on Playing.
+     *  Simulates the Service having already acquired the wake lock before calling fire(). */
     private suspend fun firePlaying(alarmId: Long, playlistId: Long) {
         alarmDao.upsert(repeatingAlarm(id = alarmId, playlistId = playlistId))
         playlistRepository.set(playlistId, threeSongPlaylist(id = playlistId))
+        // Simulate Service having already acquired the wake lock
+        wakeLockPort.acquire(10 * 60 * 1000L)
         session.fire(alarmId = alarmId, isAlarmTrigger = true)
         scope.runCurrent()
     }
