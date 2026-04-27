@@ -40,34 +40,40 @@ class PlaylistRepositoryImpl @Inject constructor(
         playlistDao.getById(id)?.toDomain()
     }
 
-    override suspend fun createPlaylist(name: String): Long = withContext(ioDispatcher) {
-        val now = System.currentTimeMillis()
-        val entity = PlaylistEntity(
-            name = name,
-            createdAt = now,
-            updatedAt = now
-        )
-        playlistDao.insert(entity)
+    override suspend fun createPlaylist(name: String): Result<Long> = runCatching {
+        withContext(ioDispatcher) {
+            val now = System.currentTimeMillis()
+            val entity = PlaylistEntity(
+                name = name,
+                createdAt = now,
+                updatedAt = now
+            )
+            playlistDao.insert(entity)
+        }
     }
 
-    override suspend fun updatePlaylist(playlist: Playlist) = withContext(ioDispatcher) {
-        val entity = PlaylistEntity(
-            id = playlist.id,
-            name = playlist.name,
-            createdAt = playlist.createdAt,
-            updatedAt = System.currentTimeMillis()
-        )
-        playlistDao.update(entity)
+    override suspend fun updatePlaylist(playlist: Playlist): Result<Unit> = runCatching {
+        withContext(ioDispatcher) {
+            val entity = PlaylistEntity(
+                id = playlist.id,
+                name = playlist.name,
+                createdAt = playlist.createdAt,
+                updatedAt = System.currentTimeMillis()
+            )
+            playlistDao.update(entity)
+        }
     }
 
-    override suspend fun deletePlaylist(playlist: Playlist) = withContext(ioDispatcher) {
-        val entity = PlaylistEntity(
-            id = playlist.id,
-            name = playlist.name,
-            createdAt = playlist.createdAt,
-            updatedAt = playlist.updatedAt
-        )
-        playlistDao.delete(entity)
+    override suspend fun deletePlaylist(playlist: Playlist): Result<Unit> = runCatching {
+        withContext(ioDispatcher) {
+            val entity = PlaylistEntity(
+                id = playlist.id,
+                name = playlist.name,
+                createdAt = playlist.createdAt,
+                updatedAt = playlist.updatedAt
+            )
+            playlistDao.delete(entity)
+        }
     }
 
     override fun getPlaylistWithSongs(playlistId: Long): Flow<PlaylistWithSongs?> {
@@ -90,58 +96,66 @@ class PlaylistRepositoryImpl @Inject constructor(
         playlistId: Long,
         songId: Long,
         sortOrder: Int
-    ) = withContext(ioDispatcher) {
-        val entity = PlaylistSongEntity(
-            playlistId = playlistId,
-            songId = songId,
-            sortOrder = sortOrder
-        )
-        playlistSongDao.insert(entity)
+    ): Result<Unit> = runCatching {
+        withContext(ioDispatcher) {
+            val entity = PlaylistSongEntity(
+                playlistId = playlistId,
+                songId = songId,
+                sortOrder = sortOrder
+            )
+            playlistSongDao.insert(entity)
+        }
     }
 
     override suspend fun addSongsToPlaylist(
         playlistId: Long,
         songIds: List<Long>
-    ) = withContext(ioDispatcher) {
-        if (songIds.isEmpty()) return@withContext
+    ): Result<Unit> = runCatching {
+        withContext(ioDispatcher) {
+            if (songIds.isEmpty()) return@withContext
 
-        val existingSongs = playlistSongDao.getByPlaylistId(playlistId).first()
-        val existingSongIds = existingSongs.map { it.songId }.toSet()
+            val existingSongs = playlistSongDao.getByPlaylistId(playlistId).first()
+            val existingSongIds = existingSongs.map { it.songId }.toSet()
 
-        val newSongIds = songIds.filterNot { it in existingSongIds }
-        if (newSongIds.isEmpty()) return@withContext
+            val newSongIds = songIds.filterNot { it in existingSongIds }
+            if (newSongIds.isEmpty()) return@withContext
 
-        val startSortOrder = existingSongs.size
-        val entities = newSongIds.mapIndexed { index, songId ->
-            PlaylistSongEntity(
-                playlistId = playlistId,
-                songId = songId,
-                sortOrder = startSortOrder + index
-            )
+            val startSortOrder = existingSongs.size
+            val entities = newSongIds.mapIndexed { index, songId ->
+                PlaylistSongEntity(
+                    playlistId = playlistId,
+                    songId = songId,
+                    sortOrder = startSortOrder + index
+                )
+            }
+            playlistSongDao.insertAll(entities)
         }
-        playlistSongDao.insertAll(entities)
     }
 
     override suspend fun removeSongFromPlaylist(
         playlistId: Long,
         songId: Long
-    ) = withContext(ioDispatcher) {
-        playlistSongDao.deleteByPlaylistAndSong(playlistId, songId)
+    ): Result<Unit> = runCatching {
+        withContext(ioDispatcher) {
+            playlistSongDao.deleteByPlaylistAndSong(playlistId, songId)
+        }
     }
 
     override suspend fun reorderPlaylistSongs(
         playlistId: Long,
         songIds: List<Long>
-    ) = withContext(ioDispatcher) {
-        playlistSongDao.deleteByPlaylistId(playlistId)
-        val entities = songIds.mapIndexed { index, songId ->
-            PlaylistSongEntity(
-                playlistId = playlistId,
-                songId = songId,
-                sortOrder = index
-            )
+    ): Result<Unit> = runCatching {
+        withContext(ioDispatcher) {
+            playlistSongDao.deleteByPlaylistId(playlistId)
+            val entities = songIds.mapIndexed { index, songId ->
+                PlaylistSongEntity(
+                    playlistId = playlistId,
+                    songId = songId,
+                    sortOrder = index
+                )
+            }
+            playlistSongDao.insertAll(entities)
         }
-        playlistSongDao.insertAll(entities)
     }
 
     private fun PlaylistEntity.toDomain(): Playlist {

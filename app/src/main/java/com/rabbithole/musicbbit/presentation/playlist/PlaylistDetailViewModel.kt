@@ -3,6 +3,7 @@ package com.rabbithole.musicbbit.presentation.playlist
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.PlaylistWithSongs
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
@@ -17,12 +18,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed interface PlaylistDetailUiState {
     data object Loading : PlaylistDetailUiState
-    data class Success(val playlistWithSongs: PlaylistWithSongs) : PlaylistDetailUiState
+    data class Success(
+        val playlistWithSongs: PlaylistWithSongs,
+        val errorMessageResId: Int? = null
+    ) : PlaylistDetailUiState
 }
 
 sealed interface PlaylistDetailAction {
@@ -62,7 +67,15 @@ class PlaylistDetailViewModel @Inject constructor(
         when (action) {
             is PlaylistDetailAction.OnRemoveSong -> {
                 viewModelScope.launch {
-                    runCatching { playlistRepository.removeSongFromPlaylist(playlistId, action.songId) }
+                    playlistRepository.removeSongFromPlaylist(playlistId, action.songId)
+                        .onFailure { e ->
+                            Timber.w(e, "Failed to remove song from playlist")
+                            _uiState.update {
+                                (it as? PlaylistDetailUiState.Success)?.copy(
+                                    errorMessageResId = R.string.playlist_error_remove_song_failed
+                                ) ?: it
+                            }
+                        }
                 }
             }
             is PlaylistDetailAction.OnReorderSongs -> {
@@ -83,20 +96,29 @@ class PlaylistDetailViewModel @Inject constructor(
 
                 viewModelScope.launch {
                     val songIds = reordered.map { it.id }
-                    val result = runCatching { playlistRepository.reorderPlaylistSongs(playlistId, songIds) }
-                    if (result.isFailure) {
-                        _uiState.value = PlaylistDetailUiState.Success(
-                            currentState.playlistWithSongs.copy(songs = songs)
-                        )
-                    }
+                    playlistRepository.reorderPlaylistSongs(playlistId, songIds)
+                        .onFailure { e ->
+                            Timber.w(e, "Failed to reorder songs")
+                            _uiState.update {
+                                (it as? PlaylistDetailUiState.Success)?.copy(
+                                    playlistWithSongs = currentState.playlistWithSongs.copy(songs = songs),
+                                    errorMessageResId = R.string.playlist_error_reorder_failed
+                                ) ?: it
+                            }
+                        }
                 }
             }
             is PlaylistDetailAction.OnAddSongs -> {
                 viewModelScope.launch {
-                    val result = addSongToPlaylistUseCase(playlistId, action.songIds)
-                    if (result.isFailure) {
-                        Timber.w(result.exceptionOrNull(), "Failed to add songs to playlist $playlistId")
-                    }
+                    addSongToPlaylistUseCase(playlistId, action.songIds)
+                        .onFailure { e ->
+                            Timber.w(e, "Failed to add songs to playlist $playlistId")
+                            _uiState.update {
+                                (it as? PlaylistDetailUiState.Success)?.copy(
+                                    errorMessageResId = R.string.playlist_error_add_song_failed
+                                ) ?: it
+                            }
+                        }
                 }
             }
             else -> { /* Play handled in UI via PlayerViewModel */ }

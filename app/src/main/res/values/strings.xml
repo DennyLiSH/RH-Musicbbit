@@ -91,6 +91,10 @@
     <string name="playlist_list_dialog_title">New Playlist</string>
     <string name="playlist_list_dialog_name_label">Playlist Name</string>
     <string name="playlist_list_delete">Delete Playlist</string>
+    <string name="playlist_error_delete_failed">Failed to delete playlist</string>
+    <string name="playlist_error_remove_song_failed">Failed to remove song</string>
+    <string name="playlist_error_reorder_failed">Failed to reorder songs</string>
+    <string name="playlist_error_add_song_failed">Failed to add song</string>
 
     <!-- Music Browse -->
     <string name="music_browse_title">Music</string>

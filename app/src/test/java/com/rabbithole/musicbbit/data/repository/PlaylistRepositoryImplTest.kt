@@ -204,8 +204,9 @@ class PlaylistRepositoryImplTest {
         every { playlistSongDao.getByPlaylistId(1L) } returns flowOf(emptyList())
         coEvery { playlistSongDao.insertAll(any()) } returns Unit
 
-        repository.addSongsToPlaylist(1L, listOf(10L, 20L, 30L))
+        val result = repository.addSongsToPlaylist(1L, listOf(10L, 20L, 30L))
 
+        assertTrue(result.isSuccess)
         coVerify {
             playlistSongDao.insertAll(match { entities: List<PlaylistSongEntity> ->
                 entities.size == 3 &&
@@ -228,8 +229,9 @@ class PlaylistRepositoryImplTest {
         every { playlistSongDao.getByPlaylistId(1L) } returns flowOf(existingSongs)
         coEvery { playlistSongDao.insertAll(any()) } returns Unit
 
-        repository.addSongsToPlaylist(1L, listOf(10L, 20L, 30L))
+        val result = repository.addSongsToPlaylist(1L, listOf(10L, 20L, 30L))
 
+        assertTrue(result.isSuccess)
         coVerify {
             playlistSongDao.insertAll(match { entities: List<PlaylistSongEntity> ->
                 entities.size == 2 &&
@@ -245,8 +247,9 @@ class PlaylistRepositoryImplTest {
 
     @Test
     fun `addSongsToPlaylist - empty list does not call insertAll`() = runTest(testDispatcher) {
-        repository.addSongsToPlaylist(1L, emptyList())
+        val result = repository.addSongsToPlaylist(1L, emptyList())
 
+        assertTrue(result.isSuccess)
         coVerify(exactly = 0) { playlistSongDao.insertAll(any()) }
     }
 }

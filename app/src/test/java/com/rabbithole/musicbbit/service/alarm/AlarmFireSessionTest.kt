@@ -500,16 +500,16 @@ class AlarmFireSessionTest {
 
         override fun getAllPlaylists(): Flow<List<Playlist>> = error("unused in tests")
         override suspend fun getPlaylistById(id: Long): Playlist? = error("unused in tests")
-        override suspend fun createPlaylist(name: String): Long = error("unused in tests")
-        override suspend fun updatePlaylist(playlist: Playlist) = error("unused in tests")
-        override suspend fun deletePlaylist(playlist: Playlist) = error("unused in tests")
-        override suspend fun addSongToPlaylist(playlistId: Long, songId: Long, sortOrder: Int) =
+        override suspend fun createPlaylist(name: String): Result<Long> = error("unused in tests")
+        override suspend fun updatePlaylist(playlist: Playlist): Result<Unit> = error("unused in tests")
+        override suspend fun deletePlaylist(playlist: Playlist): Result<Unit> = error("unused in tests")
+        override suspend fun addSongToPlaylist(playlistId: Long, songId: Long, sortOrder: Int): Result<Unit> =
             error("unused in tests")
-        override suspend fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>) =
+        override suspend fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>): Result<Unit> =
             error("unused in tests")
-        override suspend fun removeSongFromPlaylist(playlistId: Long, songId: Long) =
+        override suspend fun removeSongFromPlaylist(playlistId: Long, songId: Long): Result<Unit> =
             error("unused in tests")
-        override suspend fun reorderPlaylistSongs(playlistId: Long, songIds: List<Long>) =
+        override suspend fun reorderPlaylistSongs(playlistId: Long, songIds: List<Long>): Result<Unit> =
             error("unused in tests")
     }
 

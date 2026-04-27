@@ -11,11 +11,11 @@ class AddSongToPlaylistUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(playlistId: Long, songId: Long): Result<Unit> = runCatching {
         val currentSongs = playlistSongDao.getByPlaylistId(playlistId).firstOrNull() ?: emptyList()
-        val sortOrder = currentSongs.size
-        playlistRepository.addSongToPlaylist(playlistId, songId, sortOrder)
+        currentSongs.size
+    }.mapCatching { sortOrder ->
+        playlistRepository.addSongToPlaylist(playlistId, songId, sortOrder).getOrThrow()
     }
 
-    suspend operator fun invoke(playlistId: Long, songIds: List<Long>): Result<Unit> = runCatching {
+    suspend operator fun invoke(playlistId: Long, songIds: List<Long>): Result<Unit> =
         playlistRepository.addSongsToPlaylist(playlistId, songIds)
-    }
 }

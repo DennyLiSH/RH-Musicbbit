@@ -6,8 +6,10 @@ import javax.inject.Inject
 class CreatePlaylistUseCase @Inject constructor(
     private val playlistRepository: PlaylistRepository
 ) {
-    suspend operator fun invoke(name: String): Result<Long> = runCatching {
-        require(name.isNotBlank()) { "Playlist name cannot be blank" }
-        playlistRepository.createPlaylist(name)
+    suspend operator fun invoke(name: String): Result<Long> {
+        if (name.isBlank()) {
+            return Result.failure(IllegalArgumentException("Playlist name cannot be blank"))
+        }
+        return playlistRepository.createPlaylist(name)
     }
 }
