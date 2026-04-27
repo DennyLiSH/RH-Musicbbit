@@ -14,6 +14,7 @@
     <string name="alarm_one_time">One-time</string>
     <string name="alarm_daily">Daily</string>
     <string name="alarm_weekdays">Weekdays</string>
+    <string name="alarm_excluding_holidays">Excluding holidays</string>
     <string name="alarm_monday">Mon</string>
     <string name="alarm_tuesday">Tue</string>
     <string name="alarm_wednesday">Wed</string>
