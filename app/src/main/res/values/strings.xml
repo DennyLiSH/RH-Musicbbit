@@ -1,8 +1,8 @@
 <resources>
     <string name="app_name">音乐兔</string>
-    <string name="select_time">Select Time</string>
-    <string name="confirm">Confirm</string>
-    <string name="cancel">Cancel</string>
+    <string name="alarm_select_time">Select Time</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="action_cancel">Cancel</string>
     <string name="tab_music">Music</string>
     <string name="tab_playlist">Playlists</string>
     <string name="tab_alarm">Alarms</string>

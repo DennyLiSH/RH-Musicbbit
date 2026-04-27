@@ -184,7 +184,7 @@ fun AlarmEditScreen(
                         viewModel.onAction(AlarmEditAction.OnPermissionDialogDismissed)
                     }
                 ) {
-                    Text(stringResource(R.string.cancel))
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -213,7 +213,7 @@ fun AlarmEditScreen(
                         viewModel.onAction(AlarmEditAction.OnFullScreenIntentDialogDismissed)
                     }
                 ) {
-                    Text(stringResource(R.string.cancel))
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )

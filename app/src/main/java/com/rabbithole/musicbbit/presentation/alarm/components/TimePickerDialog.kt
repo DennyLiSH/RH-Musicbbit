@@ -35,7 +35,7 @@ fun TimePickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.select_time)) },
+        title = { Text(stringResource(R.string.alarm_select_time)) },
         text = {
             TimePicker(state = timePickerState)
         },
@@ -45,12 +45,12 @@ fun TimePickerDialog(
                     onConfirm(timePickerState.hour, timePickerState.minute)
                 }
             ) {
-                Text(stringResource(R.string.confirm))
+                Text(stringResource(R.string.action_confirm))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
