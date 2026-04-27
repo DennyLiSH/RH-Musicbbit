@@ -249,8 +249,12 @@ private fun AlarmEditContent(
         Spacer(modifier = Modifier.height(8.dp))
         DayOfWeekSelector(
             selectedDays = uiState.repeatDays,
+            excludeHolidays = uiState.excludeHolidays,
             onDaysChanged = { days ->
                 onAction(AlarmEditAction.OnRepeatDaysChanged(days))
+            },
+            onExcludeHolidaysChanged = { exclude ->
+                onAction(AlarmEditAction.OnExcludeHolidaysChanged(exclude))
             }
         )
 
