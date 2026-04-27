@@ -27,10 +27,14 @@ class NextOccurrenceCalculatorProductionTest {
 
     private fun createCalculator(
         isWorkdayResult: Boolean = true,
+        nonWorkdayDates: List<String> = emptyList(),
         now: Calendar = fixedNow()
     ): NextOccurrenceCalculator {
         val isWorkdayUseCase = mockk<IsWorkdayUseCase>()
-        coEvery { isWorkdayUseCase(any()) } returns isWorkdayResult
+        coEvery { isWorkdayUseCase(any()) } answers {
+            val date = firstArg<java.time.LocalDate>()
+            date.toString() !in nonWorkdayDates
+        }
 
         val clock = mockk<Clock>()
         every { clock.nowMs() } returns now.timeInMillis
@@ -41,7 +45,7 @@ class NextOccurrenceCalculatorProductionTest {
     @Test
     fun `nextOccurrence - daily mode with excludeHolidays=false rings on holiday`() = runTest {
         val now = fixedNow(day = 15, hour = 8)  // Monday
-        val calculator = createCalculator(isWorkdayResult = false, now = now)
+        val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
 
         // Daily mode (all days, excludeHolidays=false) should ring even on non-workday
         val result = calculator.nextOccurrence(10, 0, 0b1111111, excludeHolidays = false)
@@ -59,7 +63,7 @@ class NextOccurrenceCalculatorProductionTest {
     @Test
     fun `nextOccurrence - excludingHolidays mode skips holiday`() = runTest {
         val now = fixedNow(day = 15, hour = 8)  // Monday
-        val calculator = createCalculator(isWorkdayResult = false, now = now)
+        val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
 
         // Excluding holidays (all days, excludeHolidays=true) should skip non-workday
         val result = calculator.nextOccurrence(10, 0, 0b1111111, excludeHolidays = true)
@@ -82,7 +86,7 @@ class NextOccurrenceCalculatorProductionTest {
             set(2024, Calendar.JANUARY, 13, 8, 0, 0)  // Saturday
             set(Calendar.MILLISECOND, 0)
         }
-        val calculator = createCalculator(isWorkdayResult = true, now = now)
+        val calculator = createCalculator(now = now)
 
         // With excludeHolidays=true, Saturday as workday should ring
         val result = calculator.nextOccurrence(10, 0, 0b1111111, excludeHolidays = true)
@@ -100,7 +104,7 @@ class NextOccurrenceCalculatorProductionTest {
     @Test
     fun `nextOccurrence - weekdays mode skips holiday`() = runTest {
         val now = fixedNow(day = 15, hour = 8)  // Monday
-        val calculator = createCalculator(isWorkdayResult = false, now = now)
+        val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
 
         // Weekdays mode (Mon-Fri, bitmask=0b0011111) on a holiday should skip
         val result = calculator.nextOccurrence(10, 0, 0b0011111, excludeHolidays = false)
