@@ -6,6 +6,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.BeforeClass
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
@@ -26,10 +27,17 @@ import java.util.TimeZone
 @RunWith(JUnit4::class)
 class NextOccurrenceCalculatorHolidayTest {
 
-    init {
-        // Ensure Timber is planted so production code logging doesn't crash
-        if (Timber.treeCount == 0) {
-            Timber.plant(Timber.DebugTree())
+    companion object {
+        @JvmStatic
+        @BeforeClass
+        fun setUpClass() {
+            // Pin the default time zone so DST tests are deterministic regardless of host TZ
+            TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"))
+            // Plant a no-op Timber tree so production logging doesn't crash in plain JVM tests
+            Timber.uprootAll()
+            Timber.plant(object : Timber.Tree() {
+                override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {}
+            })
         }
     }
 

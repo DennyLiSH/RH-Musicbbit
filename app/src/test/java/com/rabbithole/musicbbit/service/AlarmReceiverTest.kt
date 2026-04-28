@@ -1,6 +1,8 @@
 package com.rabbithole.musicbbit.service
 
 import android.content.Intent
+import android.os.Looper
+import android.content.IntentFilter
 import com.rabbithole.musicbbit.data.local.AppDatabase
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
@@ -10,11 +12,14 @@ import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.data.model.PlaylistEntity
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
 import com.rabbithole.musicbbit.data.model.SongEntity
+import com.rabbithole.musicbbit.data.repository.PlaylistRepositoryImpl
 import com.rabbithole.musicbbit.di.TestDatabaseModule
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.UninstallModules
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -183,6 +188,15 @@ class AlarmReceiverTest {
         assertNotNull(beforeAlarm)
         assertTrue("Alarm should be enabled before trigger", beforeAlarm!!.isEnabled)
 
+        // --- Verify playlist data is queryable through PlaylistRepositoryImpl ---
+        val playlistRepo = PlaylistRepositoryImpl(
+            playlistDao, playlistSongDao, songDao, Dispatchers.IO
+        )
+        val playlistWithSongs = playlistRepo.getPlaylistWithSongs(playlistId).first()
+        assertNotNull("PlaylistWithSongs should not be null before trigger", playlistWithSongs)
+        assertEquals("Playlist should have 1 song", 1, playlistWithSongs!!.songs.size)
+        assertEquals("Song title should match", "Test Song", playlistWithSongs.songs[0].title)
+
         // --- Trigger the alarm receiver ---
         val intent = Intent(context, AlarmReceiver::class.java).apply {
             putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
@@ -201,13 +215,30 @@ class AlarmReceiverTest {
         service.onCreate()
         service.onStartCommand(serviceIntent, 0, 0)
 
-        // Wait for AlarmFireSession.fire() coroutines to complete
-        Thread.sleep(1000)
+        // AlarmFireSession.fire() uses withContext(mainDispatcher) which posts to the main
+        // looper. We must idle it so the coroutine can resume and reach bookkeepAlarmTrigger.
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        // Poll until AlarmFireSession completes bookkeepAlarmTrigger (IO + main dispatchers)
+        var afterAlarm: AlarmEntity? = null
+        var retries = 0
+        var lastState: String? = null
+        while (retries < 30) {
+            afterAlarm = alarmDao.getById(alarmId)
+            val sessionState = service.alarmFireSession.state.value
+            lastState = sessionState.toString()
+            if (afterAlarm != null && !afterAlarm.isEnabled) break
+            shadowOf(Looper.getMainLooper()).idle()
+            Thread.sleep(100)
+            retries++
+        }
 
         // --- Verify the alarm is now disabled ---
-        val afterAlarm = alarmDao.getById(alarmId)
-        assertNotNull(afterAlarm)
-        assertFalse("One-time alarm should be disabled after trigger", afterAlarm!!.isEnabled)
+        assertNotNull("Alarm should still exist in DAO", afterAlarm)
+        assertFalse(
+            "One-time alarm should be disabled after trigger (retries=$retries, lastState=$lastState)",
+            afterAlarm!!.isEnabled
+        )
         assertNotNull("lastTriggeredAt should be set", afterAlarm.lastTriggeredAt)
 
         // Clean up

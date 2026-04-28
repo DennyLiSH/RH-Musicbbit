@@ -73,7 +73,7 @@ class ScanDirectorySettingsViewModelTest {
         every { scanDirectoryRepository.getAll() } returns flowOf(emptyList())
         every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(true)
         every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3500L)
-        coEvery { addScanDirectoryUseCase(any()) } returns Result.success(1L)
+        coEvery { addScanDirectoryUseCase(any()) } coAnswers { Result.success(1L) }
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
@@ -82,7 +82,8 @@ class ScanDirectorySettingsViewModelTest {
         )
         advanceUntilIdle()
 
-        viewModel.onAction(ScanDirectorySettingsAction.OnScanDirectoryPreview("/music", "Music"))
+        val tempDir = System.getProperty("java.io.tmpdir")!!
+        viewModel.onAction(ScanDirectorySettingsAction.OnScanDirectoryPreview(tempDir, "Temp"))
         advanceUntilIdle()
 
         viewModel.onAction(ScanDirectorySettingsAction.OnConfirmAddDirectory)
@@ -98,7 +99,7 @@ class ScanDirectorySettingsViewModelTest {
         every { scanDirectoryRepository.getAll() } returns flowOf(emptyList())
         every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(true)
         every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3500L)
-        coEvery { addScanDirectoryUseCase(any()) } returns Result.failure(RuntimeException("Failed"))
+        coEvery { addScanDirectoryUseCase(any()) } coAnswers { Result.failure(RuntimeException("Failed")) }
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
@@ -107,7 +108,9 @@ class ScanDirectorySettingsViewModelTest {
         )
         advanceUntilIdle()
 
-        viewModel.onAction(ScanDirectorySettingsAction.OnScanDirectoryPreview("/music", "Music"))
+        // Use the system temp directory which exists on all platforms
+        val tempDir = System.getProperty("java.io.tmpdir")!!
+        viewModel.onAction(ScanDirectorySettingsAction.OnScanDirectoryPreview(tempDir, "Temp"))
         advanceUntilIdle()
 
         viewModel.onAction(ScanDirectorySettingsAction.OnConfirmAddDirectory)

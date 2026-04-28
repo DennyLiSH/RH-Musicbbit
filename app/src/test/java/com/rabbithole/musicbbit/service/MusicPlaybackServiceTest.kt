@@ -9,10 +9,14 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
+import dagger.hilt.android.testing.HiltTestApplication
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -30,14 +34,19 @@ import org.robolectric.annotation.Config
  *   - onStartCommand with ACTION_PLAY_ALARM delegates to [AlarmFireSession]
  */
 @OptIn(ExperimentalCoroutinesApi::class)
+@HiltAndroidTest
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
+@Config(application = HiltTestApplication::class, sdk = [33])
 class MusicPlaybackServiceTest {
+
+    @get:Rule
+    val hiltRule = HiltAndroidRule(this)
 
     private lateinit var service: MusicPlaybackService
 
     @Before
     fun setUp() {
+        hiltRule.inject()
         service = Robolectric.setupService(MusicPlaybackService::class.java)
     }
 
@@ -234,6 +243,12 @@ class MusicPlaybackServiceTest {
             isAccessible = true
             set(service, mockAlarmFireSession)
         }
+
+        // Service checks _playbackState.value.isPlaying, not playerPort.isPlaying()
+        val playbackStateField = service.javaClass.getDeclaredField("_playbackState")
+        playbackStateField.isAccessible = true
+        val stateFlow = playbackStateField.get(service) as kotlinx.coroutines.flow.MutableStateFlow<PlaybackState>
+        stateFlow.value = PlaybackState(isPlaying = true)
 
         val intent = Intent(RuntimeEnvironment.getApplication(), MusicPlaybackService::class.java).apply {
             action = MusicPlaybackService.ACTION_TOGGLE_PLAY_PAUSE

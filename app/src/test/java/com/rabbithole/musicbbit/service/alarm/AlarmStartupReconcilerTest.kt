@@ -14,7 +14,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
+import timber.log.Timber
 
 /**
  * JVM unit tests for [AlarmStartupReconciler].
@@ -29,6 +31,19 @@ import org.junit.Test
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class AlarmStartupReconcilerTest {
+
+    companion object {
+        private const val FIXED_NOW_MS = 1_700_000_000_000L
+
+        @JvmStatic
+        @BeforeClass
+        fun plantTimber() {
+            Timber.uprootAll()
+            Timber.plant(object : Timber.Tree() {
+                override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {}
+            })
+        }
+    }
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
@@ -149,7 +164,4 @@ class AlarmStartupReconcilerTest {
         override suspend fun getById(id: Long): AlarmEntity? = rows[id]
     }
 
-    companion object {
-        private const val FIXED_NOW_MS = 1_700_000_000_000L
-    }
 }

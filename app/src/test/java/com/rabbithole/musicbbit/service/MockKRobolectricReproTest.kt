@@ -23,6 +23,7 @@ import org.robolectric.annotation.Config
 class MockKRobolectricReproTest {
 
     interface SuspendService {
+        fun fetchDataSync(): String
         suspend fun fetchData(): String
     }
 
@@ -32,10 +33,8 @@ class MockKRobolectricReproTest {
     @Test
     fun `plain mock should work in Robolectric`() {
         val mock = io.mockk.mockk<SuspendService>()
-        io.mockk.every { mock.fetchData() } returns "hello"
-        // Note: every {} on a suspend function compiles but does NOT correctly
-        // intercept the coroutine suspension point. The test below shows the
-        // actual failure when invoking the suspend function.
+        io.mockk.every { mock.fetchDataSync() } returns "hello"
+        // Non-suspend functions mock correctly with every {} under Robolectric.
     }
 
     /**

@@ -32,7 +32,9 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
+import timber.log.Timber
 
 /**
  * JVM unit tests for [AlarmFireSession].
@@ -71,6 +73,32 @@ class AlarmFireSessionTest {
     private lateinit var host: FakeAlarmPlaybackHost
 
     private lateinit var session: AlarmFireSession
+
+    companion object {
+        private const val NOW_MS = 1_700_000_000_000L
+
+        private val SONG_1 = Song(
+            id = 101L,
+            path = "/tmp/song1.mp3",
+            title = "Song One",
+            artist = "Artist",
+            album = "Album",
+            durationMs = 180_000L,
+            dateAdded = 0L,
+            coverUri = null,
+        )
+        private val SONG_2 = SONG_1.copy(id = 102L, path = "/tmp/song2.mp3", title = "Song Two")
+        private val SONG_3 = SONG_1.copy(id = 103L, path = "/tmp/song3.mp3", title = "Song Three")
+
+        @JvmStatic
+        @BeforeClass
+        fun plantTimber() {
+            Timber.uprootAll()
+            Timber.plant(object : Timber.Tree() {
+                override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {}
+            })
+        }
+    }
 
     @Before
     fun setUp() {
@@ -565,23 +593,6 @@ class AlarmFireSessionTest {
         playlist = Playlist(id = id, name = "fixture", createdAt = 0L, updatedAt = 0L),
         songs = listOf(SONG_1, SONG_2, SONG_3),
     )
-
-    companion object {
-        private const val NOW_MS = 1_700_000_000_000L
-
-        private val SONG_1 = Song(
-            id = 101L,
-            path = "/tmp/song1.mp3",
-            title = "Song One",
-            artist = "Artist",
-            album = "Album",
-            durationMs = 180_000L,
-            dateAdded = 0L,
-            coverUri = null,
-        )
-        private val SONG_2 = SONG_1.copy(id = 102L, path = "/tmp/song2.mp3", title = "Song Two")
-        private val SONG_3 = SONG_1.copy(id = 103L, path = "/tmp/song3.mp3", title = "Song Three")
-    }
 
     // -------- Fakes ---------------------------------------------------------
 
