@@ -27,9 +27,14 @@ class MusicNotificationManager(
 
     fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelName = try {
+                context.getString(R.string.app_name)
+            } catch (e: android.content.res.Resources.NotFoundException) {
+                "MusicBbit"
+            }
             val channel = NotificationChannel(
                 channelId,
-                context.getString(R.string.app_name),
+                channelName,
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Music playback notification"
@@ -52,9 +57,15 @@ class MusicNotificationManager(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val appName = try {
+            context.getString(R.string.app_name)
+        } catch (e: android.content.res.Resources.NotFoundException) {
+            "MusicBbit"
+        }
+
         val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification_small)
-            .setContentTitle(song?.title ?: context.getString(R.string.app_name))
+            .setContentTitle(song?.title ?: appName)
             .setContentText(song?.artist ?: "Unknown artist")
             .setContentIntent(contentIntent)
             .setOngoing(true)

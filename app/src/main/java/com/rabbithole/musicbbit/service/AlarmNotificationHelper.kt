@@ -146,9 +146,14 @@ object AlarmNotificationHelper {
      */
     private fun createChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelName = try {
+                context.getString(CHANNEL_NAME_RES)
+            } catch (e: android.content.res.Resources.NotFoundException) {
+                "Music Alarm"
+            }
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                context.getString(CHANNEL_NAME_RES),
+                channelName,
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Music alarm notifications"

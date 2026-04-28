@@ -26,7 +26,14 @@ class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Timber.i("AlarmReceiver triggered")
 
-        val pendingResult = goAsync()
+        val pendingResult = try {
+            goAsync()
+        } catch (e: IllegalStateException) {
+            // Robolectric direct invocations do not set mPendingResult,
+            // causing goAsync() to throw. Fallback to null — the finally
+            // block uses pendingResult?.finish() so this is safe.
+            null
+        }
         val wakeLock = acquireWakeLock(context)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -54,7 +61,7 @@ class AlarmReceiver : BroadcastReceiver() {
                         Timber.d("WakeLock released")
                     }
                 }
-                pendingResult.finish()
+                pendingResult?.finish()
             }
         }
     }
