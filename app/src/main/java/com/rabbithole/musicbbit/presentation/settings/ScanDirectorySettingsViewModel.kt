@@ -30,6 +30,7 @@ data class PendingDirectory(
 
 sealed interface ScanDirectorySettingsUiState {
     data object Loading : ScanDirectorySettingsUiState
+    data object Error : ScanDirectorySettingsUiState
     data class Success(
         val directories: List<ScanDirectory>,
         val directoryCount: Int = 0,
@@ -98,7 +99,9 @@ class ScanDirectorySettingsViewModel @Inject constructor(
             }
             .catch { e ->
                 Timber.e(e, "Failed to load scan directories")
-                updateSuccess { it.copy(errorMessageResId = R.string.error_load_failed) }
+                if (_uiState.value !is ScanDirectorySettingsUiState.Success) {
+                    _uiState.value = ScanDirectorySettingsUiState.Error
+                }
             }
             .launchIn(viewModelScope)
     }

@@ -31,6 +31,7 @@ import javax.inject.Inject
  */
 sealed interface AlarmListUiState {
     data object Loading : AlarmListUiState
+    data object Error : AlarmListUiState
     data class Success(
         val alarms: List<AlarmItem>,
         val errorMessageResId: Int? = null
@@ -88,10 +89,7 @@ class AlarmListViewModel @Inject constructor(
             }
             .catch { e ->
                 Timber.e(e, "Failed to load alarms")
-                val current = _uiState.value
-                if (current is AlarmListUiState.Success) {
-                    _uiState.update { current.copy(errorMessageResId = R.string.error_load_failed) }
-                }
+                _uiState.value = AlarmListUiState.Error
             }
             .launchIn(viewModelScope)
 

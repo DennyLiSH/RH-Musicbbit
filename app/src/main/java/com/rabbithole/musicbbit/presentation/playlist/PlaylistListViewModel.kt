@@ -20,6 +20,7 @@ import javax.inject.Inject
 
 sealed interface PlaylistListUiState {
     data object Loading : PlaylistListUiState
+    data object Error : PlaylistListUiState
     data class Success(
         val playlists: List<Playlist>,
         val errorMessageResId: Int? = null
@@ -48,10 +49,7 @@ class PlaylistListViewModel @Inject constructor(
             }
             .catch { e ->
                 Timber.e(e, "Failed to load playlists")
-                val current = _uiState.value
-                if (current is PlaylistListUiState.Success) {
-                    _uiState.update { current.copy(errorMessageResId = R.string.error_load_failed) }
-                }
+                _uiState.value = PlaylistListUiState.Error
             }
             .launchIn(viewModelScope)
     }

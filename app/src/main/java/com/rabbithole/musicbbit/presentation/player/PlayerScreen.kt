@@ -47,6 +47,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import android.content.Intent
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.LocalContext
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.presentation.alarm.AlarmRingActivity
@@ -57,7 +58,9 @@ import com.rabbithole.musicbbit.service.PlayMode
 fun PlayerScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    viewModel: PlayerViewModel = hiltViewModel()
+    viewModel: PlayerViewModel = hiltViewModel(
+        viewModelStoreOwner = LocalContext.current as ComponentActivity
+    )
 ) {
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
     val alarmLabel by viewModel.alarmLabel.collectAsStateWithLifecycle()

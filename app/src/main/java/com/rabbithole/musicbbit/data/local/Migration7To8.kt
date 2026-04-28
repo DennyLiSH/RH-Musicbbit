@@ -31,7 +31,7 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
                 playlistId, isEnabled, label, autoStop, lastTriggeredAt
             )
             SELECT
-                id, hour, minute, repeatDaysBitmask, excludeHolidays,
+                id, hour, minute, repeatDaysBitmask, exclude_holidays,
                 playlistId, isEnabled, label,
                 CASE WHEN autoStopMinutes IS NOT NULL THEN 'MINUTES:' || autoStopMinutes ELSE NULL END,
                 lastTriggeredAt

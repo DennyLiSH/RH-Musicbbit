@@ -27,6 +27,7 @@ sealed interface MusicUiState {
     data object Loading : MusicUiState
     data object NoScanDirectory : MusicUiState
     data object Empty : MusicUiState
+    data object Error : MusicUiState
     data class Success(
         val songs: List<Song>,
         val searchQuery: String = "",
@@ -78,14 +79,7 @@ class MusicBrowseViewModel @Inject constructor(
             .onEach { state -> _uiState.value = state }
             .catch { e ->
                 Timber.e(e, "Flow collection failed: MusicBrowse data")
-                _uiState.update {
-                    when (it) {
-                        is MusicUiState.Success -> it.copy(errorMessageResId = R.string.error_load_failed)
-                        is MusicUiState.Loading -> it
-                        is MusicUiState.NoScanDirectory -> it
-                        is MusicUiState.Empty -> it
-                    }
-                }
+                _uiState.value = MusicUiState.Error
             }
             .launchIn(viewModelScope)
     }

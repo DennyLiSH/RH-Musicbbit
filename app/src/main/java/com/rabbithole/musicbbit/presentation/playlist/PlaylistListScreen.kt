@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Button
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material3.AlertDialog
@@ -95,6 +96,13 @@ fun PlaylistListScreen(
                     LoadingContent()
                 }
 
+                is PlaylistListUiState.Error -> {
+                    ErrorContent(
+                        message = stringResource(R.string.error_load_failed),
+                        onRetry = {}
+                    )
+                }
+
                 is PlaylistListUiState.Success -> {
                     if (state.playlists.isEmpty()) {
                         EmptyContent()
@@ -165,6 +173,31 @@ private fun EmptyContent() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+@Composable
+private fun ErrorContent(
+    message: String,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.error,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onRetry) {
+            Text(stringResource(R.string.retry))
+        }
     }
 }
 

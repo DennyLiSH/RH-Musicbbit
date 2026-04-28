@@ -4,6 +4,7 @@ import android.app.Application
 import com.rabbithole.musicbbit.data.local.MediaStoreObserver
 import com.rabbithole.musicbbit.service.alarm.AlarmStartupReconciler
 import dagger.hilt.android.HiltAndroidApp
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -17,6 +18,7 @@ class MusicApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        Timber.plant(Timber.DebugTree())
         // MediaStoreObserver auto-registers in its init block when injected
         alarmStartupReconciler.reconcile()
     }

@@ -21,6 +21,7 @@ import timber.log.Timber
 
 sealed interface AddToPlaylistUiState {
     data object Loading : AddToPlaylistUiState
+    data object Error : AddToPlaylistUiState
     data class Success(
         val playlists: List<Playlist>,
         val errorMessageResId: Int? = null
@@ -43,10 +44,7 @@ class AddToPlaylistBottomSheetViewModel @Inject constructor(
             }
             .catch { e ->
                 Timber.e(e, "Failed to load playlists")
-                val current = _uiState.value
-                if (current is AddToPlaylistUiState.Success) {
-                    _uiState.update { current.copy(errorMessageResId = R.string.error_load_failed) }
-                }
+                _uiState.value = AddToPlaylistUiState.Error
             }
             .launchIn(viewModelScope)
     }
