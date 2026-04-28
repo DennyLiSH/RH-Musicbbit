@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import javax.inject.Inject
 
 class ScanDirectoryRepositoryImpl @Inject constructor(
@@ -28,8 +29,10 @@ class ScanDirectoryRepositoryImpl @Inject constructor(
     override suspend fun add(directory: ScanDirectory): Result<Long> = withContext(ioDispatcher) {
         try {
             val id = scanDirectoryDao.insert(directory.toEntity())
+            Timber.i("Scan directory added: id=$id, path=${directory.path}")
             Result.success(id)
         } catch (e: Exception) {
+            Timber.e(e, "Failed to add scan directory: path=${directory.path}")
             Result.failure(e)
         }
     }
@@ -46,9 +49,16 @@ class ScanDirectoryRepositoryImpl @Inject constructor(
                 songsToDelete.forEach { songDao.delete(it) }
 
                 scanDirectoryDao.delete(directory)
+                Timber.i(
+                    "Scan directory removed: id=$id, path=${directory.path}, " +
+                        "cascadedSongs=${songsToDelete.size}"
+                )
+            } else {
+                Timber.w("Scan directory not found for removal: id=$id")
             }
             Result.success(Unit)
         } catch (e: Exception) {
+            Timber.e(e, "Failed to remove scan directory: id=$id")
             Result.failure(e)
         }
     }

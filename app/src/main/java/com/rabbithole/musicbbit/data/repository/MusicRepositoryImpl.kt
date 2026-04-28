@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import javax.inject.Inject
 
 class MusicRepositoryImpl @Inject constructor(
@@ -41,8 +42,11 @@ class MusicRepositoryImpl @Inject constructor(
             val directories = scanDirectoryDao.getAll()
             val paths = directories.firstOrNull()?.map { it.path } ?: emptyList()
 
+            Timber.i("Refreshing songs from ${paths.size} scan directories")
+
             if (paths.isEmpty()) {
                 songDao.deleteAll()
+                Timber.i("No scan directories, cleared all songs")
                 return@withContext Result.success(Unit)
             }
 
@@ -71,8 +75,13 @@ class MusicRepositoryImpl @Inject constructor(
                 toUpdate.forEach { songDao.update(it) }
             }
 
+            Timber.i(
+                "Song refresh complete: scanned=${scanned.size}, " +
+                    "inserted=${toInsert.size}, deleted=${toDelete.size}, updated=${toUpdate.size}"
+            )
             Result.success(Unit)
         } catch (e: Exception) {
+            Timber.e(e, "Failed to refresh songs")
             Result.failure(e)
         }
     }

@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 import android.content.Context
@@ -37,6 +38,7 @@ class MediaStoreObserver @Inject constructor(
 
     override fun onChange(selfChange: Boolean, uri: Uri?) {
         super.onChange(selfChange, uri)
+        Timber.i("MediaStore changed, triggering song refresh: uri=$uri")
         scope.launch {
             musicRepository.refreshSongs()
         }

@@ -122,6 +122,10 @@ class AlarmRingViewModel @Inject constructor(
             .onEach { label ->
                 _uiState.update { it.copy(alarmLabel = label) }
             }
+            .catch { e ->
+                Timber.e(e, "Alarm label flow failed")
+                _uiState.update { it.copy(errorMessageResId = R.string.error_load_failed) }
+            }
             .launchIn(viewModelScope)
     }
 

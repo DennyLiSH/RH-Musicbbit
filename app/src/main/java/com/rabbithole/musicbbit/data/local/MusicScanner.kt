@@ -7,6 +7,8 @@ import com.rabbithole.musicbbit.data.model.SongEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
+import timber.log.Timber
+
 class MusicScanner @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
@@ -14,6 +16,7 @@ class MusicScanner @Inject constructor(
     fun scanDirectories(directories: List<String>): List<SongEntity> {
         if (directories.isEmpty()) return emptyList()
 
+        Timber.i("Scanning music directories: count=${directories.size}")
         val songs = mutableListOf<SongEntity>()
         val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 
@@ -87,6 +90,7 @@ class MusicScanner @Inject constructor(
             }
         }
 
+        Timber.i("Music scan complete: found ${songs.size} songs")
         return songs
     }
 

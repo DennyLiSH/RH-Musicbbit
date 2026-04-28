@@ -18,7 +18,11 @@ class MusicApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        Timber.plant(Timber.DebugTree())
+        if (BuildConfig.DEBUG) {
+            Timber.plant(Timber.DebugTree())
+        } else {
+            Timber.plant(ReleaseTree())
+        }
         // MediaStoreObserver auto-registers in its init block when injected
         alarmStartupReconciler.reconcile()
     }

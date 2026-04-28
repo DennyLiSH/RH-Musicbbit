@@ -6,8 +6,11 @@ import android.content.Intent
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /**
@@ -35,12 +38,19 @@ class BootReceiver : BroadcastReceiver() {
 
         Timber.i("BootReceiver: device boot completed, re-scheduling enabled alarms")
 
-        runBlocking {
-            val enabledAlarms = alarmDao.getEnabledAlarms().first()
-            Timber.i("BootReceiver: found ${enabledAlarms.size} enabled alarms to reschedule")
-            alarmScheduler.rescheduleAll(enabledAlarms)
+        val pendingResult = goAsync()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        scope.launch {
+            try {
+                val enabledAlarms = alarmDao.getEnabledAlarms().first()
+                Timber.i("BootReceiver: found ${enabledAlarms.size} enabled alarms to reschedule")
+                alarmScheduler.rescheduleAll(enabledAlarms)
+                Timber.i("BootReceiver: alarm rescheduling completed")
+            } catch (e: Exception) {
+                Timber.e(e, "BootReceiver: failed to reschedule alarms after boot")
+            } finally {
+                pendingResult.finish()
+            }
         }
-
-        Timber.i("BootReceiver: alarm rescheduling completed")
     }
 }

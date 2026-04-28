@@ -154,14 +154,18 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
     private fun observePlayerEvents() {
         playerEventsJob?.cancel()
         playerEventsJob = serviceScope.launch {
-            playerPort.events.collect { event ->
-                when (event) {
-                    is PlayerEvent.IsPlayingChanged -> handleIsPlayingChanged(event.isPlaying)
-                    is PlayerEvent.MediaItemTransition -> handleMediaItemTransition(event)
-                    is PlayerEvent.PlaybackReady -> handlePlaybackReady(event.durationMs)
-                    is PlayerEvent.PositionDiscontinuity -> handlePositionDiscontinuity(event)
-                    is PlayerEvent.QueueEnded -> alarmFireSession.onQueueEnded()
+            try {
+                playerPort.events.collect { event ->
+                    when (event) {
+                        is PlayerEvent.IsPlayingChanged -> handleIsPlayingChanged(event.isPlaying)
+                        is PlayerEvent.MediaItemTransition -> handleMediaItemTransition(event)
+                        is PlayerEvent.PlaybackReady -> handlePlaybackReady(event.durationMs)
+                        is PlayerEvent.PositionDiscontinuity -> handlePositionDiscontinuity(event)
+                        is PlayerEvent.QueueEnded -> alarmFireSession.onQueueEnded()
+                    }
                 }
+            } catch (e: Exception) {
+                Timber.e(e, "Player event collection failed")
             }
         }
     }

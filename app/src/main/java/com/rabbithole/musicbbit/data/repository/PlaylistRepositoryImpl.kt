@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -48,7 +49,9 @@ class PlaylistRepositoryImpl @Inject constructor(
                 createdAt = now,
                 updatedAt = now
             )
-            playlistDao.insert(entity)
+            val id = playlistDao.insert(entity)
+            Timber.i("Playlist created: id=$id, name=$name")
+            id
         }
     }
 
@@ -61,6 +64,7 @@ class PlaylistRepositoryImpl @Inject constructor(
                 updatedAt = System.currentTimeMillis()
             )
             playlistDao.update(entity)
+            Timber.i("Playlist updated: id=${playlist.id}, name=${playlist.name}")
         }
     }
 
@@ -73,6 +77,7 @@ class PlaylistRepositoryImpl @Inject constructor(
                 updatedAt = playlist.updatedAt
             )
             playlistDao.delete(entity)
+            Timber.i("Playlist deleted: id=${playlist.id}, name=${playlist.name}")
         }
     }
 
@@ -104,6 +109,7 @@ class PlaylistRepositoryImpl @Inject constructor(
                 sortOrder = sortOrder
             )
             playlistSongDao.insert(entity)
+            Timber.i("Song added to playlist: playlistId=$playlistId, songId=$songId")
         }
     }
 
@@ -129,6 +135,7 @@ class PlaylistRepositoryImpl @Inject constructor(
                 )
             }
             playlistSongDao.insertAll(entities)
+            Timber.i("Songs added to playlist: playlistId=$playlistId, count=${newSongIds.size}")
         }
     }
 
@@ -138,6 +145,7 @@ class PlaylistRepositoryImpl @Inject constructor(
     ): Result<Unit> = runCatching {
         withContext(ioDispatcher) {
             playlistSongDao.deleteByPlaylistAndSong(playlistId, songId)
+            Timber.i("Song removed from playlist: playlistId=$playlistId, songId=$songId")
         }
     }
 
@@ -155,6 +163,7 @@ class PlaylistRepositoryImpl @Inject constructor(
                 )
             }
             playlistSongDao.insertAll(entities)
+            Timber.i("Playlist reordered: playlistId=$playlistId, songCount=${songIds.size}")
         }
     }
 

@@ -59,8 +59,12 @@ class PlayerViewModel @Inject constructor(
             service = svc
             isBound = true
             collectionJob = viewModelScope.launch {
-                svc.playbackState.collect { state ->
-                    _playbackState.value = state
+                try {
+                    svc.playbackState.collect { state ->
+                        _playbackState.value = state
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Playback state collection failed")
                 }
             }
         }

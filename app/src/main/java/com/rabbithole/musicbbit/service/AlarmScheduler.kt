@@ -8,6 +8,9 @@ import android.os.Build
 import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.service.alarm.NextOccurrenceCalculator
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import javax.inject.Inject
 import javax.inject.Singleton
 import timber.log.Timber
@@ -98,11 +101,13 @@ class AlarmScheduler @Inject constructor(
     suspend fun rescheduleAll(enabledAlarms: List<AlarmEntity>) {
         Timber.i("Rescheduling all ${enabledAlarms.size} enabled alarms")
 
-        // Cancel all first to avoid duplicate PendingIntents
-        enabledAlarms.forEach { cancel(it.id) }
+        coroutineScope {
+            // Cancel all first to avoid duplicate PendingIntents
+            enabledAlarms.map { async { cancel(it.id) } }.awaitAll()
 
-        // Re-schedule each enabled alarm
-        enabledAlarms.forEach { schedule(it) }
+            // Re-schedule each enabled alarm
+            enabledAlarms.map { async { schedule(it) } }.awaitAll()
+        }
     }
 
     /**
