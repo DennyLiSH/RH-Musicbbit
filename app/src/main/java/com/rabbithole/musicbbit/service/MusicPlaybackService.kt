@@ -1,19 +1,9 @@
 package com.rabbithole.musicbbit.service
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.os.Binder
-import android.os.Build
 import android.os.IBinder
-import androidx.core.app.NotificationCompat
-import com.rabbithole.musicbbit.MainActivity
-import com.rabbithole.musicbbit.R
-import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
@@ -32,8 +22,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -75,8 +63,8 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
     private val _playbackState = MutableStateFlow(PlaybackState())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
-    private var progressSaveJob: Job? = null
-    private var progressTickJob: Job? = null
+    private lateinit var notificationManager: MusicNotificationManager
+    private lateinit var progressTracker: PlaybackProgressTracker
     private var playerEventsJob: Job? = null
 
     private fun handleIsPlayingChanged(isPlaying: Boolean) {
@@ -88,11 +76,11 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
                     positionMs = playerPort.currentPositionMs()
                 )
             }
-            startProgressSaveLoop()
+            progressTracker.startSaveLoop(PROGRESS_SAVE_INTERVAL_MS)
         } else {
             _playbackState.update { it.copy(isPlaying = false) }
-            progressSaveJob?.cancel()
-            saveCurrentProgress()
+            progressTracker.stopSaveLoop()
+            progressTracker.saveProgress()
         }
         updateNotification()
     }
@@ -121,11 +109,6 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
         }
     }
 
-    private fun handlePlaybackReady(durationMs: Long) {
-        _playbackState.update { it.copy(durationMs = durationMs) }
-        updateNotification()
-    }
-
     private fun handlePositionDiscontinuity(event: PlayerEvent.PositionDiscontinuity) {
         _playbackState.update {
             it.copy(
@@ -144,10 +127,19 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
     override fun onCreate() {
         super.onCreate()
         Timber.i("MusicPlaybackService created")
-        createNotificationChannel()
+        notificationManager = MusicNotificationManager(this)
+        notificationManager.createChannel()
+        progressTracker = PlaybackProgressTracker(
+            scope = serviceScope,
+            playbackProgressRepository = playbackProgressRepository,
+            playerPort = playerPort,
+            getState = { _playbackState.value }
+        )
         observePlayerEvents()
         initAudioFocusManager()
-        startProgressTickLoop()
+        progressTracker.startTickLoop(PROGRESS_TICK_INTERVAL_MS) { pos ->
+            _playbackState.update { it.copy(positionMs = pos) }
+        }
         alarmFireSession.bindHost(this)
     }
 
@@ -159,7 +151,10 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
                     when (event) {
                         is PlayerEvent.IsPlayingChanged -> handleIsPlayingChanged(event.isPlaying)
                         is PlayerEvent.MediaItemTransition -> handleMediaItemTransition(event)
-                        is PlayerEvent.PlaybackReady -> handlePlaybackReady(event.durationMs)
+                        is PlayerEvent.PlaybackReady -> {
+                            _playbackState.update { it.copy(durationMs = event.durationMs) }
+                            updateNotification()
+                        }
                         is PlayerEvent.PositionDiscontinuity -> handlePositionDiscontinuity(event)
                         is PlayerEvent.QueueEnded -> alarmFireSession.onQueueEnded()
                     }
@@ -201,7 +196,7 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Timber.i("MusicPlaybackService started, action=${intent?.action}")
-        startForeground(NOTIFICATION_ID, buildNotification())
+        startForeground(NOTIFICATION_ID, notificationManager.buildNotification(_playbackState.value))
 
         when (intent?.action) {
             ACTION_PLAY_ALARM -> {
@@ -312,7 +307,7 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
         wasPausedByFocusLoss = false
         volumeRampPort.restoreVolume()
         playerPort.pause()
-        saveCurrentProgress()
+        progressTracker.saveProgress()
     }
 
     /** Resume playback. */
@@ -331,7 +326,7 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
     fun next() {
         Timber.i("Skipping to next")
         if (playerPort.hasNext()) {
-            saveCurrentProgress()
+            progressTracker.saveProgress()
             playerPort.next()
         } else {
             Timber.d("No next media item")
@@ -342,7 +337,7 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
     fun previous() {
         Timber.i("Skipping to previous")
         if (playerPort.hasPrevious()) {
-            saveCurrentProgress()
+            progressTracker.saveProgress()
             playerPort.previous()
         } else {
             Timber.d("No previous media item")
@@ -365,12 +360,12 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
         Timber.i("Stopping playback")
         audioFocusManager.abandonFocus()
         volumeRampPort.restoreVolume()
-        saveCurrentProgress()
+        progressTracker.saveProgress()
         playerPort.stop()
         playerPort.clearQueue()
         _playbackState.update { PlaybackState() }
-        progressSaveJob?.cancel()
-        cancelProgressTickLoop()
+        progressTracker.stopSaveLoop()
+        progressTracker.stopTickLoop()
         alarmFireSession.onPlaybackStopped()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -389,153 +384,18 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
         _playbackState.update { it.copy(playMode = playMode) }
     }
 
-    private fun startProgressSaveLoop() {
-        progressSaveJob?.cancel()
-        progressSaveJob = serviceScope.launch {
-            while (true) {
-                delay(PROGRESS_SAVE_INTERVAL_MS)
-                saveCurrentProgress()
-            }
-        }
-    }
-
-    /**
-     * Start a periodic loop that pulls [PlayerPort.currentPositionMs] into [_playbackState]
-     * every [PROGRESS_TICK_INTERVAL_MS] milliseconds while playback is active.
-     *
-     * The loop runs unconditionally once started; it short-circuits internally when
-     * [_playbackState.value.isPlaying] is false to avoid races with seek/transition
-     * events that already update positionMs through the player listener.
-     */
-    private fun startProgressTickLoop() {
-        progressTickJob?.cancel()
-        progressTickJob = serviceScope.launch {
-            while (isActive) {
-                delay(PROGRESS_TICK_INTERVAL_MS)
-                if (_playbackState.value.isPlaying) {
-                    val currentPos = playerPort.currentPositionMs()
-                    _playbackState.update { it.copy(positionMs = currentPos) }
-                }
-            }
-        }
-    }
-
-    private fun cancelProgressTickLoop() {
-        progressTickJob?.cancel()
-        progressTickJob = null
-    }
-
-    private fun saveCurrentProgress() {
-        val state = _playbackState.value
-        val song = state.currentSong ?: return
-        val position = playerPort.currentPositionMs()
-
-        serviceScope.launch {
-            val progress = PlaybackProgress(
-                songId = song.id,
-                positionMs = position,
-                updatedAt = System.currentTimeMillis(),
-                playlistId = state.currentPlaylistId
-            )
-            val result = playbackProgressRepository.saveProgress(progress)
-            result.onSuccess {
-                Timber.d("Progress saved: songId=${song.id}, position=$position")
-            }.onFailure { error ->
-                Timber.e(error, "Failed to save playback progress")
-            }
-        }
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.app_name),
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Music playback notification"
-                setShowBadge(false)
-            }
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE)
-                as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-            Timber.i("Notification channel created")
-        }
-    }
-
-    private fun createActionPendingIntent(action: String): PendingIntent {
-        return PendingIntent.getService(
-            this,
-            action.hashCode(),
-            Intent(this, MusicPlaybackService::class.java).apply {
-                this.action = action
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-    }
-
-    private fun buildNotification(): Notification {
-        val state = _playbackState.value
-        val song = state.currentSong
-
-        val contentIntent = PendingIntent.getActivity(
-            this,
-            0,
-            Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification_small)
-            .setContentTitle(song?.title ?: getString(R.string.app_name))
-            .setContentText(song?.artist ?: "Unknown artist")
-            .setContentIntent(contentIntent)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-
-        // Previous
-        builder.addAction(
-            R.drawable.ic_notification_skip_previous,
-            "Previous",
-            createActionPendingIntent(ACTION_PREVIOUS)
-        )
-
-        // Play/Pause toggle
-        val isPlaying = _playbackState.value.isPlaying
-        builder.addAction(
-            if (isPlaying) R.drawable.ic_notification_pause else R.drawable.ic_notification_play,
-            if (isPlaying) "Pause" else "Play",
-            createActionPendingIntent(ACTION_TOGGLE_PLAY_PAUSE)
-        )
-
-        // Next
-        builder.addAction(
-            R.drawable.ic_notification_skip_next,
-            "Next",
-            createActionPendingIntent(ACTION_NEXT)
-        )
-
-        return builder.build()
-    }
-
     private fun updateNotification() {
-        val notification = buildNotification()
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE)
-            as NotificationManager
-        notificationManager.notify(NOTIFICATION_ID, notification)
+        val notification = notificationManager.buildNotification(_playbackState.value)
+        notificationManager.notify(notification)
     }
 
     override fun onDestroy() {
         Timber.i("MusicPlaybackService destroyed")
         audioFocusManager.abandonFocus()
         volumeRampPort.restoreVolume()
-        saveCurrentProgress()
-        progressSaveJob?.cancel()
-        cancelProgressTickLoop()
+        progressTracker.saveProgress()
+        progressTracker.stopSaveLoop()
+        progressTracker.stopTickLoop()
         playerEventsJob?.cancel()
         // PlayerPort is a Singleton — its underlying ExoPlayer outlives this service.
         // We do not release it here.
