@@ -1,26 +1,74 @@
 package com.rabbithole.musicbbit.service
 
 import android.content.Intent
+import com.rabbithole.musicbbit.data.local.AppDatabase
+import com.rabbithole.musicbbit.data.local.dao.AlarmDao
+import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
+import com.rabbithole.musicbbit.data.local.dao.PlaylistSongDao
+import com.rabbithole.musicbbit.data.local.dao.SongDao
+import com.rabbithole.musicbbit.data.model.AlarmEntity
+import com.rabbithole.musicbbit.data.model.PlaylistEntity
+import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
+import com.rabbithole.musicbbit.data.model.SongEntity
+import com.rabbithole.musicbbit.di.TestDatabaseModule
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
+import dagger.hilt.android.testing.UninstallModules
+import javax.inject.Inject
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
- * Robolectric smoke tests for [AlarmReceiver].
+ * Robolectric tests for [AlarmReceiver].
  *
- * AlarmReceiver is a thin shell after step 5 of the AlarmFireSession refactor: its only
- * remaining job is to dispatch valid alarm intents to [MusicPlaybackService]. All alarm
- * bookkeeping (lastTriggeredAt, one-time isEnabled flip, repeating reschedule) is verified
- * via JVM unit tests on AlarmFireSession instead.
+ * Includes:
+ *   - Smoke tests verifying intent dispatch to [MusicPlaybackService]
+ *   - End-to-end test verifying the full alarm-fire chain: receiver -> service ->
+ *     [AlarmFireSession.fire] -> DAO update (one-time alarm disabled)
+ *
+ * Uses Hilt test injection with an in-memory Room database.
  */
+@HiltAndroidTest
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
+@Config(sdk = [33], application = dagger.hilt.android.testing.HiltTestApplication::class)
+@UninstallModules(com.rabbithole.musicbbit.di.DatabaseModule::class)
 class AlarmReceiverTest {
+
+    @get:Rule
+    var hiltRule = HiltAndroidRule(this)
+
+    @Inject
+    lateinit var database: AppDatabase
+
+    @Inject
+    lateinit var alarmDao: AlarmDao
+
+    @Inject
+    lateinit var songDao: SongDao
+
+    @Inject
+    lateinit var playlistDao: PlaylistDao
+
+    @Inject
+    lateinit var playlistSongDao: PlaylistSongDao
+
+    @Before
+    fun setUp() {
+        hiltRule.inject()
+    }
 
     @Test
     fun `onReceive with valid alarmId starts foreground service`() {
@@ -67,5 +115,102 @@ class AlarmReceiverTest {
 
         val startedService = shadowOf(context).peekNextStartedService()
         assertNull("Expected no service to be started", startedService)
+    }
+
+    /**
+     * End-to-end test: one-time alarm is triggered, the full chain runs, and the alarm
+     * is auto-disabled because it is one-time (repeatDaysBitmask == 0).
+     *
+     * Chain:
+     *   1. Insert one-time alarm + playlist + songs into in-memory DB
+     *   2. Trigger AlarmReceiver.onReceive with alarmId
+     *   3. Receiver starts MusicPlaybackService
+     *   4. Service.onStartCommand calls AlarmFireSession.fire()
+     *   5. AlarmFireSession.bookkeepAlarmTrigger() updates DAO: isEnabled=false
+     *   6. Verify DAO returns isEnabled=false
+     */
+    @Test
+    fun `one-time alarm triggered via receiver is disabled after fire`() = runBlocking {
+        val context = RuntimeEnvironment.getApplication()
+        val alarmId = 42L
+        val playlistId = 10L
+        val songId = 100L
+
+        // --- Seed the in-memory database ---
+        val alarm = AlarmEntity(
+            id = alarmId,
+            hour = 7,
+            minute = 30,
+            repeatDaysBitmask = 0, // one-time
+            excludeHolidays = false,
+            playlistId = playlistId,
+            isEnabled = true,
+            label = "Test One-Time Alarm",
+            autoStop = null,
+            lastTriggeredAt = null
+        )
+        alarmDao.insert(alarm)
+
+        val playlist = PlaylistEntity(
+            id = playlistId,
+            name = "Test Playlist",
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+        playlistDao.insert(playlist)
+
+        val song = SongEntity(
+            id = songId,
+            path = "/tmp/test_song.mp3",
+            title = "Test Song",
+            artist = "Test Artist",
+            album = "Test Album",
+            durationMs = 180_000L,
+            dateAdded = 0L,
+            coverUri = null
+        )
+        songDao.insert(song)
+
+        val playlistSong = PlaylistSongEntity(
+            playlistId = playlistId,
+            songId = songId,
+            sortOrder = 0
+        )
+        playlistSongDao.insert(playlistSong)
+
+        // --- Verify alarm is enabled before trigger ---
+        val beforeAlarm = alarmDao.getById(alarmId)
+        assertNotNull(beforeAlarm)
+        assertTrue("Alarm should be enabled before trigger", beforeAlarm!!.isEnabled)
+
+        // --- Trigger the alarm receiver ---
+        val intent = Intent(context, AlarmReceiver::class.java).apply {
+            putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
+        }
+        val receiver = AlarmReceiver()
+        receiver.onReceive(context, intent)
+
+        // Wait for the coroutine inside onReceive to dispatch the service intent
+        Thread.sleep(500)
+
+        // --- Manually start the service (Robolectric does not auto-start services) ---
+        val serviceIntent = shadowOf(context).peekNextStartedService()
+        assertNotNull("Service should have been started", serviceIntent)
+
+        val service = Robolectric.setupService(MusicPlaybackService::class.java)
+        service.onCreate()
+        service.onStartCommand(serviceIntent, 0, 0)
+
+        // Wait for AlarmFireSession.fire() coroutines to complete
+        Thread.sleep(1000)
+
+        // --- Verify the alarm is now disabled ---
+        val afterAlarm = alarmDao.getById(alarmId)
+        assertNotNull(afterAlarm)
+        assertFalse("One-time alarm should be disabled after trigger", afterAlarm!!.isEnabled)
+        assertNotNull("lastTriggeredAt should be set", afterAlarm.lastTriggeredAt)
+
+        // Clean up
+        service.onDestroy()
     }
 }
