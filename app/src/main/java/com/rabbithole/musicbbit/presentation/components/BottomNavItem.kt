@@ -11,7 +11,7 @@ import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.navigation.Alarm
 import com.rabbithole.musicbbit.navigation.MusicBrowse
 import com.rabbithole.musicbbit.navigation.PlaylistList
-import com.rabbithole.musicbbit.navigation.Settings
+import com.rabbithole.musicbbit.navigation.Settings as SettingsRoute
 import kotlinx.serialization.Serializable
 
 enum class BottomNavItem(
@@ -35,7 +35,7 @@ enum class BottomNavItem(
         icon = Icons.Default.MusicNote
     ),
     Settings(
-        screen = Settings,
+        screen = SettingsRoute,
         labelResId = R.string.tab_settings,
         icon = Icons.Default.Settings
     );

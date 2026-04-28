@@ -1,6 +1,7 @@
 package com.rabbithole.musicbbit
 
 import android.app.Application
+import android.content.pm.ApplicationInfo
 import com.rabbithole.musicbbit.data.local.MediaStoreObserver
 import com.rabbithole.musicbbit.service.alarm.AlarmStartupReconciler
 import dagger.hilt.android.HiltAndroidApp
@@ -18,7 +19,8 @@ class MusicApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        if (BuildConfig.DEBUG) {
+        val isDebug = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (isDebug) {
             Timber.plant(Timber.DebugTree())
         } else {
             Timber.plant(ReleaseTree())
