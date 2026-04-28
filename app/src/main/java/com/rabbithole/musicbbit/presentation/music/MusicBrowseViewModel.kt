@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -27,7 +28,7 @@ sealed interface MusicUiState {
     data object Loading : MusicUiState
     data object NoScanDirectory : MusicUiState
     data object Empty : MusicUiState
-    data object Error : MusicUiState
+    data class Error(val messageResId: Int) : MusicUiState
     data class Success(
         val songs: List<Song>,
         val searchQuery: String = "",
@@ -52,13 +53,18 @@ class MusicBrowseViewModel @Inject constructor(
     val uiState: StateFlow<MusicUiState> = _uiState.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")
+    private var loadJob: Job? = null
 
     init {
-        observeData()
+        loadData()
     }
 
-    private fun observeData() {
-        combine(
+    fun retry() = loadData()
+
+    private fun loadData() {
+        loadJob?.cancel()
+        _uiState.value = MusicUiState.Loading
+        loadJob = combine(
             scanDirectoryRepository.getAll(),
             _searchQuery
                 .debounce(300)
@@ -79,7 +85,7 @@ class MusicBrowseViewModel @Inject constructor(
             .onEach { state -> _uiState.value = state }
             .catch { e ->
                 Timber.e(e, "Flow collection failed: MusicBrowse data")
-                _uiState.value = MusicUiState.Error
+                _uiState.value = MusicUiState.Error(R.string.error_load_failed)
             }
             .launchIn(viewModelScope)
     }

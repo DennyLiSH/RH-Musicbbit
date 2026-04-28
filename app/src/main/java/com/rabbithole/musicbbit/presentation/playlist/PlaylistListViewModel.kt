@@ -11,6 +11,7 @@ import timber.log.Timber
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -20,7 +21,7 @@ import javax.inject.Inject
 
 sealed interface PlaylistListUiState {
     data object Loading : PlaylistListUiState
-    data object Error : PlaylistListUiState
+    data class Error(val messageResId: Int) : PlaylistListUiState
     data class Success(
         val playlists: List<Playlist>,
         val errorMessageResId: Int? = null
@@ -42,17 +43,34 @@ class PlaylistListViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<PlaylistListUiState>(PlaylistListUiState.Loading)
     val uiState: StateFlow<PlaylistListUiState> = _uiState.asStateFlow()
 
+    private var loadJob: Job? = null
+
     init {
-        playlistRepository.getAllPlaylists()
+        loadData()
+    }
+
+    /**
+     * Subscribes to the playlists flow and updates UI state accordingly.
+     * Cancels any previous subscription before re-subscribing.
+     */
+    private fun loadData() {
+        loadJob?.cancel()
+        _uiState.value = PlaylistListUiState.Loading
+        loadJob = playlistRepository.getAllPlaylists()
             .onEach { playlists ->
                 _uiState.update { PlaylistListUiState.Success(playlists) }
             }
             .catch { e ->
                 Timber.e(e, "Failed to load playlists")
-                _uiState.value = PlaylistListUiState.Error
+                _uiState.value = PlaylistListUiState.Error(R.string.error_load_failed)
             }
             .launchIn(viewModelScope)
     }
+
+    /**
+     * Retries loading playlists after an error.
+     */
+    fun retry() = loadData()
 
     fun onAction(action: PlaylistListAction) {
         when (action) {

@@ -54,6 +54,7 @@ import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.navigation.Player
+import com.rabbithole.musicbbit.presentation.components.ErrorContent
 import com.rabbithole.musicbbit.presentation.music.components.SongListItem
 import com.rabbithole.musicbbit.presentation.player.PlayerViewModel
 import com.rabbithole.musicbbit.presentation.playlist.components.AddSongsBottomSheet
@@ -78,7 +79,7 @@ fun PlaylistDetailScreen(
                 title = {
                     val title = when (val state = uiState) {
                         is PlaylistDetailUiState.Loading -> stringResource(R.string.playlist_detail_title_loading)
-                        is PlaylistDetailUiState.Error -> stringResource(R.string.error_load_failed)
+                        is PlaylistDetailUiState.Error -> stringResource(state.messageResId)
                         is PlaylistDetailUiState.Success -> state.playlistWithSongs.playlist.name
                     }
                     Text(title)
@@ -105,7 +106,7 @@ fun PlaylistDetailScreen(
                 }
 
                 is PlaylistDetailUiState.Error -> {
-                    ErrorContent(message = stringResource(R.string.error_load_failed))
+                    ErrorContent(message = stringResource(state.messageResId), onRetry = viewModel::retry)
                 }
 
                 is PlaylistDetailUiState.Success -> {
@@ -206,27 +207,6 @@ private fun EmptyContent(
             color = MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center
         )
-    }
-}
-
-@Composable
-private fun ErrorContent(message: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.error,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 32.dp)
-            )
-        }
     }
 }
 

@@ -46,6 +46,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.presentation.components.ErrorContent
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.navigation.PlaylistDetail
 import java.text.SimpleDateFormat
@@ -98,8 +99,8 @@ fun PlaylistListScreen(
 
                 is PlaylistListUiState.Error -> {
                     ErrorContent(
-                        message = stringResource(R.string.error_load_failed),
-                        onRetry = {}
+                        message = stringResource(state.messageResId),
+                        onRetry = viewModel::retry
                     )
                 }
 
@@ -173,31 +174,6 @@ private fun EmptyContent() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
-    }
-}
-
-@Composable
-private fun ErrorContent(
-    message: String,
-    onRetry: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = onRetry) {
-            Text(stringResource(R.string.retry))
-        }
     }
 }
 

@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -25,7 +26,7 @@ import javax.inject.Inject
 
 sealed interface PlaylistDetailUiState {
     data object Loading : PlaylistDetailUiState
-    data object Error : PlaylistDetailUiState
+    data class Error(val messageResId: Int) : PlaylistDetailUiState
     data class Success(
         val playlistWithSongs: PlaylistWithSongs,
         val errorMessageResId: Int? = null
@@ -52,11 +53,19 @@ class PlaylistDetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<PlaylistDetailUiState>(PlaylistDetailUiState.Loading)
     val uiState: StateFlow<PlaylistDetailUiState> = _uiState.asStateFlow()
 
+    private var loadJob: Job? = null
+
     val allSongs: StateFlow<List<Song>> = musicRepository.getAllSongs()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
-        playlistRepository.getPlaylistWithSongs(playlistId)
+        loadData()
+    }
+
+    private fun loadData() {
+        loadJob?.cancel()
+        _uiState.value = PlaylistDetailUiState.Loading
+        loadJob = playlistRepository.getPlaylistWithSongs(playlistId)
             .onEach { playlistWithSongs ->
                 if (playlistWithSongs != null) {
                     _uiState.value = PlaylistDetailUiState.Success(playlistWithSongs)
@@ -64,10 +73,12 @@ class PlaylistDetailViewModel @Inject constructor(
             }
             .catch { e ->
                 Timber.e(e, "Failed to load playlist with songs")
-                _uiState.value = PlaylistDetailUiState.Error
+                _uiState.value = PlaylistDetailUiState.Error(R.string.error_load_failed)
             }
             .launchIn(viewModelScope)
     }
+
+    fun retry() = loadData()
 
     fun onAction(action: PlaylistDetailAction) {
         when (action) {

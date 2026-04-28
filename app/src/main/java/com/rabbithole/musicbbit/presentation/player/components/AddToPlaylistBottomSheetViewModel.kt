@@ -9,6 +9,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -21,7 +22,7 @@ import timber.log.Timber
 
 sealed interface AddToPlaylistUiState {
     data object Loading : AddToPlaylistUiState
-    data object Error : AddToPlaylistUiState
+    data class Error(val messageResId: Int) : AddToPlaylistUiState
     data class Success(
         val playlists: List<Playlist>,
         val errorMessageResId: Int? = null
@@ -37,14 +38,24 @@ class AddToPlaylistBottomSheetViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<AddToPlaylistUiState>(AddToPlaylistUiState.Loading)
     val uiState: StateFlow<AddToPlaylistUiState> = _uiState.asStateFlow()
 
+    private var loadJob: Job? = null
+
     init {
-        playlistRepository.getAllPlaylists()
+        loadData()
+    }
+
+    fun retry() = loadData()
+
+    private fun loadData() {
+        loadJob?.cancel()
+        _uiState.value = AddToPlaylistUiState.Loading
+        loadJob = playlistRepository.getAllPlaylists()
             .onEach { playlists ->
                 _uiState.value = AddToPlaylistUiState.Success(playlists)
             }
             .catch { e ->
                 Timber.e(e, "Failed to load playlists")
-                _uiState.value = AddToPlaylistUiState.Error
+                _uiState.value = AddToPlaylistUiState.Error(R.string.error_load_failed)
             }
             .launchIn(viewModelScope)
     }

@@ -104,7 +104,7 @@ class AlarmEditViewModel @Inject constructor(
             }
             .catch { e ->
                 Timber.e(e, "Failed to load playlists")
-                _uiState.update { it.copy(errorMessageResId = R.string.error_load_failed) }
+                _uiState.update { it.copy(isLoading = false, errorMessageResId = R.string.error_load_failed) }
             }
             .launchIn(viewModelScope)
     }
@@ -114,32 +114,39 @@ class AlarmEditViewModel @Inject constructor(
      */
     private fun loadAlarm() {
         viewModelScope.launch {
-            Timber.i("Loading alarm with id=%d", alarmId)
-            val alarm = alarmRepository.getAlarmById(alarmId)
-            if (alarm != null) {
-                Timber.i("Alarm loaded: hour=%d, minute=%d", alarm.hour, alarm.minute)
-                _uiState.update {
-                    it.copy(
-                        hour = alarm.hour,
-                        minute = alarm.minute,
-                        repeatDays = alarm.repeatDays,
-                        excludeHolidays = alarm.excludeHolidays,
-                        playlistId = alarm.playlistId,
-                        label = alarm.label ?: "",
-                        autoStop = alarm.autoStop,
-                        isEnabled = alarm.isEnabled,
-                        isLoading = false,
-                        isNewAlarm = false
-                    )
+            try {
+                Timber.i("Loading alarm with id=%d", alarmId)
+                val alarm = alarmRepository.getAlarmById(alarmId)
+                if (alarm != null) {
+                    Timber.i("Alarm loaded: hour=%d, minute=%d", alarm.hour, alarm.minute)
+                    _uiState.update {
+                        it.copy(
+                            hour = alarm.hour,
+                            minute = alarm.minute,
+                            repeatDays = alarm.repeatDays,
+                            excludeHolidays = alarm.excludeHolidays,
+                            playlistId = alarm.playlistId,
+                            label = alarm.label ?: "",
+                            autoStop = alarm.autoStop,
+                            isEnabled = alarm.isEnabled,
+                            isLoading = false,
+                            isNewAlarm = false
+                        )
+                    }
+                } else {
+                    Timber.w("Alarm with id=%d not found", alarmId)
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isNewAlarm = false,
+                            errorMessageResId = R.string.alarm_edit_error_not_found
+                        )
+                    }
                 }
-            } else {
-                Timber.w("Alarm with id=%d not found", alarmId)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to load alarm with id=%d", alarmId)
                 _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        isNewAlarm = false,
-                        errorMessageResId = R.string.alarm_edit_error_not_found
-                    )
+                    it.copy(isLoading = false, errorMessageResId = R.string.error_load_failed)
                 }
             }
         }
@@ -240,16 +247,21 @@ class AlarmEditViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            Timber.i("Saving alarm: id=%d, hour=%d, minute=%d, playlistId=%d", alarm.id, alarm.hour, alarm.minute, alarm.playlistId)
-            alarmRepository.saveAlarm(alarm)
-                .onSuccess { savedId ->
-                    Timber.i("Alarm saved successfully, id=%d", savedId)
-                    _uiState.update { it.copy(isSaving = false, saveCompleted = true) }
-                }
-                .onFailure { error ->
-                    Timber.e(error, "Failed to save alarm")
-                    _uiState.update { it.copy(isSaving = false, errorMessageResId = R.string.alarm_edit_error_save_failed) }
-                }
+            try {
+                Timber.i("Saving alarm: id=%d, hour=%d, minute=%d, playlistId=%d", alarm.id, alarm.hour, alarm.minute, alarm.playlistId)
+                alarmRepository.saveAlarm(alarm)
+                    .onSuccess { savedId ->
+                        Timber.i("Alarm saved successfully, id=%d", savedId)
+                        _uiState.update { it.copy(isSaving = false, saveCompleted = true) }
+                    }
+                    .onFailure { error ->
+                        Timber.e(error, "Failed to save alarm")
+                        _uiState.update { it.copy(isSaving = false, errorMessageResId = R.string.alarm_edit_error_save_failed) }
+                    }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to save alarm")
+                _uiState.update { it.copy(isSaving = false, errorMessageResId = R.string.alarm_edit_error_save_failed) }
+            }
         }
     }
 }

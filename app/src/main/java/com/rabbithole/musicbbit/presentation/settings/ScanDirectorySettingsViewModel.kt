@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -30,7 +31,7 @@ data class PendingDirectory(
 
 sealed interface ScanDirectorySettingsUiState {
     data object Loading : ScanDirectorySettingsUiState
-    data object Error : ScanDirectorySettingsUiState
+    data class Error(val messageResId: Int) : ScanDirectorySettingsUiState
     data class Success(
         val directories: List<ScanDirectory>,
         val directoryCount: Int = 0,
@@ -62,6 +63,8 @@ class ScanDirectorySettingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<ScanDirectorySettingsUiState>(ScanDirectorySettingsUiState.Loading)
     val uiState: StateFlow<ScanDirectorySettingsUiState> = _uiState.asStateFlow()
 
+    private var loadJob: Job? = null
+
     init {
         observeDirectories()
         observeBreathingSettings()
@@ -84,7 +87,9 @@ class ScanDirectorySettingsViewModel @Inject constructor(
     }
 
     private fun observeDirectories() {
-        scanDirectoryRepository.getAll()
+        loadJob?.cancel()
+        _uiState.value = ScanDirectorySettingsUiState.Loading
+        loadJob = scanDirectoryRepository.getAll()
             .onEach { directories ->
                 updateSuccess { currentState ->
                     currentState.copy(directories = directories)
@@ -100,11 +105,13 @@ class ScanDirectorySettingsViewModel @Inject constructor(
             .catch { e ->
                 Timber.e(e, "Failed to load scan directories")
                 if (_uiState.value !is ScanDirectorySettingsUiState.Success) {
-                    _uiState.value = ScanDirectorySettingsUiState.Error
+                    _uiState.value = ScanDirectorySettingsUiState.Error(R.string.error_load_failed)
                 }
             }
             .launchIn(viewModelScope)
     }
+
+    fun retry() = observeDirectories()
 
     fun onAction(action: ScanDirectorySettingsAction) {
         when (action) {

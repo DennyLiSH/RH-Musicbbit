@@ -54,6 +54,7 @@ import com.rabbithole.musicbbit.navigation.Player
 import com.rabbithole.musicbbit.navigation.ScanDirectorySettings
 import com.rabbithole.musicbbit.presentation.music.components.SongListItem
 import com.rabbithole.musicbbit.presentation.player.PlayerViewModel
+import com.rabbithole.musicbbit.presentation.components.ErrorContent
 import com.rabbithole.musicbbit.presentation.player.components.AddToPlaylistBottomSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -113,8 +114,8 @@ fun MusicBrowseScreen(
 
                 is MusicUiState.Error -> {
                     ErrorContent(
-                        message = stringResource(R.string.error_load_failed),
-                        onRetry = { viewModel.onAction(MusicBrowseAction.OnSearchQueryChange("")) }
+                        message = stringResource(state.messageResId),
+                        onRetry = viewModel::retry
                     )
                 }
 
@@ -233,33 +234,6 @@ private fun EmptyContent() {
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(32.dp)
         )
-    }
-}
-
-@Composable
-private fun ErrorContent(
-    message: String,
-    onRetry: () -> Unit
-) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.error,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 32.dp)
-            )
-            Button(onClick = onRetry) {
-                Text(stringResource(R.string.retry))
-            }
-        }
     }
 }
 

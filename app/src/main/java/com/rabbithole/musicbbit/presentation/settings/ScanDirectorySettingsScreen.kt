@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.navigation.PermissionDiagnostics
+import com.rabbithole.musicbbit.presentation.components.ErrorContent
 import com.rabbithole.musicbbit.presentation.settings.components.ScanDirectoryItem
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -117,23 +118,10 @@ fun ScanDirectorySettingsScreen(
                 }
 
                 is ScanDirectorySettingsUiState.Error -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.error_load_failed),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.error,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(horizontal = 32.dp)
-                            )
-                        }
-                    }
+                    ErrorContent(
+                        message = stringResource(state.messageResId),
+                        onRetry = viewModel::retry
+                    )
                 }
 
                 is ScanDirectorySettingsUiState.Success -> {

@@ -25,6 +25,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.res.stringResource
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Playlist
+import com.rabbithole.musicbbit.presentation.components.ErrorContent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,11 +65,9 @@ fun AddToPlaylistBottomSheet(
                     )
                 }
                 is AddToPlaylistUiState.Error -> {
-                    Text(
-                        text = stringResource(R.string.error_load_failed),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ErrorContent(
+                        message = stringResource((uiState as AddToPlaylistUiState.Error).messageResId),
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
                 is AddToPlaylistUiState.Success -> {

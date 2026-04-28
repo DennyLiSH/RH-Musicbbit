@@ -17,6 +17,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -31,7 +32,7 @@ import javax.inject.Inject
  */
 sealed interface AlarmListUiState {
     data object Loading : AlarmListUiState
-    data object Error : AlarmListUiState
+    data class Error(val messageResId: Int) : AlarmListUiState
     data class Success(
         val alarms: List<AlarmItem>,
         val errorMessageResId: Int? = null
@@ -73,25 +74,15 @@ class AlarmListViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<AlarmListUiState>(AlarmListUiState.Loading)
     val uiState: StateFlow<AlarmListUiState> = _uiState.asStateFlow()
 
+    private var loadJob: Job? = null
+
     /**
      * In-memory cache of playlist names to avoid repeated repository lookups.
      */
     private val playlistNameCache = mutableMapOf<Long, String>()
 
     init {
-        alarmRepository.getAllAlarms()
-            .onEach { alarms ->
-                val alarmItems = alarms.map { alarm ->
-                    val playlistName = resolvePlaylistName(alarm.playlistId)
-                    AlarmItem(alarm = alarm, playlistName = playlistName)
-                }
-                _uiState.value = AlarmListUiState.Success(alarmItems, errorMessageResId = null)
-            }
-            .catch { e ->
-                Timber.e(e, "Failed to load alarms")
-                _uiState.value = AlarmListUiState.Error
-            }
-            .launchIn(viewModelScope)
+        loadData()
 
         // Refresh holiday data in the background
         viewModelScope.launch {
@@ -105,6 +96,33 @@ class AlarmListViewModel @Inject constructor(
                 }
         }
     }
+
+    /**
+     * Subscribes to the alarms flow and updates UI state accordingly.
+     * Cancels any previous subscription before re-subscribing.
+     */
+    private fun loadData() {
+        loadJob?.cancel()
+        _uiState.value = AlarmListUiState.Loading
+        loadJob = alarmRepository.getAllAlarms()
+            .onEach { alarms ->
+                val alarmItems = alarms.map { alarm ->
+                    val playlistName = resolvePlaylistName(alarm.playlistId)
+                    AlarmItem(alarm = alarm, playlistName = playlistName)
+                }
+                _uiState.value = AlarmListUiState.Success(alarmItems, errorMessageResId = null)
+            }
+            .catch { e ->
+                Timber.e(e, "Failed to load alarms")
+                _uiState.value = AlarmListUiState.Error(R.string.error_load_failed)
+            }
+            .launchIn(viewModelScope)
+    }
+
+    /**
+     * Retries loading alarms after an error.
+     */
+    fun retry() = loadData()
 
     /**
      * Handles user actions from the UI layer.
