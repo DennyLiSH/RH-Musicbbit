@@ -139,8 +139,8 @@ class AlarmListViewModelTest {
         )
 
         every { alarmRepository.getAllAlarms() } returns flowOf(listOf(alarm1, alarm2))
-        every { playlistRepository.getPlaylistById(10L) } returns Playlist(10L, "Workout Mix", 0L, 0L)
-        every { playlistRepository.getPlaylistById(20L) } returns Playlist(20L, "Sleep Sounds", 0L, 0L)
+        io.mockk.coEvery { playlistRepository.getPlaylistById(10L) } returns Playlist(10L, "Workout Mix", 0L, 0L)
+        io.mockk.coEvery { playlistRepository.getPlaylistById(20L) } returns Playlist(20L, "Sleep Sounds", 0L, 0L)
         every { FullScreenIntentPermissionHelper.isGranted(any()) } returns true
 
         val viewModel = createViewModel()
@@ -189,14 +189,14 @@ class AlarmListViewModelTest {
             lastTriggeredAt = null
         )
         every { alarmRepository.getAllAlarms() } returns flowOf(listOf(alarm))
-        every { alarmRepository.deleteAlarm(alarm) } returns Result.success(Unit)
-        every { playlistRepository.getPlaylistById(10L) } returns Playlist(10L, "Test Playlist", 0L, 0L)
+        io.mockk.coEvery { alarmRepository.deleteAlarm(alarm) } returns Result.success(Unit)
+        io.mockk.coEvery { playlistRepository.getPlaylistById(10L) } returns Playlist(10L, "Test Playlist", 0L, 0L)
         every { FullScreenIntentPermissionHelper.isGranted(any()) } returns true
 
         val viewModel = createViewModel()
         viewModel.onAction(AlarmListAction.OnDeleteAlarm(alarm))
 
-        verify { alarmRepository.deleteAlarm(alarm) }
+        io.mockk.coVerify { alarmRepository.deleteAlarm(alarm) }
     }
 
     // -------- Toggle enabled test --------------------------------------------
@@ -216,14 +216,14 @@ class AlarmListViewModelTest {
             lastTriggeredAt = null
         )
         every { alarmRepository.getAllAlarms() } returns flowOf(listOf(alarm))
-        every { alarmRepository.enableAlarm(1L, false) } returns Result.success(Unit)
-        every { playlistRepository.getPlaylistById(10L) } returns Playlist(10L, "Test Playlist", 0L, 0L)
+        io.mockk.coEvery { alarmRepository.enableAlarm(1L, false) } returns Result.success(Unit)
+        io.mockk.coEvery { playlistRepository.getPlaylistById(10L) } returns Playlist(10L, "Test Playlist", 0L, 0L)
         every { FullScreenIntentPermissionHelper.isGranted(any()) } returns true
 
         val viewModel = createViewModel()
         viewModel.onAction(AlarmListAction.OnToggleEnabled(alarmId = 1L, enabled = false))
 
-        verify { alarmRepository.enableAlarm(1L, false) }
+        io.mockk.coVerify { alarmRepository.enableAlarm(1L, false) }
     }
 
     private fun createViewModel(): AlarmListViewModel {

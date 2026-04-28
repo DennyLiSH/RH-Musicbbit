@@ -110,7 +110,7 @@ class AlarmEditViewModelTest {
             lastTriggeredAt = 1_700_000_000_000L
         )
 
-        every { alarmRepository.getAlarmById(1L) } returns existingAlarm
+        io.mockk.coEvery { alarmRepository.getAlarmById(1L) } returns existingAlarm
         every { playlistRepository.getAllPlaylists() } returns flowOf(
             listOf(Playlist(10L, "Work Mix", 0L, 0L))
         )
@@ -136,7 +136,7 @@ class AlarmEditViewModelTest {
 
     @Test
     fun `load non-existent alarm shows error state`() = runTest {
-        every { alarmRepository.getAlarmById(999L) } returns null
+        io.mockk.coEvery { alarmRepository.getAlarmById(999L) } returns null
         every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 999L))
@@ -173,7 +173,7 @@ class AlarmEditViewModelTest {
         every { playlistRepository.getAllPlaylists() } returns flowOf(
             listOf(Playlist(10L, "Morning Mix", 0L, 0L))
         )
-        every { alarmRepository.saveAlarm(any()) } returns Result.success(1L)
+        io.mockk.coEvery { alarmRepository.saveAlarm(any()) } returns Result.success(1L)
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
         val viewModel = createViewModel(savedStateHandle)
@@ -192,7 +192,7 @@ class AlarmEditViewModelTest {
         assertFalse("isSaving should be false after save", state.isSaving)
         assertNull("errorMessageResId should be null on success", state.errorMessageResId)
 
-        verify { alarmRepository.saveAlarm(any()) }
+        io.mockk.coVerify { alarmRepository.saveAlarm(any()) }
     }
 
     @Test
@@ -200,7 +200,7 @@ class AlarmEditViewModelTest {
         every { playlistRepository.getAllPlaylists() } returns flowOf(
             listOf(Playlist(10L, "Morning Mix", 0L, 0L))
         )
-        every { alarmRepository.saveAlarm(any()) } returns Result.success(1L)
+        io.mockk.coEvery { alarmRepository.saveAlarm(any()) } returns Result.success(1L)
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
         val viewModel = createViewModel(savedStateHandle)
