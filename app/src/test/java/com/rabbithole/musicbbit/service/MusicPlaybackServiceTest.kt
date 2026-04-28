@@ -2,7 +2,6 @@ package com.rabbithole.musicbbit.service
 
 import android.app.NotificationManager
 import android.content.Intent
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.rabbithole.musicbbit.service.playback.PlayerPort
 import io.mockk.every
@@ -60,9 +59,9 @@ class MusicPlaybackServiceTest {
     fun `startForeground posts notification`() {
         service.onCreate()
 
-        val notificationManager = RuntimeEnvironment.getApplication()
+        val appNotificationManager = RuntimeEnvironment.getApplication()
             .getSystemService(NotificationManager::class.java)
-        val shadowNotificationManager = shadowOf(notificationManager)
+        val shadowNotificationManager = shadowOf(appNotificationManager)
 
         // startForeground is called in onStartCommand, but we can verify the notification
         // was built by checking the notification manager shadows
@@ -72,8 +71,8 @@ class MusicPlaybackServiceTest {
         // Access notificationManager via reflection since it's private.
         val notificationManagerField = service.javaClass.getDeclaredField("notificationManager")
         notificationManagerField.isAccessible = true
-        val notificationManager = notificationManagerField.get(service) as MusicNotificationManager
-        val notification = notificationManager.buildNotification(PlaybackState())
+        val musicNotificationManager = notificationManagerField.get(service) as MusicNotificationManager
+        val notification = musicNotificationManager.buildNotification(PlaybackState())
         service.startForeground(1, notification)
 
         // On Robolectric, startForeground does not post via NotificationManager,
@@ -93,8 +92,8 @@ class MusicPlaybackServiceTest {
         // Access notificationManager via reflection since it's private.
         val notificationManagerField = service.javaClass.getDeclaredField("notificationManager")
         notificationManagerField.isAccessible = true
-        val notificationManager = notificationManagerField.get(service) as MusicNotificationManager
-        val notification = notificationManager.buildNotification(state)
+        val musicNotificationManager = notificationManagerField.get(service) as MusicNotificationManager
+        val notification = musicNotificationManager.buildNotification(state)
 
         assertEquals(
             "Notification should use the correct channel",
