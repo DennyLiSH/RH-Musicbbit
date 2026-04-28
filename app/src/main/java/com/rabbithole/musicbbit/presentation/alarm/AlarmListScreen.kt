@@ -33,6 +33,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Button
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -81,15 +82,7 @@ fun AlarmListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.alarm_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.common_back)
-                        )
-                    }
-                }
+                title = { Text(stringResource(R.string.alarm_title)) }
             )
         },
         floatingActionButton = {
@@ -114,6 +107,10 @@ fun AlarmListScreen(
             when (val state = uiState) {
                 is AlarmListUiState.Loading -> {
                     LoadingContent()
+                }
+
+                is AlarmListUiState.Error -> {
+                    ErrorContent(message = stringResource(R.string.error_load_failed))
                 }
 
                 is AlarmListUiState.Success -> {
@@ -286,6 +283,27 @@ private fun EmptyContent() {
 }
 
 @Composable
+private fun ErrorContent(message: String) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 32.dp)
+            )
+        }
+    }
+}
+
+@Composable
 private fun AlarmListContent(
     alarms: List<AlarmItem>,
     onAlarmClick: (Long) -> Unit,
@@ -366,11 +384,7 @@ private fun SwipeableAlarmItem(
                         onDragEnd = {
                             scope.launch {
                                 val threshold = maxSwipePx * 0.3f
-                                val target = when {
-                                    offsetX.value > threshold -> maxSwipePx
-                                    offsetX.value < -threshold -> -maxSwipePx
-                                    else -> 0f
-                                }
+                                val target = if (offsetX.value < -threshold) -maxSwipePx else 0f
                                 offsetX.animateTo(target)
                             }
                         }
@@ -378,7 +392,7 @@ private fun SwipeableAlarmItem(
                         change.consume()
                         scope.launch {
                             val newValue = (offsetX.value + dragAmount)
-                                .coerceIn(-maxSwipePx, maxSwipePx)
+                                .coerceIn(-maxSwipePx, 0f)
                             offsetX.snapTo(newValue)
                         }
                     }

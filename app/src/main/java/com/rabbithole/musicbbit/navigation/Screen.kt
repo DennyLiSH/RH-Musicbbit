@@ -21,6 +21,9 @@ data class AlarmEdit(val alarmId: Long = 0)
 data object Player
 
 @Serializable
+data object Settings
+
+@Serializable
 data object ScanDirectorySettings
 
 @Serializable

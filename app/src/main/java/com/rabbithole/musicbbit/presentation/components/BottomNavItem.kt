@@ -5,11 +5,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.navigation.Alarm
 import com.rabbithole.musicbbit.navigation.MusicBrowse
 import com.rabbithole.musicbbit.navigation.PlaylistList
+import com.rabbithole.musicbbit.navigation.Settings
 import kotlinx.serialization.Serializable
 
 enum class BottomNavItem(
@@ -17,20 +19,25 @@ enum class BottomNavItem(
     @StringRes val labelResId: Int,
     val icon: ImageVector
 ) {
+    Alarms(
+        screen = Alarm,
+        labelResId = R.string.tab_alarm,
+        icon = Icons.Default.Alarm
+    ),
+    Playlists(
+        screen = PlaylistList,
+        labelResId = R.string.tab_playlist,
+        icon = Icons.AutoMirrored.Filled.PlaylistPlay
+    ),
     Music(
         screen = MusicBrowse,
         labelResId = R.string.tab_music,
         icon = Icons.Default.MusicNote
     ),
-    Playlist(
-        screen = PlaylistList,
-        labelResId = R.string.tab_playlist,
-        icon = Icons.AutoMirrored.Filled.PlaylistPlay
-    ),
-    Alarms(
-        screen = Alarm,
-        labelResId = R.string.tab_alarm,
-        icon = Icons.Default.Alarm
+    Settings(
+        screen = Settings,
+        labelResId = R.string.tab_settings,
+        icon = Icons.Default.Settings
     );
 
     companion object {

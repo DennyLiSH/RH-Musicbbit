@@ -1,5 +1,6 @@
 package com.rabbithole.musicbbit.presentation.playlist
 
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -50,7 +53,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.navigation.Player
 import com.rabbithole.musicbbit.presentation.music.components.SongListItem
+import com.rabbithole.musicbbit.presentation.player.PlayerViewModel
 import com.rabbithole.musicbbit.presentation.playlist.components.AddSongsBottomSheet
 import kotlin.math.roundToInt
 
@@ -58,7 +63,10 @@ import kotlin.math.roundToInt
 @Composable
 fun PlaylistDetailScreen(
     navController: NavController,
-    viewModel: PlaylistDetailViewModel = hiltViewModel()
+    viewModel: PlaylistDetailViewModel = hiltViewModel(),
+    playerViewModel: PlayerViewModel = hiltViewModel(
+        viewModelStoreOwner = LocalContext.current as ComponentActivity
+    )
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val allSongs by viewModel.allSongs.collectAsStateWithLifecycle()
@@ -70,6 +78,7 @@ fun PlaylistDetailScreen(
                 title = {
                     val title = when (val state = uiState) {
                         is PlaylistDetailUiState.Loading -> stringResource(R.string.playlist_detail_title_loading)
+                        is PlaylistDetailUiState.Error -> stringResource(R.string.error_load_failed)
                         is PlaylistDetailUiState.Success -> state.playlistWithSongs.playlist.name
                     }
                     Text(title)
@@ -95,6 +104,10 @@ fun PlaylistDetailScreen(
                     LoadingContent()
                 }
 
+                is PlaylistDetailUiState.Error -> {
+                    ErrorContent(message = stringResource(R.string.error_load_failed))
+                }
+
                 is PlaylistDetailUiState.Success -> {
                     val playlistWithSongs = state.playlistWithSongs
                     val existingSongIds = remember(playlistWithSongs.songs) {
@@ -112,15 +125,24 @@ fun PlaylistDetailScreen(
                     } else {
                         PlaylistDetailContent(
                             songs = playlistWithSongs.songs,
+                            playlistId = playlistWithSongs.playlist.id,
+                            playerViewModel = playerViewModel,
+                            navController = navController,
                             onPlayAll = {
-                                viewModel.onAction(
-                                    PlaylistDetailAction.OnPlayPlaylist(startIndex = 0)
+                                playerViewModel.playPlaylist(
+                                    playlistWithSongs.songs,
+                                    startIndex = 0,
+                                    playlistId = playlistWithSongs.playlist.id
                                 )
+                                navController.navigate(Player)
                             },
                             onSongClick = { index ->
-                                viewModel.onAction(
-                                    PlaylistDetailAction.OnPlayPlaylist(startIndex = index)
+                                playerViewModel.playPlaylist(
+                                    playlistWithSongs.songs,
+                                    startIndex = index,
+                                    playlistId = playlistWithSongs.playlist.id
                                 )
+                                navController.navigate(Player)
                             },
                             onRemoveSong = { songId ->
                                 viewModel.onAction(PlaylistDetailAction.OnRemoveSong(songId))
@@ -188,8 +210,32 @@ private fun EmptyContent(
 }
 
 @Composable
+private fun ErrorContent(message: String) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 32.dp)
+            )
+        }
+    }
+}
+
+@Composable
 private fun PlaylistDetailContent(
     songs: List<Song>,
+    playlistId: Long,
+    playerViewModel: PlayerViewModel,
+    navController: NavController,
     onPlayAll: () -> Unit,
     onSongClick: (Int) -> Unit,
     onRemoveSong: (Long) -> Unit,

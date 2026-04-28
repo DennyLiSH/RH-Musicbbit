@@ -19,7 +19,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,7 +28,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,6 +36,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -46,7 +45,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
-import com.rabbithole.musicbbit.domain.model.ThemeMode
 import com.rabbithole.musicbbit.navigation.PermissionDiagnostics
 import com.rabbithole.musicbbit.presentation.settings.components.ScanDirectoryItem
 
@@ -54,11 +52,9 @@ import com.rabbithole.musicbbit.presentation.settings.components.ScanDirectoryIt
 @Composable
 fun ScanDirectorySettingsScreen(
     navController: NavController,
-    viewModel: ScanDirectorySettingsViewModel = hiltViewModel(),
-    themeViewModel: ThemeViewModel = hiltViewModel()
+    viewModel: ScanDirectorySettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val themeUiState by themeViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val externalStorageMessage = stringResource(R.string.settings_toast_external_storage)
     val parseFailedMessage = stringResource(R.string.settings_toast_parse_failed)
@@ -120,14 +116,30 @@ fun ScanDirectorySettingsScreen(
                     }
                 }
 
+                is ScanDirectorySettingsUiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.error_load_failed),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 32.dp)
+                            )
+                        }
+                    }
+                }
+
                 is ScanDirectorySettingsUiState.Success -> {
                     SuccessContent(
                         state = state,
-                        themeMode = themeUiState.themeMode,
                         navController = navController,
-                        onThemeModeChange = { mode ->
-                            themeViewModel.setThemeMode(mode)
-                        },
                         onAddDirectory = { treeLauncher.launch(null) },
                         onRemoveDirectory = { id ->
                             viewModel.onAction(ScanDirectorySettingsAction.OnRemoveDirectory(id))
@@ -154,9 +166,7 @@ fun ScanDirectorySettingsScreen(
 @Composable
 private fun SuccessContent(
     state: ScanDirectorySettingsUiState.Success,
-    themeMode: ThemeMode,
     navController: NavController,
-    onThemeModeChange: (ThemeMode) -> Unit,
     onAddDirectory: () -> Unit,
     onRemoveDirectory: (Long) -> Unit,
     onConfirmDirectory: () -> Unit,
@@ -170,14 +180,6 @@ private fun SuccessContent(
         LazyColumn(
             modifier = Modifier.weight(1f)
         ) {
-            item(key = "theme_settings") {
-                ThemeSettingsSection(
-                    themeMode = themeMode,
-                    onThemeModeChange = onThemeModeChange,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-
             item(key = "breathing_settings") {
                 BreathingSettingsSection(
                     enabled = state.breathingEnabled,
@@ -250,72 +252,6 @@ private fun SuccessContent(
             onConfirm = onConfirmDirectory,
             onDismiss = onCancelDirectory
         )
-    }
-}
-
-@Composable
-private fun ThemeSettingsSection(
-    themeMode: ThemeMode,
-    onThemeModeChange: (ThemeMode) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier) {
-        Text(
-            text = stringResource(R.string.settings_theme),
-            style = MaterialTheme.typography.titleMedium
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ThemeModeButton(
-                label = stringResource(R.string.settings_theme_system),
-                selected = themeMode == ThemeMode.SYSTEM,
-                onClick = { onThemeModeChange(ThemeMode.SYSTEM) },
-                modifier = Modifier.weight(1f)
-            )
-            ThemeModeButton(
-                label = stringResource(R.string.settings_theme_light),
-                selected = themeMode == ThemeMode.LIGHT,
-                onClick = { onThemeModeChange(ThemeMode.LIGHT) },
-                modifier = Modifier.weight(1f)
-            )
-            ThemeModeButton(
-                label = stringResource(R.string.settings_theme_dark),
-                selected = themeMode == ThemeMode.DARK,
-                onClick = { onThemeModeChange(ThemeMode.DARK) },
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun ThemeModeButton(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    if (selected) {
-        FilledTonalButton(
-            onClick = onClick,
-            modifier = modifier,
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        ) {
-            Text(label)
-        }
-    } else {
-        OutlinedButton(
-            onClick = onClick,
-            modifier = modifier
-        ) {
-            Text(label)
-        }
     }
 }
 

@@ -1,5 +1,6 @@
 package com.rabbithole.musicbbit.navigation
 
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -11,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
@@ -24,10 +26,12 @@ import com.rabbithole.musicbbit.presentation.components.BottomNavItem
 import com.rabbithole.musicbbit.presentation.music.MusicBrowseScreen
 import com.rabbithole.musicbbit.presentation.player.MiniPlayer
 import com.rabbithole.musicbbit.presentation.player.PlayerScreen
+import com.rabbithole.musicbbit.presentation.player.PlayerViewModel
 import com.rabbithole.musicbbit.presentation.playlist.PlaylistDetailScreen
 import com.rabbithole.musicbbit.presentation.playlist.PlaylistListScreen
 import com.rabbithole.musicbbit.presentation.settings.PermissionDiagnosticsScreen
 import com.rabbithole.musicbbit.presentation.settings.ScanDirectorySettingsScreen
+import com.rabbithole.musicbbit.presentation.settings.SettingsScreen
 
 @Composable
 fun AppNavigation(
@@ -71,7 +75,7 @@ fun AppNavigation(
         Box(modifier = Modifier.padding(innerPadding)) {
             NavHost(
                 navController = navController,
-                startDestination = MusicBrowse
+                startDestination = Alarm
             ) {
                 composable<MusicBrowse> {
                     MusicBrowseScreen(navController = navController)
@@ -80,7 +84,12 @@ fun AppNavigation(
                     PlaylistListScreen(navController = navController)
                 }
                 composable<PlaylistDetail> {
-                    PlaylistDetailScreen(navController = navController)
+                    PlaylistDetailScreen(
+                        navController = navController,
+                        playerViewModel = hiltViewModel(
+                            viewModelStoreOwner = LocalContext.current as ComponentActivity
+                        )
+                    )
                 }
                 composable<Alarm> {
                     AlarmListScreen(navController = navController)
@@ -96,6 +105,9 @@ fun AppNavigation(
                 }
                 composable<PermissionDiagnostics> {
                     PermissionDiagnosticsScreen(navController = navController)
+                }
+                composable<Settings> {
+                    SettingsScreen(navController = navController)
                 }
             }
         }
