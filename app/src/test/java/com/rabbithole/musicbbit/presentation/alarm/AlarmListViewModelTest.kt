@@ -16,6 +16,7 @@ import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -224,6 +225,26 @@ class AlarmListViewModelTest {
         viewModel.onAction(AlarmListAction.OnToggleEnabled(alarmId = 1L, enabled = false))
 
         io.mockk.coVerify { alarmRepository.enableAlarm(1L, false) }
+    }
+
+    // -------- Retry test -----------------------------------------------------
+
+    @Test
+    fun `retry reloads alarms after error`() = runTest {
+        val errorFlow = kotlinx.coroutines.flow.flow { throw RuntimeException("DB error") }
+        every { alarmRepository.getAllAlarms() } returns errorFlow
+        every { FullScreenIntentPermissionHelper.isGranted(any()) } returns true
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value is AlarmListUiState.Error)
+
+        every { alarmRepository.getAllAlarms() } returns flowOf(emptyList())
+        viewModel.retry()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value is AlarmListUiState.Success)
     }
 
     private fun createViewModel(): AlarmListViewModel {
