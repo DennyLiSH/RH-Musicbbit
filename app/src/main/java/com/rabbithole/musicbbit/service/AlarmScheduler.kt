@@ -72,11 +72,8 @@ class AlarmScheduler @Inject constructor(
                 "(triggerTime=$triggerTime, repeatMask=${alarm.repeatDaysBitmask})"
         )
 
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            triggerTime,
-            pendingIntent
-        )
+        val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime, createShowIntent())
+        alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
     }
 
     /**
@@ -123,6 +120,22 @@ class AlarmScheduler @Inject constructor(
         return PendingIntent.getBroadcast(
             context,
             alarmId.toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    /**
+     * Create a [PendingIntent] that opens the app when the user taps the alarm icon
+     * in the status bar. Used as the [AlarmManager.AlarmClockInfo] show intent.
+     */
+    private fun createShowIntent(): PendingIntent {
+        val intent = Intent(context, com.rabbithole.musicbbit.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        return PendingIntent.getActivity(
+            context,
+            0,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

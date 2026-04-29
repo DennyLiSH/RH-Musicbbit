@@ -42,6 +42,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
+import android.Manifest
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.ActivityCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,6 +59,32 @@ fun PermissionDiagnosticsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    // Refresh permissions when returning from system settings
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshPermissions()
+    }
+
+    // System permission dialog for POST_NOTIFICATIONS
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.refreshPermissions()
+        if (!granted) {
+            // Check if permanently denied (rationale = false after a denial means permanent)
+            val activity = context as? Activity ?: return@rememberLauncherForActivityResult
+            val shouldShowRationale = ActivityCompat.shouldShowRequestPermissionRationale(
+                activity, Manifest.permission.POST_NOTIFICATIONS
+            )
+            if (!shouldShowRationale) {
+                // Permanently denied — fall back to system settings
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                }
+                context.startActivity(intent)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -98,6 +131,9 @@ fun PermissionDiagnosticsScreen(
                                 }
                                 permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_FULL_SCREEN_INTENT -> {
                                     FullScreenIntentPermissionHelper.openSettings(context)
+                                }
+                                permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_POST_NOTIFICATIONS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                 }
                                 else -> {
                                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -229,7 +265,8 @@ private fun PermissionCard(
                 val buttonTextRes = if (
                     !permission.isRuntime ||
                     permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_SCHEDULE_EXACT_ALARMS ||
-                    permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_FULL_SCREEN_INTENT
+                    permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_FULL_SCREEN_INTENT ||
+                    permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_POST_NOTIFICATIONS
                 ) {
                     R.string.permission_diagnostics_fix
                 } else {
