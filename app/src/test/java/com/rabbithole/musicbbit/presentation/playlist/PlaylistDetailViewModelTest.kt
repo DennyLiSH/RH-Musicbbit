@@ -135,6 +135,25 @@ class PlaylistDetailViewModelTest {
         coVerify { addSongToPlaylistUseCase(1L, listOf(1L, 2L)) }
     }
 
+    @Test
+    fun `retry reloads playlist after error`() = runTest(testDispatcher) {
+        val errorFlow = kotlinx.coroutines.flow.flow<PlaylistWithSongs?> { throw RuntimeException("DB error") }
+        every { playlistRepository.getPlaylistWithSongs(1L) } returns errorFlow
+        every { musicRepository.getAllSongs() } returns flowOf(emptyList())
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value is PlaylistDetailUiState.Error)
+
+        val playlist = Playlist(id = 1L, name = "Test", createdAt = 0L, updatedAt = 0L)
+        every { playlistRepository.getPlaylistWithSongs(1L) } returns flowOf(PlaylistWithSongs(playlist, emptyList()))
+        viewModel.retry()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value is PlaylistDetailUiState.Success)
+    }
+
     private fun createViewModel(): PlaylistDetailViewModel {
         return PlaylistDetailViewModel(
             savedStateHandle = SavedStateHandle(mapOf("playlistId" to 1L)),
