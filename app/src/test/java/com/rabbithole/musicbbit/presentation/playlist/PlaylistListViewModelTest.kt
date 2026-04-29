@@ -97,7 +97,7 @@ class PlaylistListViewModelTest {
     @Test
     fun `create playlist failure sets error in Success state`() = runTest(testDispatcher) {
         every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
-        coEvery { createPlaylistUseCase("New") } returns Result.failure(RuntimeException("Failed"))
+        coEvery { createPlaylistUseCase("New") } coAnswers { Result.failure(RuntimeException("Failed")) }
 
         val viewModel = PlaylistListViewModel(playlistRepository, createPlaylistUseCase)
         advanceUntilIdle()

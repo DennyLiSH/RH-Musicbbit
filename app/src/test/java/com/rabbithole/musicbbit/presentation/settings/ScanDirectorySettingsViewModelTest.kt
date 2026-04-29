@@ -99,7 +99,7 @@ class ScanDirectorySettingsViewModelTest {
         every { scanDirectoryRepository.getAll() } returns flowOf(emptyList())
         every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(true)
         every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3500L)
-        coEvery { addScanDirectoryUseCase(any()) } returns Result.failure(RuntimeException("Failed"))
+        coEvery { addScanDirectoryUseCase(any()) } coAnswers { Result.failure(RuntimeException("Failed")) }
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
