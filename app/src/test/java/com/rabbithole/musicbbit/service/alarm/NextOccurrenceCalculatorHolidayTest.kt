@@ -202,4 +202,95 @@ class NextOccurrenceCalculatorHolidayTest {
         }
         assertEquals(expected.timeInMillis, result)
     }
+
+    // -------- Additional boundary-case tests -------------------------------------
+
+    @Test
+    fun `nextOccurrence - consecutive multi-day holiday skips to first workday`() = runTest {
+        // Jan 15-17 2024 (Mon-Wed) are all holidays. Daily mode with excludeHolidays=true
+        // should skip to Jan 18 (Thursday).
+        val now = fixedNow(day = 15, hour = 8)
+        val calculator = createCalculator(
+            nonWorkdayDates = listOf("2024-01-15", "2024-01-16", "2024-01-17"),
+            now = now,
+        )
+
+        val result = calculator.nextOccurrence(10, 0, 0b1111111, excludeHolidays = true)
+
+        // Expected: 2024-01-18 10:00 (Thursday)
+        val expected = Calendar.getInstance().apply {
+            timeInMillis = now.timeInMillis
+            set(Calendar.DAY_OF_MONTH, 18)
+            set(Calendar.HOUR_OF_DAY, 10)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        assertEquals(expected.timeInMillis, result)
+    }
+
+    @Test
+    fun `nextOccurrence - weekday-only bitmask on holiday skips to next matching day`() = runTest {
+        // Jan 15 2024 is Monday (holiday). Monday-only bitmask (bit 0 = 1).
+        // excludeHolidays=false but the logic for non-everyday mode checks:
+        //   dayMatches && isWorkday -> return; !dayMatches && isWorkday && weekend -> return
+        // Monday matches bitmask but isWorkday=false -> skip. Next matching weekday that is
+        // a workday is next Monday (Jan 22).
+        val now = fixedNow(day = 15, hour = 8)
+        val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
+
+        // Monday-only bitmask: bit 0 = Monday
+        val result = calculator.nextOccurrence(10, 0, 1, excludeHolidays = false)
+
+        // Expected: 2024-01-22 Mon 10:00
+        val expected = Calendar.getInstance().apply {
+            timeInMillis = now.timeInMillis
+            set(Calendar.DAY_OF_MONTH, 22)
+            set(Calendar.HOUR_OF_DAY, 10)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        assertEquals(expected.timeInMillis, result)
+    }
+
+    @Test
+    fun `nextOccurrence - DST spring-forward at 2_00 AM resolves correctly`() = runTest {
+        // Mar 10 2024: DST spring-forward at 2:00 AM (America/New_York).
+        // now = 1:00 AM, alarm at 2:00 AM. The 2:00 AM slot doesn't exist on this day.
+        // Calendar resolves it, and the result should be >= now.timeInMillis.
+        val tz = TimeZone.getTimeZone("America/New_York")
+        val now = Calendar.getInstance(tz).apply {
+            set(2024, Calendar.MARCH, 10, 1, 0, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val calculator = createCalculator(now = now)
+
+        val result = calculator.nextOccurrence(2, 0, 0b1111111, excludeHolidays = false)
+
+        // Result should be >= now (2:00 AM resolves to 3:00 AM DST)
+        assertTrue(
+            "Result should be >= now, got ${result} vs now=${now.timeInMillis}",
+            result >= now.timeInMillis
+        )
+    }
+
+    @Test
+    fun `nextOccurrence - fallback triggered when all days are non-workday`() = runTest {
+        // Simulate isWorkdayUseCase returning false for every date.
+        // The while loop will iterate past year+1 and invoke the fallback path.
+        val now = fixedNow(day = 15, hour = 8)
+        val isWorkdayUseCase = mockk<IsWorkdayUseCase>()
+        coEvery { isWorkdayUseCase(any()) } returns false
+
+        val clock = mockk<Clock>()
+        every { clock.nowMs() } returns now.timeInMillis
+
+        val calculator = NextOccurrenceCalculator(isWorkdayUseCase, clock)
+
+        val result = calculator.nextOccurrence(10, 0, 0b1111111, excludeHolidays = true)
+
+        // Fallback path should still return a positive timestamp
+        assertTrue("Fallback should return a positive timestamp, got $result", result > 0)
+    }
 }
