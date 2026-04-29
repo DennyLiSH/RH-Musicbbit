@@ -9,7 +9,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -23,7 +24,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class MusicBrowseViewModelTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
+    private val testDispatcher = StandardTestDispatcher()
 
     private lateinit var musicRepository: MusicRepository
     private lateinit var scanDirectoryRepository: ScanDirectoryRepository
@@ -41,29 +42,31 @@ class MusicBrowseViewModelTest {
     }
 
     @Test
-    fun `load with no scan directories emits NoScanDirectory`() {
+    fun `load with no scan directories emits NoScanDirectory`() = runTest(testDispatcher) {
         every { scanDirectoryRepository.getAll() } returns flowOf(emptyList())
         every { musicRepository.getAllSongs() } returns flowOf(emptyList())
 
         val viewModel = MusicBrowseViewModel(musicRepository, scanDirectoryRepository)
+        advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value is MusicUiState.NoScanDirectory)
     }
 
     @Test
-    fun `load with directories and empty songs emits Empty`() {
+    fun `load with directories and empty songs emits Empty`() = runTest(testDispatcher) {
         every { scanDirectoryRepository.getAll() } returns flowOf(
             listOf(ScanDirectory(id = 1L, path = "/music", name = "Music", addedAt = 0L))
         )
         every { musicRepository.getAllSongs() } returns flowOf(emptyList())
 
         val viewModel = MusicBrowseViewModel(musicRepository, scanDirectoryRepository)
+        advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value is MusicUiState.Empty)
     }
 
     @Test
-    fun `load with directories and songs emits Success`() {
+    fun `load with directories and songs emits Success`() = runTest(testDispatcher) {
         val songs = listOf(
             Song(id = 1L, path = "/a.mp3", title = "Song A", artist = null, album = null, durationMs = 1000L, dateAdded = 0L, coverUri = null),
             Song(id = 2L, path = "/b.mp3", title = "Song B", artist = null, album = null, durationMs = 2000L, dateAdded = 0L, coverUri = null)
@@ -74,6 +77,7 @@ class MusicBrowseViewModelTest {
         every { musicRepository.getAllSongs() } returns flowOf(songs)
 
         val viewModel = MusicBrowseViewModel(musicRepository, scanDirectoryRepository)
+        advanceUntilIdle()
 
         val state = viewModel.uiState.value as MusicUiState.Success
         assertEquals(2, state.songs.size)
@@ -81,8 +85,8 @@ class MusicBrowseViewModelTest {
     }
 
     @Test
-    fun `retry reloads after error`() = runTest {
-        val errorFlow = kotlinx.coroutines.flow.flow { throw RuntimeException("DB error") }
+    fun `retry reloads after error`() = runTest(testDispatcher) {
+        val errorFlow = kotlinx.coroutines.flow.flow<List<ScanDirectory>> { throw RuntimeException("DB error") }
         every { scanDirectoryRepository.getAll() } returns errorFlow
         every { musicRepository.getAllSongs() } returns flowOf(emptyList())
 

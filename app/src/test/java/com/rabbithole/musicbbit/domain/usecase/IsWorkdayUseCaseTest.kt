@@ -1,14 +1,16 @@
 package com.rabbithole.musicbbit.domain.usecase
 
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import androidx.datastore.preferences.core.edit
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.rabbithole.musicbbit.data.local.datastore.SettingsKeys
 import com.rabbithole.musicbbit.domain.repository.HolidayRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertTrue
@@ -22,24 +24,38 @@ class IsWorkdayUseCaseTest {
 
     private val holidayRepository: HolidayRepository = mockk()
     private val testDispatcher = UnconfinedTestDispatcher()
-    private val testScope = TestScope(testDispatcher)
-    private val testDataStore = PreferenceDataStoreFactory.createForTesting(scope = testScope)
+
+    private val lastMonthKey = stringPreferencesKey("last_holiday_api_month")
+
+    private val prefsMap = mutableMapOf<String, Any?>(
+        "last_holiday_api_month" to null,
+    )
+
+    private val prefsFlow = MutableStateFlow(createMockPrefs())
+
+    private fun createMockPrefs(): Preferences {
+        val prefs = mockk<Preferences>(relaxed = true)
+        every { prefs[lastMonthKey] } answers { prefsMap["last_holiday_api_month"] as? String }
+        every { prefs.get(lastMonthKey) } answers { prefsMap["last_holiday_api_month"] as? String }
+        return prefs
+    }
+
+    private val dataStore: DataStore<Preferences> = mockk(relaxed = true) {
+        every { data } returns prefsFlow
+    }
+
     private lateinit var useCase: IsWorkdayUseCase
 
     @Before
     fun setup() {
-        useCase = IsWorkdayUseCase(holidayRepository, testDataStore)
+        useCase = IsWorkdayUseCase(holidayRepository, dataStore)
     }
-
-    // ------------------------------------------------------------------
-    // Tests
-    // ------------------------------------------------------------------
 
     @Test
     fun `delegates to holidayRepository isWorkday`() = runTest(testDispatcher) {
         // Set current month so no refresh is triggered
-        val currentMonth = YearMonth.now().toString()
-        testDataStore.edit { it[SettingsKeys.LAST_HOLIDAY_API_CALL_MONTH] = currentMonth }
+        prefsMap["last_holiday_api_month"] = YearMonth.now().toString()
+        prefsFlow.value = createMockPrefs()
 
         val date = LocalDate.of(2026, 1, 5) // Monday
         coEvery { holidayRepository.isWorkday("2026-01-05") } returns true
@@ -63,8 +79,8 @@ class IsWorkdayUseCaseTest {
 
     @Test
     fun `skips refresh when already called this month`() = runTest(testDispatcher) {
-        val currentMonth = YearMonth.now().toString()
-        testDataStore.edit { it[SettingsKeys.LAST_HOLIDAY_API_CALL_MONTH] = currentMonth }
+        prefsMap["last_holiday_api_month"] = YearMonth.now().toString()
+        prefsFlow.value = createMockPrefs()
         coEvery { holidayRepository.isWorkday(any()) } returns true
 
         useCase.invoke(LocalDate.of(2026, 1, 5))

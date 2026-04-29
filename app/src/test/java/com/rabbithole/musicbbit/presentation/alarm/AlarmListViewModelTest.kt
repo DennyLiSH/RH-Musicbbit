@@ -231,7 +231,7 @@ class AlarmListViewModelTest {
 
     @Test
     fun `retry reloads alarms after error`() = runTest {
-        val errorFlow = kotlinx.coroutines.flow.flow { throw RuntimeException("DB error") }
+        val errorFlow = kotlinx.coroutines.flow.flow<List<Alarm>> { throw RuntimeException("DB error") }
         every { alarmRepository.getAllAlarms() } returns errorFlow
         every { FullScreenIntentPermissionHelper.isGranted(any()) } returns true
 

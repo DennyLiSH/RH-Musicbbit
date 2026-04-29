@@ -6,6 +6,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -234,10 +235,21 @@ class NextOccurrenceCalculatorHolidayTest {
         // Jan 15 2024 is Monday (holiday). Monday-only bitmask (bit 0 = 1).
         // excludeHolidays=false but the logic for non-everyday mode checks:
         //   dayMatches && isWorkday -> return; !dayMatches && isWorkday && weekend -> return
-        // Monday matches bitmask but isWorkday=false -> skip. Next matching weekday that is
-        // a workday is next Monday (Jan 22).
+        // Monday matches bitmask but isWorkday=false -> skip.
+        // Tuesday-Friday: dayMatches=false, isWorkday=true, but NOT weekend -> skip.
+        // Saturday-Sunday: isWorkday=false (realistic weekend behavior) -> skip.
+        // Next Monday (Jan 22): dayMatches=true, isWorkday=true -> return.
         val now = fixedNow(day = 15, hour = 8)
-        val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
+        val isWorkdayUseCase = mockk<IsWorkdayUseCase>()
+        coEvery { isWorkdayUseCase(any()) } answers {
+            val date = firstArg<java.time.LocalDate>()
+            val dayOfWeek = date.dayOfWeek
+            val isWeekend = dayOfWeek == java.time.DayOfWeek.SATURDAY || dayOfWeek == java.time.DayOfWeek.SUNDAY
+            !isWeekend && date.toString() != "2024-01-15"
+        }
+        val clock = mockk<Clock>()
+        every { clock.nowMs() } returns now.timeInMillis
+        val calculator = NextOccurrenceCalculator(isWorkdayUseCase, clock)
 
         // Monday-only bitmask: bit 0 = Monday
         val result = calculator.nextOccurrence(10, 0, 1, excludeHolidays = false)

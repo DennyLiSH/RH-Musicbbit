@@ -80,7 +80,7 @@ class MusicRepositoryImplTest {
             songEntity(id = 0L, path = "/storage/Music/new.mp3", title = "New Song")
         )
         every { songDao.getAll() } returns flowOf(emptyList())
-        coEvery { songDao.insertAll(any()) } returns Unit
+        coEvery { songDao.insertAll(any()) } returns emptyList()
 
         val result = repository.refreshSongs()
 

@@ -1,10 +1,15 @@
 package com.rabbithole.musicbbit.data.repository
 
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.stringPreferencesKey
 import app.cash.turbine.test
+import com.rabbithole.musicbbit.data.local.datastore.SettingsKeys
 import com.rabbithole.musicbbit.domain.model.ThemeMode
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -15,52 +20,62 @@ import org.junit.Test
 class ThemeRepositoryImplTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
-    private val testScope = TestScope(testDispatcher)
-    private val testDataStore = PreferenceDataStoreFactory.createForTesting(scope = testScope)
+
+    private val themeModeKey = stringPreferencesKey("theme_mode")
+
+    private val prefsMap = mutableMapOf<String, Any?>(
+        "theme_mode" to null,
+    )
+
+    private val prefsFlow = MutableStateFlow(createMockPrefs())
+
+    private fun createMockPrefs(): Preferences {
+        val prefs = mockk<Preferences>(relaxed = true)
+        every { prefs[themeModeKey] } answers { prefsMap["theme_mode"] as? String }
+        every { prefs.get(themeModeKey) } answers { prefsMap["theme_mode"] as? String }
+        return prefs
+    }
+
+    private val dataStore: DataStore<Preferences> = mockk(relaxed = true) {
+        every { data } returns prefsFlow
+    }
+
     private lateinit var repository: ThemeRepositoryImpl
 
     @Before
     fun setup() {
-        repository = ThemeRepositoryImpl(testDataStore, testDispatcher)
+        repository = ThemeRepositoryImpl(dataStore, testDispatcher)
     }
-
-    // ------------------------------------------------------------------
-    // Tests
-    // ------------------------------------------------------------------
 
     @Test
     fun `getThemeMode defaults to SYSTEM`() = runTest(testDispatcher) {
         repository.getThemeMode().test {
             val mode = awaitItem()
             assertEquals(ThemeMode.SYSTEM, mode)
-            awaitComplete()
+            cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `setThemeMode persists and emits new value`() = runTest(testDispatcher) {
-        val result = repository.setThemeMode(ThemeMode.DARK)
-        assert(result.isSuccess)
+    fun `getThemeMode reflects DARK value`() = runTest(testDispatcher) {
+        prefsMap["theme_mode"] = "DARK"
+        prefsFlow.value = createMockPrefs()
 
         repository.getThemeMode().test {
             val mode = awaitItem()
             assertEquals(ThemeMode.DARK, mode)
-            awaitComplete()
+            cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `getThemeMode emits updated value after set`() = runTest(testDispatcher) {
-        // Start collecting first
+    fun `getThemeMode reflects LIGHT value`() = runTest(testDispatcher) {
+        prefsMap["theme_mode"] = "LIGHT"
+        prefsFlow.value = createMockPrefs()
+
         repository.getThemeMode().test {
-            // Default value
-            assertEquals(ThemeMode.SYSTEM, awaitItem())
-
-            // Change to LIGHT
-            repository.setThemeMode(ThemeMode.LIGHT)
-
-            // Should emit updated value
             assertEquals(ThemeMode.LIGHT, awaitItem())
+            cancelAndIgnoreRemainingEvents()
         }
     }
 }

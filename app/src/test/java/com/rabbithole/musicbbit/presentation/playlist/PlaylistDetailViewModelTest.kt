@@ -14,8 +14,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -28,7 +27,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistDetailViewModelTest {
 
-    private val testDispatcher = StandardTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher()
 
     private lateinit var playlistRepository: PlaylistRepository
     private lateinit var musicRepository: MusicRepository
@@ -48,7 +47,7 @@ class PlaylistDetailViewModelTest {
     }
 
     @Test
-    fun `load playlist with songs emits Success state`() = runTest(testDispatcher) {
+    fun `load playlist with songs emits Success state`() = runTest {
         val playlist = Playlist(id = 1L, name = "Test", createdAt = 0L, updatedAt = 0L)
         val songs = listOf(
             Song(id = 1L, path = "/a.mp3", title = "Song A", artist = null, album = null, durationMs = 1000L, dateAdded = 0L, coverUri = null),
@@ -60,7 +59,6 @@ class PlaylistDetailViewModelTest {
         every { musicRepository.getAllSongs() } returns flowOf(emptyList())
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
 
         val state = viewModel.uiState.value as PlaylistDetailUiState.Success
         assertEquals(playlist, state.playlistWithSongs.playlist)
@@ -68,7 +66,7 @@ class PlaylistDetailViewModelTest {
     }
 
     @Test
-    fun `remove song calls repository removeSongFromPlaylist`() = runTest(testDispatcher) {
+    fun `remove song calls repository removeSongFromPlaylist`() = runTest {
         val playlist = Playlist(id = 1L, name = "Test", createdAt = 0L, updatedAt = 0L)
         val songs = listOf(
             Song(id = 1L, path = "/a.mp3", title = "Song A", artist = null, album = null, durationMs = 1000L, dateAdded = 0L, coverUri = null)
@@ -80,16 +78,15 @@ class PlaylistDetailViewModelTest {
         coEvery { playlistRepository.removeSongFromPlaylist(1L, 1L) } returns Result.success(Unit)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
 
         viewModel.onAction(PlaylistDetailAction.OnRemoveSong(1L))
-        advanceUntilIdle()
+        testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify { playlistRepository.removeSongFromPlaylist(1L, 1L) }
     }
 
     @Test
-    fun `reorder songs updates ui state and calls reorderPlaylistSongs`() = runTest(testDispatcher) {
+    fun `reorder songs updates ui state and calls reorderPlaylistSongs`() = runTest {
         val playlist = Playlist(id = 1L, name = "Test", createdAt = 0L, updatedAt = 0L)
         val songs = listOf(
             Song(id = 1L, path = "/a.mp3", title = "Song A", artist = null, album = null, durationMs = 1000L, dateAdded = 0L, coverUri = null),
@@ -103,10 +100,9 @@ class PlaylistDetailViewModelTest {
         coEvery { playlistRepository.reorderPlaylistSongs(1L, any()) } returns Result.success(Unit)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
 
         viewModel.onAction(PlaylistDetailAction.OnReorderSongs(fromIndex = 0, toIndex = 2))
-        advanceUntilIdle()
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as PlaylistDetailUiState.Success
         assertEquals(3, state.playlistWithSongs.songs.size)
@@ -118,7 +114,7 @@ class PlaylistDetailViewModelTest {
     }
 
     @Test
-    fun `add songs calls addSongToPlaylistUseCase`() = runTest(testDispatcher) {
+    fun `add songs calls addSongToPlaylistUseCase`() = runTest {
         val playlist = Playlist(id = 1L, name = "Test", createdAt = 0L, updatedAt = 0L)
         val playlistWithSongs = PlaylistWithSongs(playlist, emptyList())
 
@@ -127,29 +123,26 @@ class PlaylistDetailViewModelTest {
         coEvery { addSongToPlaylistUseCase(1L, listOf(1L, 2L)) } returns Result.success(Unit)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
 
         viewModel.onAction(PlaylistDetailAction.OnAddSongs(listOf(1L, 2L)))
-        advanceUntilIdle()
+        testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify { addSongToPlaylistUseCase(1L, listOf(1L, 2L)) }
     }
 
     @Test
-    fun `retry reloads playlist after error`() = runTest(testDispatcher) {
+    fun `retry reloads playlist after error`() = runTest {
         val errorFlow = kotlinx.coroutines.flow.flow<PlaylistWithSongs?> { throw RuntimeException("DB error") }
         every { playlistRepository.getPlaylistWithSongs(1L) } returns errorFlow
         every { musicRepository.getAllSongs() } returns flowOf(emptyList())
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value is PlaylistDetailUiState.Error)
 
         val playlist = Playlist(id = 1L, name = "Test", createdAt = 0L, updatedAt = 0L)
         every { playlistRepository.getPlaylistWithSongs(1L) } returns flowOf(PlaylistWithSongs(playlist, emptyList()))
         viewModel.retry()
-        advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value is PlaylistDetailUiState.Success)
     }
