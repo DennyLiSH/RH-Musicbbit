@@ -123,4 +123,21 @@ class PlaylistListViewModelTest {
 
         coVerify { playlistRepository.deletePlaylist(playlist) }
     }
+
+    @Test
+    fun `retry reloads playlists after error`() = runTest(testDispatcher) {
+        val errorFlow = kotlinx.coroutines.flow.flow<List<com.rabbithole.musicbbit.domain.model.Playlist>> { throw RuntimeException("DB error") }
+        every { playlistRepository.getAllPlaylists() } returns errorFlow
+
+        val viewModel = PlaylistListViewModel(playlistRepository, createPlaylistUseCase)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value is PlaylistListUiState.Error)
+
+        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
+        viewModel.retry()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value is PlaylistListUiState.Success)
+    }
 }
