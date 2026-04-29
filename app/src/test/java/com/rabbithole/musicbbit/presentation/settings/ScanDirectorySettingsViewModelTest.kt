@@ -140,4 +140,28 @@ class ScanDirectorySettingsViewModelTest {
 
         coVerify { scanDirectoryRepository.remove(1L) }
     }
+
+    @Test
+    fun `retry reloads directories after error`() = runTest(testDispatcher) {
+        val errorFlow = kotlinx.coroutines.flow.flow<List<ScanDirectory>> { throw RuntimeException("DB error") }
+        every { scanDirectoryRepository.getAll() } returns errorFlow
+        every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(true)
+        every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3500L)
+
+        val viewModel = ScanDirectorySettingsViewModel(
+            scanDirectoryRepository, addScanDirectoryUseCase, alarmRingSettingsRepository
+        )
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value is ScanDirectorySettingsUiState.Error)
+
+        every { scanDirectoryRepository.getAll() } returns flowOf(
+            listOf(ScanDirectory(id = 1L, path = "/music", name = "Music", addedAt = 0L))
+        )
+        viewModel.retry()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as ScanDirectorySettingsUiState.Success
+        assertEquals(1, state.directories.size)
+    }
 }
