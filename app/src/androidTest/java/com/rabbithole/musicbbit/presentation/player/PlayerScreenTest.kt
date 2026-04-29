@@ -5,33 +5,24 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.navigation.compose.rememberNavController
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.service.PlaybackState
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 
 /**
- * Robolectric + Compose UI tests for [PlayerScreen].
+ * Instrumented Compose UI tests for [PlayerScreen].
  *
- * These tests run on the JVM (not androidTest) and verify the screen renders
+ * These tests run on a device/emulator and verify the screen renders
  * correctly for different playback states.
  */
-/**
- * Robolectric 下 Compose UI 测试的 ActivityScenarioRule 初始化失败
- * （RuntimeException at RoboMonitoringInstrumentation.java:102）。
- * Compose UI 测试建议迁移到 androidTest 运行。
- */
-@Ignore("Requires instrumented test runner; Robolectric does not support ActivityScenarioRule for Compose")
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
+@RunWith(AndroidJUnit4::class)
 class PlayerScreenTest {
 
     @get:Rule
