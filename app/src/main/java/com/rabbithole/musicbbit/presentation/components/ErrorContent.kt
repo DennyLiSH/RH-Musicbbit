@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -20,6 +22,7 @@ import com.rabbithole.musicbbit.R
 fun ErrorContent(
     message: String,
     modifier: Modifier = Modifier,
+    icon: Painter? = null,
     onRetry: (() -> Unit)? = null
 ) {
     Box(
@@ -30,6 +33,13 @@ fun ErrorContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            if (icon != null) {
+                Icon(
+                    painter = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyLarge,
