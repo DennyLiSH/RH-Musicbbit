@@ -2,6 +2,7 @@ package com.rabbithole.musicbbit.service
 
 import android.content.Context
 import android.media.AudioManager
+import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -9,12 +10,14 @@ import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
 @Singleton
 class AlarmVolumeController @Inject constructor(
-    @param:ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context,
+    private val alarmRingSettingsRepository: AlarmRingSettingsRepository
 ) : VolumeRampPort {
     private val audioManager: AudioManager =
         context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -31,19 +34,26 @@ class AlarmVolumeController @Inject constructor(
     override fun startVolumeRamp(scope: CoroutineScope) {
         originalVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
 
-        val startVolume = (maxVolume * 0.3f).toInt().coerceAtLeast(1)
-        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, startVolume, 0)
-        Timber.d("Starting volume ramp from $startVolume to $maxVolume")
-
-        val steps = 10
-        val delayMs = 500L
-        val volumeStep = (maxVolume - startVolume).toFloat() / steps
-
         volumeJob = scope.launch {
+            val durationSeconds = alarmRingSettingsRepository.getVolumeRampDurationSeconds().first()
+
+            if (durationSeconds == 0) {
+                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, 0)
+                Timber.i("Volume ramp disabled, set to max immediately")
+                return@launch
+            }
+
+            val startVolume = (maxVolume * 0.3f).toInt().coerceAtLeast(1)
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, startVolume, 0)
+            Timber.d("Starting volume ramp from $startVolume to $maxVolume over ${durationSeconds}s")
+
+            val steps = 10
+            val delayMs = durationSeconds * 1000L / steps
+            val volumeStep = (maxVolume - startVolume).toFloat() / steps
+
             repeat(steps) { i ->
                 delay(delayMs)
 
-                // Detect manual user adjustment
                 val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                 val expectedVolume = (startVolume + volumeStep * i).toInt().coerceIn(0, maxVolume)
 
@@ -54,7 +64,6 @@ class AlarmVolumeController @Inject constructor(
                     return@launch
                 }
 
-                // Continue ramp
                 val newVolume = (startVolume + volumeStep * (i + 1)).toInt()
                 audioManager.setStreamVolume(
                     AudioManager.STREAM_MUSIC,
