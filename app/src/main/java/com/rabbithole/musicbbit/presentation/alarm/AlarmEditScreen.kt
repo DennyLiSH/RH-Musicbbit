@@ -344,6 +344,12 @@ private fun AlarmEditContent(
             }
         )
 
+        Spacer(modifier = Modifier.height(16.dp))
+
+        VolumeRampHint(
+            durationSeconds = uiState.volumeRampDurationSeconds
+        )
+
         // Error message
         if (uiState.errorMessageResId != null) {
             Spacer(modifier = Modifier.height(16.dp))
@@ -471,4 +477,22 @@ private fun AutoStopDropdown(
             }
         }
     }
+}
+
+@Composable
+private fun VolumeRampHint(
+    durationSeconds: Int,
+    modifier: Modifier = Modifier
+) {
+    val text = if (durationSeconds == 0) {
+        stringResource(R.string.alarm_edit_volume_ramp_disabled_hint)
+    } else {
+        stringResource(R.string.alarm_edit_volume_ramp_hint, durationSeconds)
+    }
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier
+    )
 }

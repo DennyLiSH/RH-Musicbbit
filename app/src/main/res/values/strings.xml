@@ -78,6 +78,8 @@
     <string name="alarm_edit_auto_stop_4songs">4 songs</string>
     <string name="alarm_edit_auto_stop_5songs">5 songs</string>
     <string name="alarm_edit_auto_stop_10songs">10 songs</string>
+    <string name="alarm_edit_volume_ramp_hint">Volume will ramp from 30%% to max over %d seconds when alarm rings.</string>
+    <string name="alarm_edit_volume_ramp_disabled_hint">Volume will be set to max immediately when alarm rings.</string>
     <string name="alarm_edit_error_not_found">Alarm not found</string>
     <string name="alarm_edit_error_select_playlist">Please select a playlist</string>
     <string name="alarm_edit_error_save_failed">Failed to save alarm</string>
