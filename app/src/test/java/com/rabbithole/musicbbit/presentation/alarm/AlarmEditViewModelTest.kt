@@ -6,6 +6,7 @@ import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
+import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.service.AlarmScheduler
@@ -55,6 +56,7 @@ class AlarmEditViewModelTest {
     private lateinit var alarmRepository: AlarmRepository
     private lateinit var playlistRepository: PlaylistRepository
     private lateinit var alarmScheduler: AlarmScheduler
+    private lateinit var alarmRingSettingsRepository: AlarmRingSettingsRepository
 
     @Before
     fun setUp() {
@@ -62,6 +64,7 @@ class AlarmEditViewModelTest {
         alarmRepository = mockk(relaxed = true)
         playlistRepository = mockk(relaxed = true)
         alarmScheduler = mockk(relaxed = true)
+        alarmRingSettingsRepository = mockk(relaxed = true)
         mockkObject(FullScreenIntentPermissionHelper)
         every { FullScreenIntentPermissionHelper.isGranted(any()) } returns true
         every { alarmScheduler.canScheduleExactAlarms() } returns true
@@ -221,13 +224,29 @@ class AlarmEditViewModelTest {
             setOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY), state.repeatDays)
     }
 
+    @Test
+    fun `volume ramp duration is loaded from repository into uiState`() {
+        every { alarmRingSettingsRepository.getVolumeRampDurationSeconds() } returns flowOf(10)
+        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        assertEquals(
+            "volumeRampDurationSeconds should match repository value",
+            10,
+            viewModel.uiState.value.volumeRampDurationSeconds
+        )
+    }
+
     private fun createViewModel(savedStateHandle: SavedStateHandle): AlarmEditViewModel {
         return AlarmEditViewModel(
             context = context,
             savedStateHandle = savedStateHandle,
             alarmRepository = alarmRepository,
             playlistRepository = playlistRepository,
-            alarmScheduler = alarmScheduler
+            alarmScheduler = alarmScheduler,
+            alarmRingSettingsRepository = alarmRingSettingsRepository
         )
     }
 }

@@ -11,6 +11,7 @@ import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
+import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.service.AlarmScheduler
@@ -48,7 +49,8 @@ data class AlarmEditUiState(
     val isNewAlarm: Boolean = true,
     val errorMessageResId: Int? = null,
     val showPermissionDialog: Boolean = false,
-    val showFullScreenIntentDialog: Boolean = false
+    val showFullScreenIntentDialog: Boolean = false,
+    val volumeRampDurationSeconds: Int = 0
 )
 
 /**
@@ -72,7 +74,8 @@ class AlarmEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val alarmRepository: AlarmRepository,
     private val playlistRepository: PlaylistRepository,
-    private val alarmScheduler: AlarmScheduler
+    private val alarmScheduler: AlarmScheduler,
+    private val alarmRingSettingsRepository: AlarmRingSettingsRepository
 ) : ViewModel() {
 
     private val alarmId: Long = savedStateHandle.toRoute<AlarmEdit>().alarmId
@@ -88,6 +91,7 @@ class AlarmEditViewModel @Inject constructor(
     init {
         Timber.i("AlarmEditViewModel initialized, alarmId=%d", alarmId)
         observePlaylists()
+        observeVolumeRampDuration()
         if (alarmId != 0L) {
             loadAlarm()
         }
@@ -105,6 +109,22 @@ class AlarmEditViewModel @Inject constructor(
             .catch { e ->
                 Timber.e(e, "Failed to load playlists")
                 _uiState.update { it.copy(isLoading = false, errorMessageResId = R.string.error_load_failed) }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    /**
+     * Collect volume ramp duration from settings repository.
+     */
+    private fun observeVolumeRampDuration() {
+        alarmRingSettingsRepository.getVolumeRampDurationSeconds()
+            .onEach { seconds ->
+                Timber.d("Volume ramp duration: %ds", seconds)
+                _uiState.update { it.copy(volumeRampDurationSeconds = seconds) }
+            }
+            .catch { e ->
+                Timber.e(e, "Failed to load volume ramp duration")
+                _uiState.update { it.copy(volumeRampDurationSeconds = 0) }
             }
             .launchIn(viewModelScope)
     }
