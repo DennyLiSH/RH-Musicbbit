@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
-import com.rabbithole.musicbbit.domain.usecase.AddSongToPlaylistUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,8 +30,7 @@ sealed interface AddToPlaylistUiState {
 
 @HiltViewModel
 class AddToPlaylistBottomSheetViewModel @Inject constructor(
-    private val playlistRepository: PlaylistRepository,
-    private val addSongToPlaylistUseCase: AddSongToPlaylistUseCase
+    private val playlistRepository: PlaylistRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<AddToPlaylistUiState>(AddToPlaylistUiState.Loading)
@@ -62,7 +60,7 @@ class AddToPlaylistBottomSheetViewModel @Inject constructor(
 
     fun onPlaylistSelected(playlistId: Long, songId: Long) {
         viewModelScope.launch {
-            addSongToPlaylistUseCase(playlistId, songId)
+            playlistRepository.addSongToPlaylist(playlistId, songId)
                 .onFailure { e ->
                     Timber.w(e, "Failed to add song $songId to playlist $playlistId")
                     val current = _uiState.value

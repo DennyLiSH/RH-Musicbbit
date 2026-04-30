@@ -6,7 +6,6 @@ import com.rabbithole.musicbbit.domain.model.PlaylistWithSongs
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
-import com.rabbithole.musicbbit.domain.usecase.AddSongToPlaylistUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -31,14 +30,12 @@ class PlaylistDetailViewModelTest {
 
     private lateinit var playlistRepository: PlaylistRepository
     private lateinit var musicRepository: MusicRepository
-    private lateinit var addSongToPlaylistUseCase: AddSongToPlaylistUseCase
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         playlistRepository = mockk(relaxed = true)
         musicRepository = mockk(relaxed = true)
-        addSongToPlaylistUseCase = mockk()
     }
 
     @After
@@ -120,14 +117,14 @@ class PlaylistDetailViewModelTest {
 
         every { playlistRepository.getPlaylistWithSongs(1L) } returns flowOf(playlistWithSongs)
         every { musicRepository.getAllSongs() } returns flowOf(emptyList())
-        coEvery { addSongToPlaylistUseCase(1L, listOf(1L, 2L)) } returns Result.success(Unit)
+        coEvery { playlistRepository.addSongsToPlaylist(1L, listOf(1L, 2L)) } returns Result.success(Unit)
 
         val viewModel = createViewModel()
 
         viewModel.onAction(PlaylistDetailAction.OnAddSongs(listOf(1L, 2L)))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { addSongToPlaylistUseCase(1L, listOf(1L, 2L)) }
+        coVerify { playlistRepository.addSongsToPlaylist(1L, listOf(1L, 2L)) }
     }
 
     @Test
@@ -152,7 +149,6 @@ class PlaylistDetailViewModelTest {
             savedStateHandle = SavedStateHandle(mapOf("playlistId" to 1L)),
             playlistRepository = playlistRepository,
             musicRepository = musicRepository,
-            addSongToPlaylistUseCase = addSongToPlaylistUseCase
         )
     }
 }

@@ -8,7 +8,6 @@ import com.rabbithole.musicbbit.domain.model.PlaylistWithSongs
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
-import com.rabbithole.musicbbit.domain.usecase.AddSongToPlaylistUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import timber.log.Timber
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,7 +44,6 @@ class PlaylistDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val playlistRepository: PlaylistRepository,
     private val musicRepository: MusicRepository,
-    private val addSongToPlaylistUseCase: AddSongToPlaylistUseCase
 ) : ViewModel() {
 
     val playlistId: Long = checkNotNull(savedStateHandle["playlistId"]) { "playlistId required" }
@@ -127,7 +125,7 @@ class PlaylistDetailViewModel @Inject constructor(
             }
             is PlaylistDetailAction.OnAddSongs -> {
                 viewModelScope.launch {
-                    addSongToPlaylistUseCase(playlistId, action.songIds)
+                    playlistRepository.addSongsToPlaylist(playlistId, action.songIds)
                         .onFailure { e ->
                             Timber.w(e, "Failed to add songs to playlist $playlistId")
                             _uiState.update {

@@ -3,8 +3,8 @@ package com.rabbithole.musicbbit.presentation.settings
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
+import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
-import com.rabbithole.musicbbit.domain.usecase.AddScanDirectoryUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -29,14 +29,14 @@ class ScanDirectorySettingsViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
 
     private lateinit var scanDirectoryRepository: ScanDirectoryRepository
-    private lateinit var addScanDirectoryUseCase: AddScanDirectoryUseCase
+    private lateinit var musicRepository: MusicRepository
     private lateinit var alarmRingSettingsRepository: AlarmRingSettingsRepository
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         scanDirectoryRepository = mockk(relaxed = true)
-        addScanDirectoryUseCase = mockk()
+        musicRepository = mockk(relaxed = true)
         alarmRingSettingsRepository = mockk(relaxed = true)
     }
 
@@ -57,7 +57,7 @@ class ScanDirectorySettingsViewModelTest {
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
-            addScanDirectoryUseCase,
+            musicRepository,
             alarmRingSettingsRepository
         )
 
@@ -71,11 +71,12 @@ class ScanDirectorySettingsViewModelTest {
         every { scanDirectoryRepository.getAll() } returns flowOf(emptyList())
         every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(true)
         every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3500L)
-        coEvery { addScanDirectoryUseCase(any()) } coAnswers { Result.success(1L) }
+        coEvery { scanDirectoryRepository.add(any()) } coAnswers { Result.success(1L) }
+        coEvery { musicRepository.refreshSongs() } returns Result.success(Unit)
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
-            addScanDirectoryUseCase,
+            musicRepository,
             alarmRingSettingsRepository
         )
 
@@ -95,11 +96,11 @@ class ScanDirectorySettingsViewModelTest {
         every { scanDirectoryRepository.getAll() } returns flowOf(emptyList())
         every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(true)
         every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3500L)
-        coEvery { addScanDirectoryUseCase(any()) } coAnswers { Result.failure(RuntimeException("Failed")) }
+        coEvery { scanDirectoryRepository.add(any()) } coAnswers { Result.failure(RuntimeException("Failed")) }
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
-            addScanDirectoryUseCase,
+            musicRepository,
             alarmRingSettingsRepository
         )
 
@@ -123,7 +124,7 @@ class ScanDirectorySettingsViewModelTest {
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
-            addScanDirectoryUseCase,
+            musicRepository,
             alarmRingSettingsRepository
         )
 
@@ -141,7 +142,7 @@ class ScanDirectorySettingsViewModelTest {
         every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3500L)
 
         val viewModel = ScanDirectorySettingsViewModel(
-            scanDirectoryRepository, addScanDirectoryUseCase, alarmRingSettingsRepository
+            scanDirectoryRepository, musicRepository, alarmRingSettingsRepository
         )
 
         assertTrue(viewModel.uiState.value is ScanDirectorySettingsUiState.Error)

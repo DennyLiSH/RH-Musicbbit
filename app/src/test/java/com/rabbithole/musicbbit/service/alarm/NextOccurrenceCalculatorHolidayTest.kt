@@ -1,6 +1,6 @@
 package com.rabbithole.musicbbit.service.alarm
 
-import com.rabbithole.musicbbit.domain.usecase.IsWorkdayUseCase
+import com.rabbithole.musicbbit.domain.repository.HolidayRepository
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -22,7 +22,7 @@ import java.util.TimeZone
  * honours adjusted workdays (make-up shifts on weekends), and handles DST transitions.
  *
  * Mocking pattern follows [NextOccurrenceCalculatorProductionTest]:
- *   - [IsWorkdayUseCase] is mocked with [coEvery] to control workday/holiday behaviour.
+ *   - [HolidayRepository] is mocked with [coEvery] to control workday/holiday behaviour.
  *   - [Clock] is mocked with [every] to pin "now".
  */
 @RunWith(JUnit4::class)
@@ -59,16 +59,16 @@ class NextOccurrenceCalculatorHolidayTest {
         nonWorkdayDates: List<String> = emptyList(),
         now: Calendar = fixedNow(),
     ): NextOccurrenceCalculator {
-        val isWorkdayUseCase = mockk<IsWorkdayUseCase>()
-        coEvery { isWorkdayUseCase(any()) } answers {
-            val date = firstArg<java.time.LocalDate>()
-            date.toString() !in nonWorkdayDates
+        val holidayRepository = mockk<HolidayRepository>()
+        coEvery { holidayRepository.maybeRefreshHolidays(any()) } returns Unit
+        coEvery { holidayRepository.isWorkday(any()) } answers {
+            firstArg<String>() !in nonWorkdayDates
         }
 
         val clock = mockk<Clock>()
         every { clock.nowMs() } returns now.timeInMillis
 
-        return NextOccurrenceCalculator(isWorkdayUseCase, clock)
+        return NextOccurrenceCalculator(holidayRepository, clock)
     }
 
     @Test
@@ -240,16 +240,18 @@ class NextOccurrenceCalculatorHolidayTest {
         // Saturday-Sunday: isWorkday=false (realistic weekend behavior) -> skip.
         // Next Monday (Jan 22): dayMatches=true, isWorkday=true -> return.
         val now = fixedNow(day = 15, hour = 8)
-        val isWorkdayUseCase = mockk<IsWorkdayUseCase>()
-        coEvery { isWorkdayUseCase(any()) } answers {
-            val date = firstArg<java.time.LocalDate>()
-            val dayOfWeek = date.dayOfWeek
+        val holidayRepository = mockk<HolidayRepository>()
+        coEvery { holidayRepository.maybeRefreshHolidays(any()) } returns Unit
+        coEvery { holidayRepository.isWorkday(any()) } answers {
+            val dateStr = firstArg<String>()
+            val localDate = java.time.LocalDate.parse(dateStr)
+            val dayOfWeek = localDate.dayOfWeek
             val isWeekend = dayOfWeek == java.time.DayOfWeek.SATURDAY || dayOfWeek == java.time.DayOfWeek.SUNDAY
-            !isWeekend && date.toString() != "2024-01-15"
+            !isWeekend && dateStr != "2024-01-15"
         }
         val clock = mockk<Clock>()
         every { clock.nowMs() } returns now.timeInMillis
-        val calculator = NextOccurrenceCalculator(isWorkdayUseCase, clock)
+        val calculator = NextOccurrenceCalculator(holidayRepository, clock)
 
         // Monday-only bitmask: bit 0 = Monday
         val result = calculator.nextOccurrence(10, 0, 1, excludeHolidays = false)
@@ -292,13 +294,14 @@ class NextOccurrenceCalculatorHolidayTest {
         // Simulate isWorkdayUseCase returning false for every date.
         // The while loop will iterate past year+1 and invoke the fallback path.
         val now = fixedNow(day = 15, hour = 8)
-        val isWorkdayUseCase = mockk<IsWorkdayUseCase>()
-        coEvery { isWorkdayUseCase(any()) } returns false
+        val holidayRepository = mockk<HolidayRepository>()
+        coEvery { holidayRepository.maybeRefreshHolidays(any()) } returns Unit
+        coEvery { holidayRepository.isWorkday(any()) } returns false
 
         val clock = mockk<Clock>()
         every { clock.nowMs() } returns now.timeInMillis
 
-        val calculator = NextOccurrenceCalculator(isWorkdayUseCase, clock)
+        val calculator = NextOccurrenceCalculator(holidayRepository, clock)
 
         val result = calculator.nextOccurrence(10, 0, 0b1111111, excludeHolidays = true)
 

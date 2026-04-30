@@ -1,7 +1,6 @@
 package com.rabbithole.musicbbit.service.alarm
 
-import com.rabbithole.musicbbit.domain.usecase.IsWorkdayUseCase
-import java.time.LocalDate
+import com.rabbithole.musicbbit.domain.repository.HolidayRepository
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -11,7 +10,7 @@ import timber.log.Timber
  * Calculates the next time an alarm should fire, with Chinese holiday / adjusted-workday awareness.
  *
  * Two paths:
- *  - [nextOccurrence] is the production path. It consults [IsWorkdayUseCase] to skip statutory
+ *  - [nextOccurrence] is the production path. It consults [HolidayRepository] to skip statutory
  *    holidays and to honour adjusted workdays (a weekend that the calendar promotes to a
  *    working day for a make-up shift).
  *  - [Companion.nextOccurrenceFallback] is the pure-Kotlin fallback used when the holiday
@@ -19,12 +18,14 @@ import timber.log.Timber
  */
 @Singleton
 class NextOccurrenceCalculator @Inject constructor(
-    private val isWorkdayUseCase: IsWorkdayUseCase,
+    private val holidayRepository: HolidayRepository,
     private val clock: Clock,
 ) {
 
     suspend fun nextOccurrence(hour: Int, minute: Int, repeatDaysBitmask: Int, excludeHolidays: Boolean = false): Long {
         val now = Calendar.getInstance().apply { timeInMillis = clock.nowMs() }
+        val year = now.get(Calendar.YEAR)
+        holidayRepository.maybeRefreshHolidays(year)
         val candidate = (now.clone() as Calendar).apply {
             set(Calendar.HOUR_OF_DAY, hour)
             set(Calendar.MINUTE, minute)
@@ -43,7 +44,7 @@ class NextOccurrenceCalculator @Inject constructor(
                 candidate.get(Calendar.MONTH) + 1,
                 candidate.get(Calendar.DAY_OF_MONTH),
             )
-            val isWorkday = isWorkdayUseCase(LocalDate.parse(dateStr))
+            val isWorkday = holidayRepository.isWorkday(dateStr)
             val dayMatches = isDayMatchingBitmask(candidate, repeatDaysBitmask) || repeatDaysBitmask == 0
 
             if (candidate.before(now)) {

@@ -1,6 +1,6 @@
 package com.rabbithole.musicbbit.service.alarm
 
-import com.rabbithole.musicbbit.domain.usecase.IsWorkdayUseCase
+import com.rabbithole.musicbbit.domain.repository.HolidayRepository
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -30,16 +30,16 @@ class NextOccurrenceCalculatorProductionTest {
         nonWorkdayDates: List<String> = emptyList(),
         now: Calendar = fixedNow()
     ): NextOccurrenceCalculator {
-        val isWorkdayUseCase = mockk<IsWorkdayUseCase>()
-        coEvery { isWorkdayUseCase(any()) } answers {
-            val date = firstArg<java.time.LocalDate>()
-            date.toString() !in nonWorkdayDates
+        val holidayRepository = mockk<HolidayRepository>()
+        coEvery { holidayRepository.maybeRefreshHolidays(any()) } returns Unit
+        coEvery { holidayRepository.isWorkday(any()) } answers {
+            firstArg<String>() !in nonWorkdayDates
         }
 
         val clock = mockk<Clock>()
         every { clock.nowMs() } returns now.timeInMillis
 
-        return NextOccurrenceCalculator(isWorkdayUseCase, clock)
+        return NextOccurrenceCalculator(holidayRepository, clock)
     }
 
     @Test
