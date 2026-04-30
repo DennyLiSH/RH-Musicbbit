@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlin.parcelize)
 }
 
 android {
@@ -18,8 +19,8 @@ android {
         applicationId = "com.rabbithole.musicbbit"
         minSdk = 24
         targetSdk = 36
-        versionCode = 4
-        versionName = "26.04.4"
+        versionCode = 5
+        versionName = "26.04.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
