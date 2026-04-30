@@ -1,7 +1,11 @@
 package com.rabbithole.musicbbit.data.repository
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
 import com.rabbithole.musicbbit.data.local.dao.HolidayDao
+import com.rabbithole.musicbbit.data.local.datastore.SettingsKeys
 import com.rabbithole.musicbbit.data.local.model.HolidayEntity
 import com.rabbithole.musicbbit.data.remote.api.HolidayApi
 import com.rabbithole.musicbbit.data.remote.dto.HolidayResponseDto
@@ -11,6 +15,7 @@ import com.rabbithole.musicbbit.domain.repository.HolidayRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -18,6 +23,7 @@ import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.YearMonth
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,7 +33,8 @@ class HolidayRepositoryImpl @Inject constructor(
     private val holidayApi: HolidayApi,
     private val json: Json,
     @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
-    @param:ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context,
+    private val dataStore: DataStore<Preferences>
 ) : HolidayRepository {
 
     private var fallbackCache: Map<String, HolidayEntity>? = null
@@ -110,6 +117,32 @@ class HolidayRepositoryImpl @Inject constructor(
                     true
                 }
             }
+        }
+    }
+
+    override suspend fun maybeRefreshHolidays(year: Int) {
+        try {
+            val currentMonth = YearMonth.now().toString()
+            val preferences = dataStore.data.first()
+            val lastCallMonth = preferences[SettingsKeys.LAST_HOLIDAY_API_CALL_MONTH]
+
+            if (lastCallMonth == currentMonth) {
+                Timber.d("Holiday API already called this month ($currentMonth), skipping refresh")
+                return
+            }
+
+            Timber.i("Triggering holiday refresh for year $year (last call: $lastCallMonth, current: $currentMonth)")
+            val result = refreshHolidays(year)
+            result.onSuccess {
+                dataStore.edit { prefs ->
+                    prefs[SettingsKeys.LAST_HOLIDAY_API_CALL_MONTH] = currentMonth
+                }
+                Timber.i("Holiday refresh succeeded, recorded month $currentMonth")
+            }.onFailure { error ->
+                Timber.w(error, "Holiday refresh failed for year $year, will retry next month")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Unexpected error during holiday refresh check")
         }
     }
 

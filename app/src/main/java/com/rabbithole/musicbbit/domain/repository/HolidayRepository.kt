@@ -30,4 +30,10 @@ interface HolidayRepository {
      * @return true if the date is a workday
      */
     suspend fun isWorkday(date: String): Boolean
+
+    /**
+     * Refresh holiday data from the API at most once per calendar month.
+     * Callers that need up-to-date holiday data should invoke this before calling [isWorkday].
+     */
+    suspend fun maybeRefreshHolidays(year: Int)
 }
