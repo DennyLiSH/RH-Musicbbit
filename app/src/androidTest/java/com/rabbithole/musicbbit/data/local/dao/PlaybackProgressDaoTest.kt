@@ -1,6 +1,6 @@
 package com.rabbithole.musicbbit.data.local.dao
 
-import com.rabbithole.musicbbit.data.model.PlaybackProgressEntity
+import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -13,7 +13,7 @@ class PlaybackProgressDaoTest : DatabaseTest() {
 
     @Test
     fun insert_and_getBySongIdAndPlaylistId() = dbTest {
-        val progress = PlaybackProgressEntity(
+        val progress = PlaybackProgress(
             songId = 1L,
             playlistId = 2L,
             positionMs = 30_000L,
@@ -38,13 +38,13 @@ class PlaybackProgressDaoTest : DatabaseTest() {
 
     @Test
     fun deleteBySongIdAndPlaylistId_removesExact() = dbTest {
-        val progress1 = PlaybackProgressEntity(
+        val progress1 = PlaybackProgress(
             songId = 1L,
             playlistId = 2L,
             positionMs = 30_000L,
             updatedAt = 1_700_000_000_000L
         )
-        val progress2 = PlaybackProgressEntity(
+        val progress2 = PlaybackProgress(
             songId = 3L,
             playlistId = 2L,
             positionMs = 60_000L,
@@ -63,19 +63,19 @@ class PlaybackProgressDaoTest : DatabaseTest() {
 
     @Test
     fun deleteByPlaylistId_removesBatch() = dbTest {
-        val progress1 = PlaybackProgressEntity(
+        val progress1 = PlaybackProgress(
             songId = 1L,
             playlistId = 2L,
             positionMs = 30_000L,
             updatedAt = 1_700_000_000_000L
         )
-        val progress2 = PlaybackProgressEntity(
+        val progress2 = PlaybackProgress(
             songId = 3L,
             playlistId = 2L,
             positionMs = 60_000L,
             updatedAt = 1_700_000_001_000L
         )
-        val progress3 = PlaybackProgressEntity(
+        val progress3 = PlaybackProgress(
             songId = 4L,
             playlistId = 5L,
             positionMs = 90_000L,
@@ -97,13 +97,13 @@ class PlaybackProgressDaoTest : DatabaseTest() {
 
     @Test
     fun deleteAll_clearsAll() = dbTest {
-        val progress1 = PlaybackProgressEntity(
+        val progress1 = PlaybackProgress(
             songId = 1L,
             playlistId = 2L,
             positionMs = 30_000L,
             updatedAt = 1_700_000_000_000L
         )
-        val progress2 = PlaybackProgressEntity(
+        val progress2 = PlaybackProgress(
             songId = 3L,
             playlistId = 4L,
             positionMs = 60_000L,
@@ -122,19 +122,19 @@ class PlaybackProgressDaoTest : DatabaseTest() {
 
     @Test
     fun getByPlaylistId_returnsOrderedResults() = dbTest {
-        val progress1 = PlaybackProgressEntity(
+        val progress1 = PlaybackProgress(
             songId = 1L,
             playlistId = 2L,
             positionMs = 30_000L,
             updatedAt = 1_700_000_001_000L
         )
-        val progress2 = PlaybackProgressEntity(
+        val progress2 = PlaybackProgress(
             songId = 3L,
             playlistId = 2L,
             positionMs = 60_000L,
             updatedAt = 1_700_000_002_000L
         )
-        val progress3 = PlaybackProgressEntity(
+        val progress3 = PlaybackProgress(
             songId = 4L,
             playlistId = 5L,
             positionMs = 90_000L,

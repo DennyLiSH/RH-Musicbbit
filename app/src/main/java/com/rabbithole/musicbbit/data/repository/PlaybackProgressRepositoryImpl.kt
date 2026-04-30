@@ -1,7 +1,6 @@
 package com.rabbithole.musicbbit.data.repository
 
 import com.rabbithole.musicbbit.data.local.dao.PlaybackProgressDao
-import com.rabbithole.musicbbit.data.model.PlaybackProgressEntity
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
@@ -17,7 +16,7 @@ class PlaybackProgressRepositoryImpl @Inject constructor(
 
     override suspend fun saveProgress(progress: PlaybackProgress): Result<Unit> = withContext(ioDispatcher) {
         try {
-            playbackProgressDao.insert(progress.toEntity())
+            playbackProgressDao.insert(progress)
             Timber.d(
                 "Progress saved: songId=${progress.songId}, playlistId=${progress.playlistId}, " +
                     "position=${progress.positionMs}ms"
@@ -31,9 +30,9 @@ class PlaybackProgressRepositoryImpl @Inject constructor(
 
     override suspend fun getProgress(songId: Long, playlistId: Long): Result<PlaybackProgress?> = withContext(ioDispatcher) {
         try {
-            val entity = playbackProgressDao.getBySongIdAndPlaylistId(songId, playlistId)
-            Timber.d("Progress loaded: songId=$songId, playlistId=$playlistId, found=${entity != null}")
-            Result.success(entity?.toDomain())
+            val progress = playbackProgressDao.getBySongIdAndPlaylistId(songId, playlistId)
+            Timber.d("Progress loaded: songId=$songId, playlistId=$playlistId, found=${progress != null}")
+            Result.success(progress)
         } catch (e: Exception) {
             Timber.e(e, "Failed to get progress: songId=$songId, playlistId=$playlistId")
             Result.failure(e)
@@ -64,30 +63,12 @@ class PlaybackProgressRepositoryImpl @Inject constructor(
 
     override suspend fun getProgressForPlaylist(playlistId: Long): Result<List<PlaybackProgress>> = withContext(ioDispatcher) {
         try {
-            val entities = playbackProgressDao.getByPlaylistId(playlistId)
-            Timber.d("Progress list loaded: playlistId=$playlistId, count=${entities.size}")
-            Result.success(entities.map { it.toDomain() })
+            val progressList = playbackProgressDao.getByPlaylistId(playlistId)
+            Timber.d("Progress list loaded: playlistId=$playlistId, count=${progressList.size}")
+            Result.success(progressList)
         } catch (e: Exception) {
             Timber.e(e, "Failed to get progress list: playlistId=$playlistId")
             Result.failure(e)
         }
-    }
-
-    private fun PlaybackProgress.toEntity(): PlaybackProgressEntity {
-        return PlaybackProgressEntity(
-            songId = songId,
-            positionMs = positionMs,
-            updatedAt = updatedAt,
-            playlistId = playlistId
-        )
-    }
-
-    private fun PlaybackProgressEntity.toDomain(): PlaybackProgress {
-        return PlaybackProgress(
-            songId = songId,
-            positionMs = positionMs,
-            updatedAt = updatedAt,
-            playlistId = playlistId
-        )
     }
 }

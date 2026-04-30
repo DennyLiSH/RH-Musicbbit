@@ -13,7 +13,7 @@ import com.rabbithole.musicbbit.data.local.dao.SongDao
 import com.rabbithole.musicbbit.data.local.model.HolidayEntity
 import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.data.model.AutoStopConverter
-import com.rabbithole.musicbbit.data.model.PlaybackProgressEntity
+import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
 import com.rabbithole.musicbbit.data.model.ScanDirectoryEntity
@@ -24,7 +24,7 @@ import com.rabbithole.musicbbit.domain.model.Song
         Song::class,
         Playlist::class,
         PlaylistSongEntity::class,
-        PlaybackProgressEntity::class,
+        PlaybackProgress::class,
         AlarmEntity::class,
         ScanDirectoryEntity::class,
         HolidayEntity::class

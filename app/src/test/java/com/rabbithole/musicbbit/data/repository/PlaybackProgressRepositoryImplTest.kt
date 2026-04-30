@@ -1,7 +1,6 @@
 package com.rabbithole.musicbbit.data.repository
 
 import com.rabbithole.musicbbit.data.local.dao.PlaybackProgressDao
-import com.rabbithole.musicbbit.data.model.PlaybackProgressEntity
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -36,7 +35,7 @@ class PlaybackProgressRepositoryImplTest {
         positionMs: Long = 30000L,
         updatedAt: Long = 1000L,
         playlistId: Long = 10L
-    ) = PlaybackProgressEntity(
+    ) = PlaybackProgress(
         songId = songId,
         positionMs = positionMs,
         updatedAt = updatedAt,
