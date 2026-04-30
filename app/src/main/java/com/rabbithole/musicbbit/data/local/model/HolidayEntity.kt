@@ -6,6 +6,10 @@ import androidx.room.PrimaryKey
 /**
  * Room entity for cached Chinese holiday data.
  *
+ * `fetchedAt` is a data-layer cache metadata field. It is deliberately
+ * not part of the domain [Holiday] model because cache freshness is an
+ * infrastructure concern, not a business-domain concept.
+ *
  * @property date ISO date string (YYYY-MM-DD), primary key
  * @property year The year this holiday belongs to
  * @property name Holiday name (e.g., "元旦", "春节")
