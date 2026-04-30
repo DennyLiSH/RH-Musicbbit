@@ -1,8 +1,8 @@
-package com.rabbithole.musicbbit.service
+package com.rabbithole.musicbbit.service.playback
 
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
-import com.rabbithole.musicbbit.service.playback.PlayerPort
+import com.rabbithole.musicbbit.service.PlaybackState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

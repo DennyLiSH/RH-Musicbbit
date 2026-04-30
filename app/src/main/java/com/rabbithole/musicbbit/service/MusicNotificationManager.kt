@@ -99,7 +99,7 @@ class MusicNotificationManager @Inject constructor(
         return builder.build()
     }
 
-    fun notify(notification: Notification) {
+    override fun notify(notification: Notification) {
         notificationManager.notify(notificationId, notification)
     }
 
