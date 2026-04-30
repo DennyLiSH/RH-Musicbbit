@@ -9,7 +9,6 @@ import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
@@ -26,12 +25,7 @@ class MusicRepositoryImpl @Inject constructor(
     }
 
     override fun searchSongs(query: String): Flow<List<Song>> {
-        return songDao.getAll().map { songs ->
-            songs.filter {
-                it.title.contains(query, ignoreCase = true) ||
-                    it.artist?.contains(query, ignoreCase = true) == true
-            }
-        }
+        return songDao.searchSongs(query)
     }
 
     override suspend fun refreshSongs(): Result<Unit> = withContext(ioDispatcher) {

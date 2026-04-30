@@ -32,4 +32,7 @@ interface SongDao {
 
     @Query("DELETE FROM songs")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM songs WHERE title LIKE '%' || :query || '%' COLLATE NOCASE OR artist LIKE '%' || :query || '%' COLLATE NOCASE")
+    fun searchSongs(query: String): Flow<List<Song>>
 }
