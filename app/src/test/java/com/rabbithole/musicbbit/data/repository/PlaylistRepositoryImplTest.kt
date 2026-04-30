@@ -4,8 +4,8 @@ import app.cash.turbine.test
 import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistSongDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
-import com.rabbithole.musicbbit.data.model.PlaylistEntity
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
+import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.model.Song
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -46,7 +46,7 @@ class PlaylistRepositoryImplTest {
         name: String = "Test Playlist",
         createdAt: Long = 1000L,
         updatedAt: Long = 2000L
-    ) = PlaylistEntity(id = id, name = name, createdAt = createdAt, updatedAt = updatedAt)
+    ) = Playlist(id = id, name = name, createdAt = createdAt, updatedAt = updatedAt)
 
     private fun songEntity(
         id: Long,
@@ -173,7 +173,7 @@ class PlaylistRepositoryImplTest {
 
     @Test
     fun `playlist data changes - flow re-emits updated value`() = runTest(testDispatcher) {
-        val playlistFlow = MutableSharedFlow<List<PlaylistEntity>>(replay = 1)
+        val playlistFlow = MutableSharedFlow<List<Playlist>>(replay = 1)
         val playlistV1 = playlistEntity(id = 4L, name = "Old Name")
         val playlistV2 = playlistEntity(id = 4L, name = "New Name")
 

@@ -1,7 +1,7 @@
 package com.rabbithole.musicbbit.data.local.dao
 
-import com.rabbithole.musicbbit.data.model.PlaylistEntity
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
+import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.model.Song
 import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
@@ -16,7 +16,7 @@ class PlaylistSongDaoTest : DatabaseTest() {
 
     private suspend fun createPlaylist(name: String): Long {
         return playlistDao.insert(
-            PlaylistEntity(
+            Playlist(
                 name = name,
                 createdAt = 1_700_000_000_000L,
                 updatedAt = 1_700_000_000_000L

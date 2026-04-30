@@ -14,7 +14,7 @@ import com.rabbithole.musicbbit.data.local.model.HolidayEntity
 import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.data.model.AutoStopConverter
 import com.rabbithole.musicbbit.data.model.PlaybackProgressEntity
-import com.rabbithole.musicbbit.data.model.PlaylistEntity
+import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
 import com.rabbithole.musicbbit.data.model.ScanDirectoryEntity
 import com.rabbithole.musicbbit.domain.model.Song
@@ -22,7 +22,7 @@ import com.rabbithole.musicbbit.domain.model.Song
 @Database(
     entities = [
         Song::class,
-        PlaylistEntity::class,
+        Playlist::class,
         PlaylistSongEntity::class,
         PlaybackProgressEntity::class,
         AlarmEntity::class,

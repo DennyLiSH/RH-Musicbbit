@@ -1,6 +1,6 @@
 package com.rabbithole.musicbbit.data.local.dao
 
-import com.rabbithole.musicbbit.data.model.PlaylistEntity
+import com.rabbithole.musicbbit.domain.model.Playlist
 import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -14,7 +14,7 @@ class PlaylistDaoTest : DatabaseTest() {
 
     @Test
     fun insert_returnsId() = dbTest {
-        val playlist = PlaylistEntity(
+        val playlist = Playlist(
             name = "My Playlist",
             createdAt = 1_700_000_000_000L,
             updatedAt = 1_700_000_000_000L
@@ -27,7 +27,7 @@ class PlaylistDaoTest : DatabaseTest() {
 
     @Test
     fun getById_returnsEntity_whenExists() = dbTest {
-        val playlist = PlaylistEntity(
+        val playlist = Playlist(
             name = "My Playlist",
             createdAt = 1_700_000_000_000L,
             updatedAt = 1_700_000_000_000L
@@ -50,12 +50,12 @@ class PlaylistDaoTest : DatabaseTest() {
 
     @Test
     fun getAll_emitsPlaylists() = dbTest {
-        val playlist1 = PlaylistEntity(
+        val playlist1 = Playlist(
             name = "Playlist A",
             createdAt = 1_700_000_000_000L,
             updatedAt = 1_700_000_000_000L
         )
-        val playlist2 = PlaylistEntity(
+        val playlist2 = Playlist(
             name = "Playlist B",
             createdAt = 1_700_000_001_000L,
             updatedAt = 1_700_000_001_000L
@@ -72,7 +72,7 @@ class PlaylistDaoTest : DatabaseTest() {
 
     @Test
     fun update_modifiesEntity() = dbTest {
-        val playlist = PlaylistEntity(
+        val playlist = Playlist(
             name = "Old Name",
             createdAt = 1_700_000_000_000L,
             updatedAt = 1_700_000_000_000L
@@ -90,7 +90,7 @@ class PlaylistDaoTest : DatabaseTest() {
 
     @Test
     fun delete_removesEntity() = dbTest {
-        val playlist = PlaylistEntity(
+        val playlist = Playlist(
             name = "To Delete",
             createdAt = 1_700_000_000_000L,
             updatedAt = 1_700_000_000_000L

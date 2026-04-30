@@ -9,8 +9,8 @@ import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistSongDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
 import com.rabbithole.musicbbit.data.model.AlarmEntity
-import com.rabbithole.musicbbit.data.model.PlaylistEntity
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
+import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.data.repository.PlaylistRepositoryImpl
 import com.rabbithole.musicbbit.di.TestDatabaseModule
@@ -156,7 +156,7 @@ class AlarmReceiverTest {
         )
         alarmDao.insert(alarm)
 
-        val playlist = PlaylistEntity(
+        val playlist = Playlist(
             id = playlistId,
             name = "Test Playlist",
             createdAt = 0L,
