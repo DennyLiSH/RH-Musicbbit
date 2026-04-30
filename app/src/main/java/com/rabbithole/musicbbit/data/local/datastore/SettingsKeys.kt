@@ -1,6 +1,7 @@
 package com.rabbithole.musicbbit.data.local.datastore
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 
@@ -19,6 +20,9 @@ object SettingsKeys {
 
     /** DataStore key for the breathing light period in milliseconds. */
     val BREATHING_PERIOD_MS = longPreferencesKey("breathing_period_ms")
+
+    /** DataStore key for the alarm volume ramp duration in seconds. 0 = disabled. */
+    val VOLUME_RAMP_DURATION_SECONDS = intPreferencesKey("volume_ramp_duration_seconds")
 
     /** DataStore key for the last month (YYYY-MM) the holiday API was called. */
     val LAST_HOLIDAY_API_CALL_MONTH = stringPreferencesKey("last_holiday_api_month")

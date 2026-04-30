@@ -21,4 +21,10 @@ interface AlarmRingSettingsRepository {
 
     /** Persist the breathing light period in milliseconds. */
     suspend fun setBreathingPeriodMs(periodMs: Long): Result<Unit>
+
+    /** Emits the current volume ramp duration in seconds. 0 = ramp disabled. */
+    fun getVolumeRampDurationSeconds(): Flow<Int>
+
+    /** Persist the volume ramp duration in seconds. */
+    suspend fun setVolumeRampDurationSeconds(seconds: Int): Result<Unit>
 }

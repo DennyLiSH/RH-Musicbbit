@@ -50,4 +50,21 @@ class AlarmRingSettingsRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override fun getVolumeRampDurationSeconds(): Flow<Int> {
+        return dataStore.data.map { preferences ->
+            preferences[SettingsKeys.VOLUME_RAMP_DURATION_SECONDS] ?: 5
+        }
+    }
+
+    override suspend fun setVolumeRampDurationSeconds(seconds: Int): Result<Unit> = withContext(ioDispatcher) {
+        try {
+            dataStore.edit { preferences ->
+                preferences[SettingsKeys.VOLUME_RAMP_DURATION_SECONDS] = seconds
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
