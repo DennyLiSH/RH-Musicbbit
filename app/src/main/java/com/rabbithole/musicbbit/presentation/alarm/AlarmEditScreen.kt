@@ -493,6 +493,6 @@ private fun VolumeRampHint(
         text = text,
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier
+        modifier = modifier.padding(horizontal = 4.dp)
     )
 }

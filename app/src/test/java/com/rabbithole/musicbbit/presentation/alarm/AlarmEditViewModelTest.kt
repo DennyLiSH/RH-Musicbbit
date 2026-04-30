@@ -17,6 +17,7 @@ import io.mockk.mockkObject
 import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -235,6 +236,22 @@ class AlarmEditViewModelTest {
         assertEquals(
             "volumeRampDurationSeconds should match repository value",
             10,
+            viewModel.uiState.value.volumeRampDurationSeconds
+        )
+    }
+
+    @Test
+    fun `volume ramp duration falls back to zero on repository error`() {
+        every { alarmRingSettingsRepository.getVolumeRampDurationSeconds() } returns
+            flow { throw RuntimeException("DataStore error") }
+        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        assertEquals(
+            "volumeRampDurationSeconds should fall back to 0 on error",
+            0,
             viewModel.uiState.value.volumeRampDurationSeconds
         )
     }
