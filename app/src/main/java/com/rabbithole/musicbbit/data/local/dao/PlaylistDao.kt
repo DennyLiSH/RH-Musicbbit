@@ -5,7 +5,9 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
+import com.rabbithole.musicbbit.data.local.model.PlaylistWithSongsEntity
 import com.rabbithole.musicbbit.domain.model.Playlist
 import kotlinx.coroutines.flow.Flow
 
@@ -26,4 +28,8 @@ interface PlaylistDao {
 
     @Query("SELECT * FROM playlists WHERE id = :id")
     suspend fun getById(id: Long): Playlist?
+
+    @Transaction
+    @Query("SELECT * FROM playlists WHERE id = :playlistId")
+    suspend fun getPlaylistWithSongs(playlistId: Long): PlaylistWithSongsEntity?
 }

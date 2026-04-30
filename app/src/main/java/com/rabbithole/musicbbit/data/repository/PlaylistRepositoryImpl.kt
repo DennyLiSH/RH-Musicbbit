@@ -2,29 +2,23 @@ package com.rabbithole.musicbbit.data.repository
 
 import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistSongDao
-import com.rabbithole.musicbbit.data.local.dao.SongDao
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.model.PlaylistWithSongs
-import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistRepositoryImpl @Inject constructor(
     private val playlistDao: PlaylistDao,
     private val playlistSongDao: PlaylistSongDao,
-    private val songDao: SongDao,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : PlaylistRepository {
 
@@ -67,19 +61,11 @@ class PlaylistRepositoryImpl @Inject constructor(
     }
 
     override fun getPlaylistWithSongs(playlistId: Long): Flow<PlaylistWithSongs?> {
-        val playlistFlow = playlistDao.getAll()
-            .flowOn(ioDispatcher)
-            .mapLatest { list -> list.find { it.id == playlistId } }
-
-        val songsFlow = playlistSongDao.getByPlaylistId(playlistId)
-            .mapLatest { playlistSongEntities ->
-                playlistSongEntities.mapNotNull { ps ->
-                    songDao.getById(ps.songId)
-                }
+        return playlistDao.getAll().map { playlists ->
+            playlists.find { it.id == playlistId }?.let { playlist ->
+                val withSongs = playlistDao.getPlaylistWithSongs(playlistId)
+                PlaylistWithSongs(playlist = playlist, songs = withSongs?.songs ?: emptyList())
             }
-
-        return combine(playlistFlow, songsFlow) { playlist, songs ->
-            playlist?.let { PlaylistWithSongs(playlist = it, songs = songs) }
         }.flowOn(ioDispatcher)
     }
 
