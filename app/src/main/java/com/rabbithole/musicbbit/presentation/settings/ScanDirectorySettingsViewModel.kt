@@ -6,8 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
+import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
-import com.rabbithole.musicbbit.domain.usecase.AddScanDirectoryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,7 +56,7 @@ sealed interface ScanDirectorySettingsAction {
 @HiltViewModel
 class ScanDirectorySettingsViewModel @Inject constructor(
     private val scanDirectoryRepository: ScanDirectoryRepository,
-    private val addScanDirectoryUseCase: AddScanDirectoryUseCase,
+    private val musicRepository: MusicRepository,
     private val alarmRingSettingsRepository: AlarmRingSettingsRepository
 ) : ViewModel() {
 
@@ -187,8 +187,9 @@ class ScanDirectorySettingsViewModel @Inject constructor(
                 addedAt = System.currentTimeMillis()
             )
 
-            addScanDirectoryUseCase(directory)
+            scanDirectoryRepository.add(directory)
                 .onSuccess {
+                    musicRepository.refreshSongs()
                     updateSuccess {
                         it.copy(pendingDirectory = null, errorMessageResId = null)
                     }
