@@ -16,7 +16,7 @@ import com.rabbithole.musicbbit.data.model.AutoStopConverter
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
-import com.rabbithole.musicbbit.data.model.ScanDirectoryEntity
+import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import com.rabbithole.musicbbit.domain.model.Song
 
 @Database(
@@ -26,7 +26,7 @@ import com.rabbithole.musicbbit.domain.model.Song
         PlaylistSongEntity::class,
         PlaybackProgress::class,
         AlarmEntity::class,
-        ScanDirectoryEntity::class,
+        ScanDirectory::class,
         HolidayEntity::class
     ],
     version = 8,

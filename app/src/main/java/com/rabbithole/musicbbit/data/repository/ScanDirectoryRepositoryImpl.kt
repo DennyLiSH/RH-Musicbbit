@@ -2,14 +2,13 @@ package com.rabbithole.musicbbit.data.repository
 
 import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
-import com.rabbithole.musicbbit.data.model.ScanDirectoryEntity
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
@@ -21,14 +20,12 @@ class ScanDirectoryRepositoryImpl @Inject constructor(
 ) : ScanDirectoryRepository {
 
     override fun getAll(): Flow<List<ScanDirectory>> {
-        return scanDirectoryDao.getAll().map { list ->
-            list.map { it.toDomain() }
-        }
+        return scanDirectoryDao.getAll().flowOn(ioDispatcher)
     }
 
     override suspend fun add(directory: ScanDirectory): Result<Long> = withContext(ioDispatcher) {
         try {
-            val id = scanDirectoryDao.insert(directory.toEntity())
+            val id = scanDirectoryDao.insert(directory)
             Timber.i("Scan directory added: id=$id, path=${directory.path}")
             Result.success(id)
         } catch (e: Exception) {
@@ -61,23 +58,5 @@ class ScanDirectoryRepositoryImpl @Inject constructor(
             Timber.e(e, "Failed to remove scan directory: id=$id")
             Result.failure(e)
         }
-    }
-
-    private fun ScanDirectoryEntity.toDomain(): ScanDirectory {
-        return ScanDirectory(
-            id = id,
-            path = path,
-            name = name,
-            addedAt = addedAt
-        )
-    }
-
-    private fun ScanDirectory.toEntity(): ScanDirectoryEntity {
-        return ScanDirectoryEntity(
-            id = id,
-            path = path,
-            name = name,
-            addedAt = addedAt
-        )
     }
 }

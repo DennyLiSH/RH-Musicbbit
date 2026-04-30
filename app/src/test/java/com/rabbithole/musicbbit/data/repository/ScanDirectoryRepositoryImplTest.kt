@@ -3,7 +3,6 @@ package com.rabbithole.musicbbit.data.repository
 import app.cash.turbine.test
 import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
-import com.rabbithole.musicbbit.data.model.ScanDirectoryEntity
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import io.mockk.coEvery
@@ -41,7 +40,7 @@ class ScanDirectoryRepositoryImplTest {
         path: String = "/storage/Music",
         name: String = "Music",
         addedAt: Long = 1000L
-    ) = ScanDirectoryEntity(id = id, path = path, name = name, addedAt = addedAt)
+    ) = ScanDirectory(id = id, path = path, name = name, addedAt = addedAt)
 
     private fun songEntity(
         id: Long = 1L,
