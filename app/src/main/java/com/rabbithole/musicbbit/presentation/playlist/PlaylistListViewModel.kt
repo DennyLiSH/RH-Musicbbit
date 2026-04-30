@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
-import com.rabbithole.musicbbit.domain.usecase.CreatePlaylistUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import timber.log.Timber
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,8 +35,7 @@ sealed interface PlaylistListAction {
 
 @HiltViewModel
 class PlaylistListViewModel @Inject constructor(
-    private val playlistRepository: PlaylistRepository,
-    private val createPlaylistUseCase: CreatePlaylistUseCase
+    private val playlistRepository: PlaylistRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<PlaylistListUiState>(PlaylistListUiState.Loading)
@@ -75,8 +73,17 @@ class PlaylistListViewModel @Inject constructor(
     fun onAction(action: PlaylistListAction) {
         when (action) {
             is PlaylistListAction.OnCreatePlaylist -> {
+                val name = action.name
+                if (name.isBlank()) {
+                    _uiState.update {
+                        (it as? PlaylistListUiState.Success)?.copy(
+                            errorMessageResId = R.string.playlist_error_add_song_failed
+                        ) ?: it
+                    }
+                    return
+                }
                 viewModelScope.launch {
-                    createPlaylistUseCase(action.name)
+                    playlistRepository.createPlaylist(name)
                         .onFailure { e ->
                             Timber.w(e, "Failed to create playlist")
                             _uiState.update {
