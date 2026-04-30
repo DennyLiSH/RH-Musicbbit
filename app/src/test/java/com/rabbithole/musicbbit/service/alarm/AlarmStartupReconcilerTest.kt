@@ -1,8 +1,7 @@
 package com.rabbithole.musicbbit.service.alarm
 
-import com.rabbithole.musicbbit.data.local.dao.AlarmDao
-import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -18,6 +17,7 @@ import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Test
 import timber.log.Timber
+import java.time.DayOfWeek
 
 /**
  * JVM unit tests for [AlarmStartupReconciler].
@@ -48,16 +48,16 @@ class AlarmStartupReconcilerTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
-    private lateinit var fakeDao: FakeAlarmDao
+    private lateinit var fakeRepository: FakeAlarmRepository
     private lateinit var alarmScheduler: AlarmScheduler
     private lateinit var reconciler: AlarmStartupReconciler
 
     @Before
     fun setUp() {
-        fakeDao = FakeAlarmDao()
+        fakeRepository = FakeAlarmRepository()
         alarmScheduler = mockk(relaxed = true)
         reconciler = AlarmStartupReconciler(
-            alarmDao = fakeDao,
+            alarmRepository = fakeRepository,
             alarmScheduler = alarmScheduler,
             ioDispatcher = testDispatcher,
         )
@@ -65,22 +65,22 @@ class AlarmStartupReconcilerTest {
 
     @Test
     fun `one-shot alarm with lastTriggeredAt is disabled`() = runTest(testDispatcher) {
-        val alarm = AlarmEntity(
+        val alarm = Alarm(
             id = 1L,
             hour = 8,
             minute = 0,
-            repeatDaysBitmask = 0,
+            repeatDays = emptySet(),
             playlistId = 10L,
             isEnabled = true,
             label = "Test",
             autoStop = null,
             lastTriggeredAt = FIXED_NOW_MS - 1000L,
         )
-        fakeDao.upsert(alarm)
+        fakeRepository.addAlarm(alarm)
 
         reconciler.reconcileInternal()
 
-        val updated = fakeDao.getById(1L)
+        val updated = fakeRepository.getAlarmById(1L)
         assertNotNull(updated)
         assertFalse(updated!!.isEnabled)
         coVerify(exactly = 0) { alarmScheduler.rescheduleAll(any()) }
@@ -88,45 +88,45 @@ class AlarmStartupReconcilerTest {
 
     @Test
     fun `repeating alarm is rescheduled`() = runTest(testDispatcher) {
-        val alarm = AlarmEntity(
+        val alarm = Alarm(
             id = 2L,
             hour = 9,
             minute = 0,
-            repeatDaysBitmask = 0b1111111,
+            repeatDays = DayOfWeek.entries.toSet(),
             playlistId = 10L,
             isEnabled = true,
             label = "Daily",
             autoStop = null,
             lastTriggeredAt = null,
         )
-        fakeDao.upsert(alarm)
+        fakeRepository.addAlarm(alarm)
 
         reconciler.reconcileInternal()
 
         coVerify { alarmScheduler.rescheduleAll(any<List<Alarm>>()) }
-        val unchanged = fakeDao.getById(2L)
+        val unchanged = fakeRepository.getAlarmById(2L)
         assertNotNull(unchanged)
         assertTrue(unchanged!!.isEnabled)
     }
 
     @Test
     fun `one-shot alarm not yet triggered is untouched`() = runTest(testDispatcher) {
-        val alarm = AlarmEntity(
+        val alarm = Alarm(
             id = 3L,
             hour = 10,
             minute = 0,
-            repeatDaysBitmask = 0,
+            repeatDays = emptySet(),
             playlistId = 10L,
             isEnabled = true,
             label = "Future",
             autoStop = null,
             lastTriggeredAt = null,
         )
-        fakeDao.upsert(alarm)
+        fakeRepository.addAlarm(alarm)
 
         reconciler.reconcileInternal()
 
-        val unchanged = fakeDao.getById(3L)
+        val unchanged = fakeRepository.getAlarmById(3L)
         assertNotNull(unchanged)
         assertTrue(unchanged!!.isEnabled)
         coVerify(exactly = 0) { alarmScheduler.rescheduleAll(any()) }
@@ -136,33 +136,44 @@ class AlarmStartupReconcilerTest {
     // Fakes
     // -------------------------------------------------------------------------
 
-    private class FakeAlarmDao : AlarmDao {
-        private val rows = mutableMapOf<Long, AlarmEntity>()
+    private class FakeAlarmRepository : AlarmRepository {
+        private val rows = mutableMapOf<Long, Alarm>()
 
-        fun upsert(alarm: AlarmEntity) {
+        fun addAlarm(alarm: Alarm) {
             rows[alarm.id] = alarm
         }
 
-        override suspend fun insert(alarm: AlarmEntity): Long {
-            rows[alarm.id] = alarm
-            return alarm.id
-        }
-
-        override suspend fun update(alarm: AlarmEntity) {
-            rows[alarm.id] = alarm
-        }
-
-        override suspend fun delete(alarm: AlarmEntity) {
-            rows.remove(alarm.id)
-        }
-
-        override fun getAll(): Flow<List<AlarmEntity>> =
+        override fun getAllAlarms(): Flow<List<Alarm>> =
             flowOf(rows.values.toList())
 
-        override fun getEnabledAlarms(): Flow<List<AlarmEntity>> =
+        override fun getEnabledAlarms(): Flow<List<Alarm>> =
             flowOf(rows.values.filter { it.isEnabled })
 
-        override suspend fun getById(id: Long): AlarmEntity? = rows[id]
+        override suspend fun getAlarmById(id: Long): Alarm? = rows[id]
+
+        override suspend fun saveAlarm(alarm: Alarm): Result<Long> {
+            rows[alarm.id] = alarm
+            return Result.success(alarm.id)
+        }
+
+        override suspend fun updateAlarm(alarm: Alarm): Result<Unit> {
+            rows[alarm.id] = alarm
+            return Result.success(Unit)
+        }
+
+        override suspend fun deleteAlarm(alarm: Alarm): Result<Unit> {
+            rows.remove(alarm.id)
+            return Result.success(Unit)
+        }
+
+        override suspend fun enableAlarm(id: Long, enabled: Boolean): Result<Unit> {
+            rows[id]?.let { rows[id] = it.copy(isEnabled = enabled) }
+            return Result.success(Unit)
+        }
+
+        override suspend fun recordTriggered(alarmId: Long) {
+            // Not used in these tests
+        }
     }
 
 }

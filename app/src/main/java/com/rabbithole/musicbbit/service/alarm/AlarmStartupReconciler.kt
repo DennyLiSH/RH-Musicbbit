@@ -1,12 +1,9 @@
 package com.rabbithole.musicbbit.service.alarm
 
 import androidx.annotation.VisibleForTesting
-import com.rabbithole.musicbbit.data.local.dao.AlarmDao
-import com.rabbithole.musicbbit.data.model.AlarmEntity
-import com.rabbithole.musicbbit.data.model.AutoStopConverter
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.Alarm
-import com.rabbithole.musicbbit.domain.model.toDayOfWeekSet
+import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -34,7 +31,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class AlarmStartupReconciler @Inject constructor(
-    private val alarmDao: AlarmDao,
+    private val alarmRepository: AlarmRepository,
     private val alarmScheduler: AlarmScheduler,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
@@ -54,7 +51,7 @@ class AlarmStartupReconciler @Inject constructor(
     @VisibleForTesting
     suspend fun reconcileInternal() {
         try {
-            val enabledAlarms = alarmDao.getEnabledAlarms().first()
+            val enabledAlarms = alarmRepository.getEnabledAlarms().first()
             Timber.i("AlarmStartupReconciler: scanning ${enabledAlarms.size} enabled alarms")
 
             for (alarm in enabledAlarms) {
@@ -62,18 +59,18 @@ class AlarmStartupReconciler @Inject constructor(
                     when {
                         // One-shot alarm that has already triggered but was not disabled
                         // (bookkeep failed after playback started)
-                        alarm.repeatDaysBitmask == 0 && alarm.lastTriggeredAt != null -> {
+                        alarm.repeatDays.isEmpty() && alarm.lastTriggeredAt != null -> {
                             Timber.w(
                                 "AlarmStartupReconciler: disabling one-shot alarm ${alarm.id} " +
                                     "(lastTriggeredAt=${alarm.lastTriggeredAt})"
                             )
-                            alarmDao.update(alarm.copy(isEnabled = false))
+                            alarmRepository.enableAlarm(alarm.id, false)
                         }
 
                         // Repeating alarm: ensure system-side schedule is up to date
-                        alarm.repeatDaysBitmask != 0 -> {
+                        alarm.repeatDays.isNotEmpty() -> {
                             Timber.i("AlarmStartupReconciler: rescheduling repeating alarm ${alarm.id}")
-                            alarmScheduler.rescheduleAll(listOf(alarm.toDomain()))
+                            alarmScheduler.rescheduleAll(listOf(alarm))
                         }
 
                         // One-shot not yet triggered: nothing to do
@@ -91,17 +88,4 @@ class AlarmStartupReconciler @Inject constructor(
             Timber.e(e, "AlarmStartupReconciler: failed to reconcile alarms")
         }
     }
-
-    private fun AlarmEntity.toDomain(): Alarm = Alarm(
-        id = id,
-        hour = hour,
-        minute = minute,
-        repeatDays = repeatDaysBitmask.toDayOfWeekSet(),
-        excludeHolidays = excludeHolidays,
-        playlistId = playlistId,
-        isEnabled = isEnabled,
-        label = label,
-        autoStop = AutoStopConverter.toAutoStop(autoStop),
-        lastTriggeredAt = lastTriggeredAt,
-    )
 }

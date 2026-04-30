@@ -3,7 +3,7 @@ package com.rabbithole.musicbbit.service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.rabbithole.musicbbit.data.local.dao.AlarmDao
+import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -25,7 +25,7 @@ import timber.log.Timber
 class BootReceiver : BroadcastReceiver() {
 
     @Inject
-    lateinit var alarmDao: AlarmDao
+    lateinit var alarmRepository: AlarmRepository
 
     @Inject
     lateinit var alarmScheduler: AlarmScheduler
@@ -42,7 +42,7 @@ class BootReceiver : BroadcastReceiver() {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         scope.launch {
             try {
-                val enabledAlarms = alarmDao.getEnabledAlarms().first()
+                val enabledAlarms = alarmRepository.getEnabledAlarms().first()
                 Timber.i("BootReceiver: found ${enabledAlarms.size} enabled alarms to reschedule")
                 alarmScheduler.rescheduleAll(enabledAlarms)
                 Timber.i("BootReceiver: alarm rescheduling completed")
