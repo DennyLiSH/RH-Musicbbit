@@ -71,17 +71,18 @@ class PlaylistRepositoryImpl @Inject constructor(
 
     override suspend fun addSongToPlaylist(
         playlistId: Long,
-        songId: Long,
-        sortOrder: Int
+        songId: Long
     ): Result<Unit> = runCatching {
         withContext(ioDispatcher) {
+            val existingSongs = playlistSongDao.getByPlaylistId(playlistId).first()
+            val sortOrder = existingSongs.size
             val entity = PlaylistSongEntity(
                 playlistId = playlistId,
                 songId = songId,
                 sortOrder = sortOrder
             )
             playlistSongDao.insert(entity)
-            Timber.i("Song added to playlist: playlistId=$playlistId, songId=$songId")
+            Timber.i("Song added to playlist: playlistId=$playlistId, songId=$songId, sortOrder=$sortOrder")
         }
     }
 

@@ -647,7 +647,7 @@ class AlarmFireSessionTest {
         override suspend fun createPlaylist(name: String): Result<Long> = error("unused in tests")
         override suspend fun updatePlaylist(playlist: Playlist): Result<Unit> = error("unused in tests")
         override suspend fun deletePlaylist(playlist: Playlist): Result<Unit> = error("unused in tests")
-        override suspend fun addSongToPlaylist(playlistId: Long, songId: Long, sortOrder: Int): Result<Unit> =
+        override suspend fun addSongToPlaylist(playlistId: Long, songId: Long): Result<Unit> =
             error("unused in tests")
         override suspend fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>): Result<Unit> =
             error("unused in tests")
