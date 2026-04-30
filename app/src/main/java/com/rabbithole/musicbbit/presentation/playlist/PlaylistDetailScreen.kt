@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -106,7 +108,7 @@ fun PlaylistDetailScreen(
                 }
 
                 is PlaylistDetailUiState.Error -> {
-                    ErrorContent(message = stringResource(state.messageResId), onRetry = viewModel::retry)
+                    ErrorContent(message = stringResource(state.messageResId), icon = rememberVectorPainter(Icons.Filled.Error), onRetry = viewModel::retry)
                 }
 
                 is PlaylistDetailUiState.Success -> {

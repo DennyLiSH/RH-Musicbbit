@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -58,6 +59,7 @@ import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import androidx.compose.animation.core.Animatable
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.IconButton
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
@@ -111,7 +113,7 @@ fun AlarmListScreen(
                 }
 
                 is AlarmListUiState.Error -> {
-                    ErrorContent(message = stringResource(state.messageResId), onRetry = viewModel::retry)
+                    ErrorContent(message = stringResource(state.messageResId), icon = rememberVectorPainter(Icons.Filled.Error), onRetry = viewModel::retry)
                 }
 
                 is AlarmListUiState.Success -> {
