@@ -1,21 +1,13 @@
 package com.rabbithole.musicbbit.presentation.player
 
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
-import android.os.IBinder
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
-import com.rabbithole.musicbbit.service.MusicPlaybackService
 import com.rabbithole.musicbbit.service.PlayMode
 import com.rabbithole.musicbbit.service.PlaybackState
+import com.rabbithole.musicbbit.service.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -26,15 +18,15 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    private val playbackController: PlaybackController,
     private val alarmRepository: AlarmRepository,
 ) : ViewModel() {
 
@@ -45,105 +37,51 @@ class PlayerViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
-    internal val _playbackState = MutableStateFlow(PlaybackState())
-    val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
-
-    private var service: MusicPlaybackService? = null
-    private var isBound = false
-    private var collectionJob: Job? = null
-
-    private val serviceConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            val musicBinder = binder as? MusicPlaybackService.MusicBinder
-            val svc = musicBinder?.getService() ?: return
-            service = svc
-            isBound = true
-            collectionJob = viewModelScope.launch {
-                try {
-                    svc.playbackState.collect { state ->
-                        _playbackState.value = state
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Playback state collection failed")
-                }
-            }
-        }
-
-        override fun onServiceDisconnected(name: ComponentName?) {
-            collectionJob?.cancel()
-            collectionJob = null
-            service = null
-            isBound = false
-        }
-    }
+    val playbackState: StateFlow<PlaybackState> = playbackController.playbackState
+        .stateIn(viewModelScope, SharingStarted.Eagerly, PlaybackState())
 
     init {
-        bindService()
-    }
-
-    private fun bindService() {
-        if (isBound) return
-        val intent = Intent(context, MusicPlaybackService::class.java)
-        context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
-    }
-
-    private fun unbindService() {
-        if (isBound) {
-            context.unbindService(serviceConnection)
-            isBound = false
-            service = null
-        }
-    }
-
-    override fun onCleared() {
-        unbindService()
-        super.onCleared()
+        playbackController.playerEvents
+            .onEach { event ->
+                Timber.d("PlayerEvent: $event")
+            }
+            .launchIn(viewModelScope)
     }
 
     fun play(song: Song, playlistId: Long = -1) {
-        ensureServiceRunning()
-        service?.play(song, playlistId)
+        playbackController.play(song, playlistId)
     }
 
     fun playPlaylist(songs: List<Song>, startIndex: Int, playlistId: Long) {
-        ensureServiceRunning()
-        service?.playQueue(songs, startIndex, playlistId)
+        playbackController.playQueue(songs, startIndex, playlistId)
     }
 
     fun pause() {
-        service?.pause()
+        playbackController.pause()
     }
 
     fun resume() {
-        service?.resume()
+        playbackController.resume()
     }
 
     fun next() {
-        service?.next()
+        playbackController.next()
     }
 
     fun previous() {
-        service?.previous()
+        playbackController.previous()
     }
 
     fun seekTo(positionMs: Long) {
-        service?.seekTo(positionMs)
+        playbackController.seekTo(positionMs)
     }
 
     fun setPlayMode(mode: PlayMode) {
-        service?.setPlayMode(mode)
+        playbackController.setPlayMode(mode)
     }
 
     fun stop() {
-        service?.stop()
-    }
-
-    private fun ensureServiceRunning() {
-        val intent = Intent(context, MusicPlaybackService::class.java)
-        ContextCompat.startForegroundService(context, intent)
-        if (!isBound) {
-            bindService()
-        }
+        playbackController.stop()
     }
 
     val alarmLabel: StateFlow<String?> = playbackState
