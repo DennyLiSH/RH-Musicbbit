@@ -1,6 +1,6 @@
 package com.rabbithole.musicbbit.data.local.dao
 
-import com.rabbithole.musicbbit.data.model.SongEntity
+import com.rabbithole.musicbbit.domain.model.Song
 import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -14,7 +14,7 @@ class SongDaoTest : DatabaseTest() {
 
     @Test
     fun insert_returnsId() = dbTest {
-        val song = SongEntity(
+        val song = Song(
             path = "/music/song1.mp3",
             title = "Song One",
             artist = "Artist A",
@@ -32,7 +32,7 @@ class SongDaoTest : DatabaseTest() {
     @Test
     fun insertAll_returnsIds() = dbTest {
         val songs = listOf(
-            SongEntity(
+            Song(
                 path = "/music/song1.mp3",
                 title = "Song One",
                 artist = "Artist A",
@@ -41,7 +41,7 @@ class SongDaoTest : DatabaseTest() {
                 dateAdded = 1_700_000_000_000L,
                 coverUri = null
             ),
-            SongEntity(
+            Song(
                 path = "/music/song2.mp3",
                 title = "Song Two",
                 artist = "Artist B",
@@ -60,7 +60,7 @@ class SongDaoTest : DatabaseTest() {
 
     @Test
     fun getById_returnsEntity_whenExists() = dbTest {
-        val song = SongEntity(
+        val song = Song(
             path = "/music/song1.mp3",
             title = "Song One",
             artist = "Artist A",
@@ -88,7 +88,7 @@ class SongDaoTest : DatabaseTest() {
 
     @Test
     fun getAll_emitsSongs() = dbTest {
-        val song1 = SongEntity(
+        val song1 = Song(
             path = "/music/song1.mp3",
             title = "Song One",
             artist = "Artist A",
@@ -97,7 +97,7 @@ class SongDaoTest : DatabaseTest() {
             dateAdded = 1_700_000_000_000L,
             coverUri = null
         )
-        val song2 = SongEntity(
+        val song2 = Song(
             path = "/music/song2.mp3",
             title = "Song Two",
             artist = "Artist B",
@@ -116,7 +116,7 @@ class SongDaoTest : DatabaseTest() {
 
     @Test
     fun update_modifiesEntity() = dbTest {
-        val song = SongEntity(
+        val song = Song(
             path = "/music/song1.mp3",
             title = "Old Title",
             artist = "Artist A",
@@ -138,7 +138,7 @@ class SongDaoTest : DatabaseTest() {
 
     @Test
     fun delete_removesEntity() = dbTest {
-        val song = SongEntity(
+        val song = Song(
             path = "/music/song1.mp3",
             title = "Song One",
             artist = "Artist A",
@@ -158,7 +158,7 @@ class SongDaoTest : DatabaseTest() {
 
     @Test
     fun deleteAll_clearsAll() = dbTest {
-        val song1 = SongEntity(
+        val song1 = Song(
             path = "/music/song1.mp3",
             title = "Song One",
             artist = "Artist A",
@@ -167,7 +167,7 @@ class SongDaoTest : DatabaseTest() {
             dateAdded = 1_700_000_000_000L,
             coverUri = null
         )
-        val song2 = SongEntity(
+        val song2 = Song(
             path = "/music/song2.mp3",
             title = "Song Two",
             artist = "Artist B",

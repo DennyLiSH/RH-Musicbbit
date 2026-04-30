@@ -11,7 +11,7 @@ import com.rabbithole.musicbbit.data.local.dao.SongDao
 import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.data.model.PlaylistEntity
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
-import com.rabbithole.musicbbit.data.model.SongEntity
+import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.data.repository.PlaylistRepositoryImpl
 import com.rabbithole.musicbbit.di.TestDatabaseModule
 import dagger.hilt.android.testing.HiltAndroidRule
@@ -164,7 +164,7 @@ class AlarmReceiverTest {
         )
         playlistDao.insert(playlist)
 
-        val song = SongEntity(
+        val song = Song(
             id = songId,
             path = "/tmp/test_song.mp3",
             title = "Test Song",

@@ -3,7 +3,7 @@ package com.rabbithole.musicbbit.data.local
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
-import com.rabbithole.musicbbit.data.model.SongEntity
+import com.rabbithole.musicbbit.domain.model.Song
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
@@ -13,11 +13,11 @@ class MusicScanner @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
 
-    fun scanDirectories(directories: List<String>): List<SongEntity> {
+    fun scanDirectories(directories: List<String>): List<Song> {
         if (directories.isEmpty()) return emptyList()
 
         Timber.i("Scanning music directories: count=${directories.size}")
-        val songs = mutableListOf<SongEntity>()
+        val songs = mutableListOf<Song>()
         val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 
         val projection = arrayOf(
@@ -76,7 +76,7 @@ class MusicScanner @Inject constructor(
                 val coverUri = getAlbumArtUri(albumId)
 
                 songs.add(
-                    SongEntity(
+                    Song(
                         id = 0, // Room will auto-generate
                         path = cursor.getString(dataIndex) ?: "",
                         title = cursor.getString(titleIndex) ?: "",

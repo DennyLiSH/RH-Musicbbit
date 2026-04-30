@@ -2,12 +2,17 @@ package com.rabbithole.musicbbit.domain.model
 
 import android.os.Parcel
 import android.os.Parcelable
+import androidx.room.Entity
+import androidx.room.Index
+import androidx.room.PrimaryKey
 
-/**
- * Domain model representing a song in the music library.
- */
+@Entity(
+    tableName = "songs",
+    indices = [Index(value = ["path"], unique = true)]
+)
 data class Song(
-    val id: Long,
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
     val path: String,
     val title: String,
     val artist: String?,

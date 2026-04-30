@@ -4,7 +4,7 @@ import app.cash.turbine.test
 import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
 import com.rabbithole.musicbbit.data.model.ScanDirectoryEntity
-import com.rabbithole.musicbbit.data.model.SongEntity
+import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -52,7 +52,7 @@ class ScanDirectoryRepositoryImplTest {
         durationMs: Long = 180000L,
         dateAdded: Long = 3000L,
         coverUri: String? = null
-    ) = SongEntity(
+    ) = Song(
         id = id, path = path, title = title, artist = artist,
         album = album, durationMs = durationMs, dateAdded = dateAdded, coverUri = coverUri
     )

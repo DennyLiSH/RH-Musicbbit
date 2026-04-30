@@ -5,7 +5,6 @@ import com.rabbithole.musicbbit.data.local.dao.PlaylistSongDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
 import com.rabbithole.musicbbit.data.model.PlaylistEntity
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
-import com.rabbithole.musicbbit.data.model.SongEntity
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.model.PlaylistWithSongs
@@ -88,7 +87,7 @@ class PlaylistRepositoryImpl @Inject constructor(
         val songsFlow = playlistSongDao.getByPlaylistId(playlistId)
             .mapLatest { playlistSongEntities ->
                 playlistSongEntities.mapNotNull { ps ->
-                    songDao.getById(ps.songId)?.toDomain()
+                    songDao.getById(ps.songId)
                 }
             }
 
@@ -173,19 +172,6 @@ class PlaylistRepositoryImpl @Inject constructor(
             name = name,
             createdAt = createdAt,
             updatedAt = updatedAt
-        )
-    }
-
-    private fun SongEntity.toDomain(): Song {
-        return Song(
-            id = id,
-            path = path,
-            title = title,
-            artist = artist,
-            album = album,
-            durationMs = durationMs,
-            dateAdded = dateAdded,
-            coverUri = coverUri
         )
     }
 }

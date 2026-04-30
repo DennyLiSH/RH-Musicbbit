@@ -6,7 +6,7 @@ import com.rabbithole.musicbbit.data.local.dao.PlaylistSongDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
 import com.rabbithole.musicbbit.data.model.PlaylistEntity
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
-import com.rabbithole.musicbbit.data.model.SongEntity
+import com.rabbithole.musicbbit.domain.model.Song
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -57,7 +57,7 @@ class PlaylistRepositoryImplTest {
         durationMs: Long = 180000L,
         dateAdded: Long = 3000L,
         coverUri: String? = null
-    ) = SongEntity(
+    ) = Song(
         id = id,
         path = path,
         title = title,

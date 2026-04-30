@@ -3,7 +3,6 @@ package com.rabbithole.musicbbit.data.repository
 import com.rabbithole.musicbbit.data.local.MusicScanner
 import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
-import com.rabbithole.musicbbit.data.model.SongEntity
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
@@ -23,17 +22,15 @@ class MusicRepositoryImpl @Inject constructor(
 ) : MusicRepository {
 
     override fun getAllSongs(): Flow<List<Song>> {
-        return songDao.getAll().map { entities ->
-            entities.map { it.toDomain() }
-        }
+        return songDao.getAll()
     }
 
     override fun searchSongs(query: String): Flow<List<Song>> {
-        return songDao.getAll().map { entities ->
-            entities.filter {
+        return songDao.getAll().map { songs ->
+            songs.filter {
                 it.title.contains(query, ignoreCase = true) ||
                     it.artist?.contains(query, ignoreCase = true) == true
-            }.map { it.toDomain() }
+            }
         }
     }
 
@@ -86,16 +83,5 @@ class MusicRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun SongEntity.toDomain(): Song {
-        return Song(
-            id = id,
-            path = path,
-            title = title,
-            artist = artist,
-            album = album,
-            durationMs = durationMs,
-            dateAdded = dateAdded,
-            coverUri = coverUri
-        )
-    }
 }
+

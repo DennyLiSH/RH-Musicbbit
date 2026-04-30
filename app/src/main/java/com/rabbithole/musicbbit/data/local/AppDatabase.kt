@@ -17,11 +17,11 @@ import com.rabbithole.musicbbit.data.model.PlaybackProgressEntity
 import com.rabbithole.musicbbit.data.model.PlaylistEntity
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
 import com.rabbithole.musicbbit.data.model.ScanDirectoryEntity
-import com.rabbithole.musicbbit.data.model.SongEntity
+import com.rabbithole.musicbbit.domain.model.Song
 
 @Database(
     entities = [
-        SongEntity::class,
+        Song::class,
         PlaylistEntity::class,
         PlaylistSongEntity::class,
         PlaybackProgressEntity::class,
