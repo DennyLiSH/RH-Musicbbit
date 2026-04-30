@@ -5,9 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
-import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
-import com.rabbithole.musicbbit.service.alarm.AlarmPlaybackHost
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
 import com.rabbithole.musicbbit.service.playback.MusicNotificationPort
 import com.rabbithole.musicbbit.service.playback.PlaybackSession
@@ -29,10 +27,9 @@ import timber.log.Timber
  * 2. Foreground notification management via [startForeground]
  * 3. Notification button click handling (Previous / PlayPause / Next)
  * 4. Forwarding [ACTION_PLAY_ALARM] intent for [AlarmFireSession]
- * 5. [AlarmPlaybackHost] implementation (delegates to [PlaybackSession])
  */
 @AndroidEntryPoint
-class MusicPlaybackService : Service(), AlarmPlaybackHost {
+class MusicPlaybackService : Service() {
 
     @Inject
     lateinit var playbackSession: PlaybackSession
@@ -61,7 +58,6 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
         Timber.i("MusicPlaybackService created")
         musicNotificationPort.createChannel()
         observePlaybackState()
-        alarmFireSession.bindHost(this)
     }
 
     private fun observePlaybackState() {
@@ -110,37 +106,9 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
     override fun onDestroy() {
         Timber.i("MusicPlaybackService destroyed")
         stateJob?.cancel()
-        alarmFireSession.unbindHost(this)
         wakeLockPort.release()
         serviceJob.cancel()
         super.onDestroy()
-    }
-
-    // ----- AlarmPlaybackHost（保留到 Task 5 删除）-----
-
-    override fun preloadFirstSong(uri: String) {
-        playbackSession.preloadFirstSong(uri)
-    }
-
-    override fun playAlarmQueue(
-        songs: List<Song>,
-        startIndex: Int,
-        playlistId: Long,
-        alarmId: Long
-    ) {
-        playbackSession.playAlarmQueue(songs, startIndex, playlistId, alarmId)
-    }
-
-    override fun pauseAlarm() {
-        playbackSession.pause()
-    }
-
-    override fun resumeAlarm() {
-        playbackSession.resume()
-    }
-
-    override fun stopPlayback() {
-        playbackSession.stop()
     }
 
     companion object {

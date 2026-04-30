@@ -11,6 +11,9 @@ import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
+import com.rabbithole.musicbbit.service.playback.PlayerEvent
+import com.rabbithole.musicbbit.service.playback.PlaybackController
+import com.rabbithole.musicbbit.service.playback.TransitionReason
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
@@ -40,7 +43,7 @@ import timber.log.Timber
  *  - Loading the alarm + playlist
  *  - Resolving the start song / position from saved progress
  *  - Acquiring the wake lock and scheduling the auto-stop timer
- *  - Driving playback through [AlarmPlaybackHost]
+ *  - Driving playback through [PlaybackController]
  *  - Showing / cancelling the alarm notification
  *  - Exposing observable [AlarmFireState] for UI
  *
@@ -55,6 +58,7 @@ class AlarmFireSession @Inject constructor(
     private val wakeLockPort: WakeLockPort,
     private val notificationPort: NotificationPort,
     private val volumeRampPort: VolumeRampPort,
+    private val playbackController: PlaybackController,
     private val clock: Clock,
     @MainDispatcher private val mainDispatcher: CoroutineDispatcher,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
@@ -67,29 +71,47 @@ class AlarmFireSession @Inject constructor(
     private val _state = MutableStateFlow<AlarmFireState>(AlarmFireState.Idle)
     val state: StateFlow<AlarmFireState> = _state.asStateFlow()
 
-    private var host: AlarmPlaybackHost? = null
     private var autoStopJob: Job? = null
     private var songsRemaining: Int = 0
     private var extendToEnd: Boolean = false
 
-    /** Register the playback host. Called from MusicPlaybackService.onCreate. */
-    fun bindHost(newHost: AlarmPlaybackHost) {
-        host = newHost
-        Timber.d("AlarmFireSession host bound")
-    }
+    init {
+        // Subscribe to playerEvents to handle song completion and extend-to-end
+        sessionScope.launch {
+            playbackController.playerEvents.collect { event ->
+                when (event) {
+                    is PlayerEvent.MediaItemTransition -> {
+                        if (event.reason == TransitionReason.AUTO && _state.value is AlarmFireState.Playing) {
+                            onSongCompleted()
+                            if (extendToEnd) {
+                                playbackController.stop()
+                            }
+                        }
+                    }
+                    is PlayerEvent.QueueEnded -> {
+                        if (_state.value is AlarmFireState.Playing) {
+                            onQueueEnded()
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        }
 
-    /** Unregister the playback host. Called from MusicPlaybackService.onDestroy. */
-    fun unbindHost(oldHost: AlarmPlaybackHost) {
-        if (host === oldHost) {
-            host = null
-            Timber.d("AlarmFireSession host unbound")
+        // Subscribe to playbackState to detect external stop
+        sessionScope.launch {
+            playbackController.playbackState.collect { state ->
+                if (!state.isPlaying && state.alarmId == null && _state.value is AlarmFireState.Playing) {
+                    onPlaybackStopped()
+                }
+            }
         }
     }
 
     /** Whether playback should stop after the current song completes. */
     fun isExtendToEnd(): Boolean = extendToEnd
 
-    /** Toggle extend-to-end mode. The host queries [isExtendToEnd] on natural transitions. */
+    /** Toggle extend-to-end mode. The controller queries [isExtendToEnd] on natural transitions. */
     fun setExtendToEnd(enabled: Boolean) {
         extendToEnd = enabled
         Timber.i("Extend-to-end mode: $enabled")
@@ -106,7 +128,7 @@ class AlarmFireSession @Inject constructor(
             return
         }
         Timber.i("AlarmFireSession.pause: alarmId=${current.alarmId}")
-        host?.pauseAlarm()
+        playbackController.pause()
         notificationPort.showAlarmPaused(current.alarmId)
         _state.value = AlarmFireState.Paused(
             alarmId = current.alarmId,
@@ -126,7 +148,7 @@ class AlarmFireSession @Inject constructor(
             return
         }
         Timber.i("AlarmFireSession.resume: alarmId=${current.alarmId}")
-        host?.resumeAlarm()
+        playbackController.resume()
         _state.value = AlarmFireState.Playing(
             alarmId = current.alarmId,
             currentSong = current.currentSong,
@@ -135,18 +157,18 @@ class AlarmFireSession @Inject constructor(
     }
 
     /**
-     * Stop the active alarm session. Delegates to the host, which will then call
-     * [onPlaybackStopped] once playback has actually ended.
+     * Stop the active alarm session. Delegates to the controller, which will then trigger
+     * [onPlaybackStopped] via the playbackState collector once playback has actually ended.
      */
     fun stop() {
         val alarmId = _state.value.alarmIdOrNull
         Timber.i("AlarmFireSession.stop: alarmId=$alarmId")
-        host?.stopPlayback()
+        playbackController.stop()
     }
 
     /**
      * Fire an alarm. Loads alarm + playlist, resolves start position, drives playback via
-     * the bound host, schedules the auto-stop timer, and shows the alarm notification.
+     * the [playbackController], schedules the auto-stop timer, and shows the alarm notification.
      *
      * Precondition: if this is an alarm trigger (isAlarmTrigger=true), the caller must have
      * already acquired the wake lock (e.g. [MusicPlaybackService.onStartCommand]).
@@ -192,18 +214,11 @@ class AlarmFireSession @Inject constructor(
                 var playbackStarted = false
 
                 withContext(mainDispatcher) {
-                    val currentHost = host
-                    if (currentHost == null) {
-                        Timber.w("No AlarmPlaybackHost bound; cannot drive playback")
-                        transitionToError(alarmId, "No playback host bound")
-                        return@withContext
-                    }
-
                     if (isAlarmTrigger && songs.isNotEmpty()) {
-                        currentHost.preloadFirstSong(songs.first().path)
+                        playbackController.preloadFirstSong(songs.first().path)
                     }
 
-                    currentHost.playAlarmQueue(songs, startIndex, alarm.playlistId, alarmId)
+                    playbackController.playAlarmQueue(songs, startIndex, alarm.playlistId, alarmId)
 
                     if (isAlarmTrigger) {
                         volumeRampPort.startVolumeRamp(sessionScope)
@@ -274,7 +289,7 @@ class AlarmFireSession @Inject constructor(
     }
 
     /**
-     * Called by the host when a song completes naturally (auto-advance).
+     * Called when a song completes naturally (auto-advance).
      * Decrements the song counter; when it reaches zero, stops playback.
      * Only active when the session is in [AlarmFireState.Playing].
      */
@@ -285,24 +300,24 @@ class AlarmFireSession @Inject constructor(
         Timber.d("Song completed, songsRemaining=$songsRemaining")
         if (songsRemaining <= 0) {
             Timber.i("Song counter reached zero, stopping playback")
-            host?.stopPlayback()
+            playbackController.stop()
         }
     }
 
     /**
-     * Called by the host when the queue ends before the song counter reaches zero.
+     * Called when the queue ends before the song counter reaches zero.
      * Stops playback if a song counter is active and the session is [AlarmFireState.Playing].
      */
     fun onQueueEnded() {
         if (_state.value !is AlarmFireState.Playing) return
         if (songsRemaining > 0) {
             Timber.i("Queue ended with songsRemaining=$songsRemaining, stopping")
-            host?.stopPlayback()
+            playbackController.stop()
         }
     }
 
     /**
-     * Called by the host when playback is fully stopped (via stop(), autoStop, or end-of-queue)
+     * Called when playback is fully stopped (via stop(), autoStop, or end-of-queue)
      * to release wake lock, cancel the auto-stop job, dismiss the notification, and reset state.
      */
     fun onPlaybackStopped() {
@@ -327,7 +342,7 @@ class AlarmFireSession @Inject constructor(
         autoStopJob = sessionScope.launch {
             delay(delayMs)
             Timber.i("Auto-stop triggered for alarm $alarmId")
-            host?.stopPlayback()
+            playbackController.stop()
         }
     }
 

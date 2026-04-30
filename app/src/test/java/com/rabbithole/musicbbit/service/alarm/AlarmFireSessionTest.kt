@@ -9,13 +9,24 @@ import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
+import com.rabbithole.musicbbit.service.PlayMode
+import com.rabbithole.musicbbit.service.PlaybackSource
+import com.rabbithole.musicbbit.service.PlaybackState
 import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
+import com.rabbithole.musicbbit.service.playback.PlayerEvent
+import com.rabbithole.musicbbit.service.playback.PlaybackController
+import com.rabbithole.musicbbit.service.playback.TransitionReason
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -41,12 +52,14 @@ import timber.log.Timber
  *   - fire(repeating) keeps isEnabled = true and reschedules
  *   - fire(one-time) flips isEnabled = false and does NOT reschedule
  *   - fire resolves the start index from saved progress and resets it
- *   - fire short-circuits to Error when the host is unbound, the alarm is missing,
- *     or the playlist is empty (and bookkeeping does NOT run in those cases)
+ *   - fire short-circuits to Error when the alarm is missing or the playlist is empty
+ *     (and bookkeeping does NOT run in those cases)
  *   - pause / resume gate on state and update notification + transition to Paused / Playing
- *   - autoStop calls host.stopPlayback after the configured delay
+ *   - autoStop calls controller.stop after the configured delay
  *   - extendAutoStop cancels the prior timer and starts a fresh one
  *   - onPlaybackStopped releases the wake lock, cancels the notification, and resets state
+ *   - playerEvents (MediaItemTransition, QueueEnded) drive onSongCompleted/onQueueEnded
+ *   - playbackState changes (alarmId=null, isPlaying=false) trigger onPlaybackStopped
  *
  * All tests use [UnconfinedTestDispatcher] sharing one [TestScope] scheduler so both the
  * injected main and IO dispatchers participate in virtual time. This lets the autoStop
@@ -65,7 +78,7 @@ class AlarmFireSessionTest {
     private lateinit var notificationPort: FakeNotificationPort
     private lateinit var volumeRampPort: FakeVolumeRampPort
     private lateinit var clock: FakeClock
-    private lateinit var host: FakeAlarmPlaybackHost
+    private lateinit var playbackController: FakePlaybackController
 
     private lateinit var session: AlarmFireSession
 
@@ -104,7 +117,7 @@ class AlarmFireSessionTest {
         notificationPort = FakeNotificationPort()
         volumeRampPort = FakeVolumeRampPort()
         clock = FakeClock(NOW_MS)
-        host = FakeAlarmPlaybackHost()
+        playbackController = FakePlaybackController()
 
         session = AlarmFireSession(
             alarmRepository = alarmRepository,
@@ -113,11 +126,11 @@ class AlarmFireSessionTest {
             wakeLockPort = wakeLockPort,
             notificationPort = notificationPort,
             volumeRampPort = volumeRampPort,
+            playbackController = playbackController,
             clock = clock,
             mainDispatcher = testDispatcher,
             ioDispatcher = testDispatcher,
         )
-        session.bindHost(host)
     }
 
     // -------- fire() success paths --------------------------------------------
@@ -175,7 +188,7 @@ class AlarmFireSessionTest {
         runCurrent()
 
         assertEquals("playback should start at the song with the latest saved progress",
-            2, host.lastStartIndex)
+            2, playbackController.lastStartIndex)
         val savedProgress = progressRepository.lastSaved
         assertEquals(SONG_3.id, savedProgress?.songId)
         assertEquals("progress for the resumed song should be reset to 0", 0L,
@@ -195,7 +208,7 @@ class AlarmFireSessionTest {
         runCurrent()
 
         assertTrue(volumeRampPort.startCount > 0)
-        assertEquals("preloaded the first song's URI", SONG_1.path, host.lastPreloadUri)
+        assertEquals("preloaded the first song's URI", SONG_1.path, playbackController.lastPreloadUri)
     }
 
     @Test
@@ -209,7 +222,7 @@ class AlarmFireSessionTest {
 
         assertEquals(0, wakeLockPort.acquireCount)
         assertEquals(0, volumeRampPort.startCount)
-        assertNull(host.lastPreloadUri)
+        assertNull(playbackController.lastPreloadUri)
     }
 
     // -------- fire() error paths ---------------------------------------------
@@ -225,7 +238,7 @@ class AlarmFireSessionTest {
 
         val state = session.state.value
         assertTrue("expected Error, was $state", state is AlarmFireState.Error)
-        assertNull("host must not have been driven", host.lastStartIndex)
+        assertNull("controller must not have been driven", playbackController.lastStartIndex)
         assertEquals(1, wakeLockPort.releaseCount)
     }
 
@@ -266,27 +279,6 @@ class AlarmFireSessionTest {
         assertEquals(1, wakeLockPort.releaseCount)
     }
 
-    @Test
-    fun `fire fails with Error when no host is bound and skips bookkeeping`() = scope.runTest {
-        session.unbindHost(host)
-        alarmRepository.insert(repeatingAlarm(id = 9L, playlistId = 90L))
-        playlistRepository.set(90L, threeSongPlaylist(id = 90L))
-
-        // Simulate Service having already acquired the wake lock
-        wakeLockPort.acquire(10 * 60 * 1000L)
-
-        session.fire(alarmId = 9L, isAlarmTrigger = true)
-        runCurrent()
-
-        val state = session.state.value
-        assertTrue("expected Error when host is null, was $state", state is AlarmFireState.Error)
-        assertEquals(1, wakeLockPort.releaseCount)
-        // Bookkeeping must not run if playback never started.
-        val updated = alarmRepository.getById(9L)
-        assertNull("lastTriggeredAt must NOT be written when playback never starts",
-            updated?.lastTriggeredAt)
-    }
-
     // -------- pause / resume / stop -----------------------------------------
 
     @Test
@@ -297,14 +289,14 @@ class AlarmFireSessionTest {
 
         val state = session.state.value
         assertTrue("expected Paused, was $state", state is AlarmFireState.Paused)
-        assertEquals(1, host.pauseCount)
+        assertEquals(1, playbackController.pauseCount)
         assertEquals(1, notificationPort.pauseCount)
     }
 
     @Test
     fun `pause while Idle is a no-op`() {
         session.pause()
-        assertEquals(0, host.pauseCount)
+        assertEquals(0, playbackController.pauseCount)
         assertEquals(0, notificationPort.pauseCount)
         assertTrue(session.state.value is AlarmFireState.Idle)
     }
@@ -318,38 +310,38 @@ class AlarmFireSessionTest {
         session.resume()
 
         assertTrue(session.state.value is AlarmFireState.Playing)
-        assertEquals(1, host.resumeCount)
+        assertEquals(1, playbackController.resumeCount)
     }
 
     @Test
     fun `resume while not Paused is a no-op`() {
         session.resume()
-        assertEquals(0, host.resumeCount)
+        assertEquals(0, playbackController.resumeCount)
     }
 
     @Test
-    fun `stop forwards to host stopPlayback`() = scope.runTest {
+    fun `stop forwards to controller stop`() = scope.runTest {
         firePlaying(alarmId = 13L, playlistId = 130L)
 
         session.stop()
 
-        assertEquals(1, host.stopCount)
+        assertEquals(1, playbackController.stopCount)
     }
 
     // -------- autoStop / extend ---------------------------------------------
 
     @Test
-    fun `autoStop fires after configured delay and calls host stopPlayback`() = scope.runTest {
+    fun `autoStop fires after configured delay and calls controller stop`() = scope.runTest {
         alarmRepository.insert(repeatingAlarm(id = 14L, playlistId = 140L).copy(autoStop = AutoStop.ByMinutes(30)))
         playlistRepository.set(140L, threeSongPlaylist(id = 140L))
 
         session.fire(alarmId = 14L, isAlarmTrigger = true)
         runCurrent()
-        assertEquals("autoStop should not fire before the delay elapses", 0, host.stopCount)
+        assertEquals("autoStop should not fire before the delay elapses", 0, playbackController.stopCount)
 
         advanceTimeBy(30L * 60_000L + 1L)
 
-        assertEquals(1, host.stopCount)
+        assertEquals(1, playbackController.stopCount)
     }
 
     @Test
@@ -366,21 +358,21 @@ class AlarmFireSessionTest {
 
         // Original 10-minute deadline (5 more min) should NOT trigger stop.
         advanceTimeBy(6L * 60_000L)
-        assertEquals(0, host.stopCount)
+        assertEquals(0, playbackController.stopCount)
 
         // The fresh 20-minute deadline should fire.
         advanceTimeBy(15L * 60_000L)
-        assertEquals(1, host.stopCount)
+        assertEquals(1, playbackController.stopCount)
     }
 
     @Test
     fun `extendAutoStop is a no-op when no timer is in flight`() {
         session.extendAutoStop(5)
-        assertEquals(0, host.stopCount)
+        assertEquals(0, playbackController.stopCount)
     }
 
     @Test
-    fun `setExtendToEnd flips the flag observable to host`() {
+    fun `setExtendToEnd flips the flag observable to controller`() {
         assertFalse(session.isExtendToEnd())
         session.setExtendToEnd(true)
         assertTrue(session.isExtendToEnd())
@@ -401,19 +393,19 @@ class AlarmFireSessionTest {
 
         session.fire(alarmId = 19L, isAlarmTrigger = true)
         runCurrent()
-        assertEquals(0, host.stopCount)
+        assertEquals(0, playbackController.stopCount)
 
         // First song completed
         session.onSongCompleted()
-        assertEquals(0, host.stopCount)
+        assertEquals(0, playbackController.stopCount)
 
         // Second song completed
         session.onSongCompleted()
-        assertEquals(0, host.stopCount)
+        assertEquals(0, playbackController.stopCount)
 
         // Third song completed — counter reaches zero
         session.onSongCompleted()
-        assertEquals(1, host.stopCount)
+        assertEquals(1, playbackController.stopCount)
     }
 
     @Test
@@ -429,7 +421,7 @@ class AlarmFireSessionTest {
         runCurrent()
 
         session.onSongCompleted()
-        assertEquals(1, host.stopCount)
+        assertEquals(1, playbackController.stopCount)
     }
 
     @Test
@@ -438,7 +430,7 @@ class AlarmFireSessionTest {
 
         session.onSongCompleted()
 
-        assertEquals(0, host.stopCount)
+        assertEquals(0, playbackController.stopCount)
     }
 
     @Test
@@ -455,7 +447,7 @@ class AlarmFireSessionTest {
 
         // Queue ends before counter reaches zero
         session.onQueueEnded()
-        assertEquals(1, host.stopCount)
+        assertEquals(1, playbackController.stopCount)
     }
 
     @Test
@@ -474,7 +466,7 @@ class AlarmFireSessionTest {
 
         // Counter should be reset; calling onSongCompleted should do nothing
         session.onSongCompleted()
-        assertEquals(0, host.stopCount)
+        assertEquals(0, playbackController.stopCount)
     }
 
     @Test
@@ -491,15 +483,109 @@ class AlarmFireSessionTest {
         session.fire(alarmId = 24L, isAlarmTrigger = true)
         runCurrent()
 
-        // Force an error by unbinding host and calling fire again
-        session.unbindHost(host)
+        // Force an error by calling fire with a non-existent alarm
         session.fire(alarmId = 25L, isAlarmTrigger = true)
         runCurrent()
 
         assertTrue(session.state.value is AlarmFireState.Error)
         // Counter should be reset; calling onSongCompleted should do nothing
         session.onSongCompleted()
-        assertEquals(0, host.stopCount)
+        assertEquals(0, playbackController.stopCount)
+    }
+
+    // -------- playerEvents subscription -------------------------------------
+
+    @Test
+    fun `MediaItemTransition AUTO while Playing triggers onSongCompleted and stops when extendToEnd`() = scope.runTest {
+        alarmRepository.insert(
+            repeatingAlarm(id = 30L, playlistId = 300L).copy(
+                autoStop = AutoStop.BySongCount(5)
+            )
+        )
+        playlistRepository.set(300L, threeSongPlaylist(id = 300L))
+
+        session.fire(alarmId = 30L, isAlarmTrigger = true)
+        runCurrent()
+        assertEquals(0, playbackController.stopCount)
+
+        session.setExtendToEnd(true)
+
+        // Emit AUTO MediaItemTransition — should trigger onSongCompleted + stop because extendToEnd
+        playbackController.emitPlayerEvent(
+            PlayerEvent.MediaItemTransition(itemTag = null, itemIndex = 1, reason = TransitionReason.AUTO)
+        )
+        runCurrent()
+
+        assertEquals(1, playbackController.stopCount)
+    }
+
+    @Test
+    fun `MediaItemTransition SEEK does not trigger onSongCompleted`() = scope.runTest {
+        alarmRepository.insert(
+            repeatingAlarm(id = 31L, playlistId = 310L).copy(
+                autoStop = AutoStop.BySongCount(1)
+            )
+        )
+        playlistRepository.set(310L, threeSongPlaylist(id = 310L))
+
+        session.fire(alarmId = 31L, isAlarmTrigger = true)
+        runCurrent()
+
+        // Emit SEEK MediaItemTransition — should NOT trigger onSongCompleted
+        playbackController.emitPlayerEvent(
+            PlayerEvent.MediaItemTransition(itemTag = null, itemIndex = 2, reason = TransitionReason.SEEK)
+        )
+        runCurrent()
+
+        assertEquals(0, playbackController.stopCount)
+    }
+
+    @Test
+    fun `QueueEnded while Playing triggers onQueueEnded`() = scope.runTest {
+        alarmRepository.insert(
+            repeatingAlarm(id = 32L, playlistId = 320L).copy(
+                autoStop = AutoStop.BySongCount(5)
+            )
+        )
+        playlistRepository.set(320L, threeSongPlaylist(id = 320L))
+
+        session.fire(alarmId = 32L, isAlarmTrigger = true)
+        runCurrent()
+
+        playbackController.emitPlayerEvent(PlayerEvent.QueueEnded)
+        runCurrent()
+
+        assertEquals(1, playbackController.stopCount)
+    }
+
+    // -------- playbackState subscription ------------------------------------
+
+    @Test
+    fun `playbackState with alarmId null and not playing triggers onPlaybackStopped`() = scope.runTest {
+        firePlaying(alarmId = 33L, playlistId = 330L)
+        assertTrue(wakeLockPort.isHeld)
+
+        // Simulate controller stopping: alarmId=null, isPlaying=false
+        playbackController.setPlaybackState(PlaybackState(alarmId = null, isPlaying = false))
+        runCurrent()
+
+        assertFalse(wakeLockPort.isHeld)
+        assertEquals(1, notificationPort.cancelCount)
+        assertTrue(session.state.value is AlarmFireState.Stopped)
+    }
+
+    @Test
+    fun `playbackState with alarmId set does not trigger onPlaybackStopped`() = scope.runTest {
+        firePlaying(alarmId = 34L, playlistId = 340L)
+        assertTrue(wakeLockPort.isHeld)
+
+        // Simulate pause while alarm is active: alarmId still set, isPlaying=false
+        playbackController.setPlaybackState(PlaybackState(alarmId = 34L, isPlaying = false))
+        runCurrent()
+
+        // Should NOT trigger onPlaybackStopped because alarmId is not null
+        assertTrue(wakeLockPort.isHeld)
+        assertEquals(0, notificationPort.cancelCount)
     }
 
     // -------- onPlaybackStopped lifecycle -----------------------------------
@@ -518,19 +604,21 @@ class AlarmFireSessionTest {
     }
 
     @Test
-    fun `onPlaybackStopped after autoStop does not call host stopPlayback again`() = scope.runTest {
+    fun `onPlaybackStopped after autoStop does not call controller stop again`() = scope.runTest {
         alarmRepository.insert(repeatingAlarm(id = 17L, playlistId = 170L).copy(autoStop = AutoStop.ByMinutes(1)))
         playlistRepository.set(170L, threeSongPlaylist(id = 170L))
 
         session.fire(alarmId = 17L, isAlarmTrigger = true)
         runCurrent()
         advanceTimeBy(70_000L)
-        assertEquals(1, host.stopCount)
+        assertEquals(1, playbackController.stopCount)
 
-        // Host responds to its stopPlayback by calling onPlaybackStopped — should be safe.
-        session.onPlaybackStopped()
+        // Controller responds to stop by resetting playbackState, which triggers onPlaybackStopped
+        playbackController.setPlaybackState(PlaybackState(alarmId = null, isPlaying = false))
+        runCurrent()
+
         // No additional stop call from session-side.
-        assertEquals(1, host.stopCount)
+        assertEquals(1, playbackController.stopCount)
         assertTrue(session.state.value is AlarmFireState.Stopped)
     }
 
@@ -760,7 +848,11 @@ class AlarmFireSessionTest {
         override fun nowMs(): Long = fixed
     }
 
-    private class FakeAlarmPlaybackHost : AlarmPlaybackHost {
+    /**
+     * Fake [PlaybackController] that records all method calls and allows emitting
+     * player events and playback state changes for testing the event subscriptions.
+     */
+    private class FakePlaybackController : PlaybackController {
         var lastPreloadUri: String? = null
             private set
         var lastStartIndex: Int? = null
@@ -773,9 +865,69 @@ class AlarmFireSessionTest {
             private set
         var stopCount = 0
             private set
+        var playCount = 0
+            private set
+        var playQueueCount = 0
+            private set
+        var nextCount = 0
+            private set
+        var previousCount = 0
+            private set
+        var seekCount = 0
+            private set
+        var setPlayModeCount = 0
+            private set
 
-        override fun preloadFirstSong(uri: String) {
-            lastPreloadUri = uri
+        private val _playbackState = MutableStateFlow(PlaybackState())
+        override val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
+
+        private val _playerEvents = MutableSharedFlow<PlayerEvent>(extraBufferCapacity = 64)
+        override val playerEvents: SharedFlow<PlayerEvent> = _playerEvents.asSharedFlow()
+
+        fun setPlaybackState(state: PlaybackState) {
+            _playbackState.value = state
+        }
+
+        fun emitPlayerEvent(event: PlayerEvent) {
+            _playerEvents.tryEmit(event)
+        }
+
+        override fun play(song: Song, playlistId: Long) {
+            playCount++
+        }
+
+        override fun playQueue(songs: List<Song>, startIndex: Int, playlistId: Long) {
+            playQueueCount++
+        }
+
+        override fun pause() {
+            pauseCount++
+        }
+
+        override fun resume() {
+            resumeCount++
+        }
+
+        override fun next() {
+            nextCount++
+        }
+
+        override fun previous() {
+            previousCount++
+        }
+
+        override fun seekTo(positionMs: Long) {
+            seekCount++
+        }
+
+        override fun stop() {
+            stopCount++
+            // Simulate real controller: stop resets playbackState to alarmId=null, isPlaying=false
+            _playbackState.value = PlaybackState(alarmId = null, isPlaying = false)
+        }
+
+        override fun setPlayMode(mode: PlayMode) {
+            setPlayModeCount++
         }
 
         override fun playAlarmQueue(
@@ -786,18 +938,17 @@ class AlarmFireSessionTest {
         ) {
             lastStartIndex = startIndex
             lastQueueAlarmId = alarmId
+            // Simulate real controller: set alarmId and isPlaying=true
+            _playbackState.value = PlaybackState(
+                alarmId = alarmId,
+                isPlaying = true,
+                currentPlaylistId = playlistId,
+                source = PlaybackSource.ALARM,
+            )
         }
 
-        override fun pauseAlarm() {
-            pauseCount++
-        }
-
-        override fun resumeAlarm() {
-            resumeCount++
-        }
-
-        override fun stopPlayback() {
-            stopCount++
+        override fun preloadFirstSong(uri: String) {
+            lastPreloadUri = uri
         }
     }
 }
