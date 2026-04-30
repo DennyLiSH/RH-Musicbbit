@@ -13,15 +13,23 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -37,9 +45,11 @@ import com.rabbithole.musicbbit.navigation.ScanDirectorySettings
 @Composable
 fun SettingsScreen(
     navController: NavController,
-    themeViewModel: ThemeViewModel = hiltViewModel()
+    themeViewModel: ThemeViewModel = hiltViewModel(),
+    alarmRingSettingsViewModel: AlarmRingSettingsViewModel = hiltViewModel()
 ) {
     val themeUiState by themeViewModel.uiState.collectAsStateWithLifecycle()
+    val alarmRingUiState by alarmRingSettingsViewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -59,6 +69,14 @@ fun SettingsScreen(
             ThemeSettingsSection(
                 themeMode = themeUiState.themeMode,
                 onThemeModeChange = { themeViewModel.setThemeMode(it) }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Alarm playback section
+            VolumeRampSection(
+                currentDuration = alarmRingUiState.volumeRampDurationSeconds,
+                onDurationChange = { alarmRingSettingsViewModel.setVolumeRampDuration(it) }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -116,6 +134,62 @@ private fun ThemeSettingsSection(
                 onClick = { onThemeModeChange(ThemeMode.DARK) },
                 modifier = Modifier.weight(1f)
             )
+        }
+    }
+}
+
+private val VolumeRampPresets = listOf(0, 5, 10, 15, 30, 60)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VolumeRampSection(
+    currentDuration: Int,
+    onDurationChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = stringResource(R.string.settings_alarm_playback),
+            style = MaterialTheme.typography.titleMedium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        var expanded by remember { mutableStateOf(false) }
+        val selectedLabel = when (currentDuration) {
+            0 -> stringResource(R.string.settings_volume_ramp_disabled)
+            else -> stringResource(R.string.settings_volume_ramp_seconds, currentDuration)
+        }
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = it }
+        ) {
+            OutlinedTextField(
+                value = selectedLabel,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(stringResource(R.string.settings_volume_ramp_duration)) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier
+                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                    .fillMaxWidth()
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                VolumeRampPresets.forEach { seconds ->
+                    val label = when (seconds) {
+                        0 -> stringResource(R.string.settings_volume_ramp_disabled)
+                        else -> stringResource(R.string.settings_volume_ramp_seconds, seconds)
+                    }
+                    DropdownMenuItem(
+                        text = { Text(label) },
+                        onClick = {
+                            onDurationChange(seconds)
+                            expanded = false
+                        }
+                    )
+                }
+            }
         }
     }
 }
