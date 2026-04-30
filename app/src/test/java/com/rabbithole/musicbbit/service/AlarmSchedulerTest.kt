@@ -4,7 +4,7 @@ import android.app.AlarmManager
 import android.app.AlarmManager.AlarmClockInfo
 import android.content.Context
 import com.rabbithole.musicbbit.MainActivity
-import com.rabbithole.musicbbit.data.model.AlarmEntity
+import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.service.alarm.NextOccurrenceCalculator
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -52,11 +52,11 @@ class AlarmSchedulerTest {
         minute: Int = 30,
         repeatDaysBitmask: Int = 0b1111111,
         excludeHolidays: Boolean = false,
-    ) = AlarmEntity(
+    ) = Alarm(
         id = id,
         hour = hour,
         minute = minute,
-        repeatDaysBitmask = repeatDaysBitmask,
+        repeatDays = bitmaskToDays(repeatDaysBitmask),
         excludeHolidays = excludeHolidays,
         playlistId = 10L,
         isEnabled = true,
@@ -64,6 +64,18 @@ class AlarmSchedulerTest {
         autoStop = null,
         lastTriggeredAt = null,
     )
+
+    private fun bitmaskToDays(bitmask: Int): Set<java.time.DayOfWeek> {
+        val days = mutableSetOf<java.time.DayOfWeek>()
+        if (bitmask and (1 shl 0) != 0) days.add(java.time.DayOfWeek.MONDAY)
+        if (bitmask and (1 shl 1) != 0) days.add(java.time.DayOfWeek.TUESDAY)
+        if (bitmask and (1 shl 2) != 0) days.add(java.time.DayOfWeek.WEDNESDAY)
+        if (bitmask and (1 shl 3) != 0) days.add(java.time.DayOfWeek.THURSDAY)
+        if (bitmask and (1 shl 4) != 0) days.add(java.time.DayOfWeek.FRIDAY)
+        if (bitmask and (1 shl 5) != 0) days.add(java.time.DayOfWeek.SATURDAY)
+        if (bitmask and (1 shl 6) != 0) days.add(java.time.DayOfWeek.SUNDAY)
+        return days
+    }
 
     private fun disabledAlarm(id: Long = 1L) = enabledAlarm(id).copy(isEnabled = false)
 

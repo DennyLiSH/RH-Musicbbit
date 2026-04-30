@@ -42,4 +42,10 @@ interface AlarmRepository {
      * Toggles the enabled state of an alarm.
      */
     suspend fun enableAlarm(id: Long, enabled: Boolean): Result<Unit>
+
+    /**
+     * Record that an alarm has been triggered. Updates [Alarm.lastTriggeredAt],
+     * disables one-time alarms, and reschedules repeating alarms.
+     */
+    suspend fun recordTriggered(alarmId: Long)
 }

@@ -5,7 +5,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import com.rabbithole.musicbbit.data.model.AlarmEntity
+import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.domain.model.toBitmask
 import com.rabbithole.musicbbit.service.alarm.NextOccurrenceCalculator
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
@@ -49,19 +50,20 @@ class AlarmScheduler @Inject constructor(
      * If the alarm is disabled, it will be cancelled instead.
      * Considers Chinese holidays and adjusted workdays when calculating the next trigger time.
      *
-     * @param alarm The alarm entity to schedule.
+     * @param alarm The alarm to schedule.
      */
-    suspend fun schedule(alarm: AlarmEntity) {
+    suspend fun schedule(alarm: Alarm) {
         if (!alarm.isEnabled) {
             Timber.d("Alarm ${alarm.id} is disabled, cancelling instead of scheduling")
             cancel(alarm.id)
             return
         }
 
+        val bitmask = alarm.repeatDays.toBitmask()
         val triggerTime = nextOccurrenceCalculator.nextOccurrence(
             alarm.hour,
             alarm.minute,
-            alarm.repeatDaysBitmask,
+            bitmask,
             alarm.excludeHolidays,
         )
 
@@ -69,7 +71,7 @@ class AlarmScheduler @Inject constructor(
 
         Timber.i(
             "Scheduling alarm id=${alarm.id} at ${alarm.hour}:${alarm.minute} " +
-                "(triggerTime=$triggerTime, repeatMask=${alarm.repeatDaysBitmask})"
+                "(triggerTime=$triggerTime, repeatMask=$bitmask)"
         )
 
         val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime, createShowIntent())
@@ -93,9 +95,9 @@ class AlarmScheduler @Inject constructor(
      * First cancels every alarm in the list, then re-schedules each enabled one.
      * This is useful after device reboot or when the app needs to refresh all alarms.
      *
-     * @param enabledAlarms List of currently enabled alarm entities.
+     * @param enabledAlarms List of currently enabled alarms.
      */
-    suspend fun rescheduleAll(enabledAlarms: List<AlarmEntity>) {
+    suspend fun rescheduleAll(enabledAlarms: List<Alarm>) {
         Timber.i("Rescheduling all ${enabledAlarms.size} enabled alarms")
 
         coroutineScope {

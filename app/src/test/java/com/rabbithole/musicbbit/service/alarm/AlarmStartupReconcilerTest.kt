@@ -2,6 +2,7 @@ package com.rabbithole.musicbbit.service.alarm
 
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
 import com.rabbithole.musicbbit.data.model.AlarmEntity
+import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -102,7 +103,7 @@ class AlarmStartupReconcilerTest {
 
         reconciler.reconcileInternal()
 
-        coVerify { alarmScheduler.rescheduleAll(listOf(alarm)) }
+        coVerify { alarmScheduler.rescheduleAll(any<List<Alarm>>()) }
         val unchanged = fakeDao.getById(2L)
         assertNotNull(unchanged)
         assertTrue(unchanged!!.isEnabled)

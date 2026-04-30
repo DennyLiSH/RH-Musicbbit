@@ -11,7 +11,7 @@ import androidx.core.app.NotificationCompat
 import com.rabbithole.musicbbit.MainActivity
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.presentation.alarm.AlarmRingActivity
-import com.rabbithole.musicbbit.data.model.AlarmEntity
+import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.Song
 import timber.log.Timber
 
@@ -30,10 +30,10 @@ object AlarmNotificationHelper {
      * Show the alarm notification with playback controls.
      *
      * @param context The context to use.
-     * @param alarm The triggered alarm entity.
+     * @param alarm The triggered alarm.
      * @param song The song currently being played.
      */
-    fun show(context: Context, alarm: AlarmEntity, song: Song) {
+    fun show(context: Context, alarm: Alarm, song: Song) {
         createChannel(context)
         val notification = buildNotification(context, alarm, song, isPaused = false)
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
@@ -170,14 +170,14 @@ object AlarmNotificationHelper {
      * Build the full alarm notification with all actions.
      *
      * @param context The context to use.
-     * @param alarm The triggered alarm entity.
+     * @param alarm The triggered alarm.
      * @param song The song currently being played.
      * @param isPaused Whether playback is paused.
      * @return The built notification.
      */
     private fun buildNotification(
         context: Context,
-        alarm: AlarmEntity,
+        alarm: Alarm,
         song: Song,
         isPaused: Boolean
     ): Notification {

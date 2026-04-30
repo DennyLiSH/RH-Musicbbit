@@ -1,7 +1,7 @@
 package com.rabbithole.musicbbit.service.alarm.ports
 
 import android.content.Context
-import com.rabbithole.musicbbit.data.model.AlarmEntity
+import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.service.AlarmNotificationHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -17,7 +17,7 @@ class AndroidNotificationAdapter @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) : NotificationPort {
 
-    override fun showAlarmPlaying(alarm: AlarmEntity, song: Song) {
+    override fun showAlarmPlaying(alarm: Alarm, song: Song) {
         AlarmNotificationHelper.show(context, alarm, song)
     }
 

@@ -1,6 +1,6 @@
 package com.rabbithole.musicbbit.service.alarm.ports
 
-import com.rabbithole.musicbbit.data.model.AlarmEntity
+import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.Song
 
 /**
@@ -16,7 +16,7 @@ interface NotificationPort {
     /**
      * Show the playing-state alarm notification with playback controls.
      */
-    fun showAlarmPlaying(alarm: AlarmEntity, song: Song)
+    fun showAlarmPlaying(alarm: Alarm, song: Song)
 
     /**
      * Update the existing alarm notification to a paused state.

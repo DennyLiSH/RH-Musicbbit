@@ -48,7 +48,7 @@ class AlarmRepositoryImpl @Inject constructor(
             val entity = alarm.toEntity()
             val id = alarmDao.insert(entity)
             Timber.i("Alarm saved with id=$id, scheduling")
-            alarmScheduler.schedule(entity.copy(id = id))
+            alarmScheduler.schedule(alarm.copy(id = id))
             id
         }
     }
@@ -58,7 +58,7 @@ class AlarmRepositoryImpl @Inject constructor(
             val entity = alarm.toEntity()
             alarmDao.update(entity)
             Timber.i("Alarm updated id=${alarm.id}, re-scheduling")
-            alarmScheduler.schedule(entity)
+            alarmScheduler.schedule(alarm)
         }
     }
 
@@ -77,10 +77,29 @@ class AlarmRepositoryImpl @Inject constructor(
                 val updated = existing.copy(isEnabled = enabled)
                 alarmDao.update(updated)
                 Timber.i("Alarm id=$id enabled=$enabled, updating scheduler")
-                alarmScheduler.schedule(updated)
+                alarmScheduler.schedule(updated.toDomain())
             } else {
                 Timber.w("Attempted to enable/disable non-existent alarm id=$id")
             }
+        }
+    }
+
+    override suspend fun recordTriggered(alarmId: Long) = withContext(ioDispatcher) {
+        try {
+            val entity = alarmDao.getById(alarmId) ?: return@withContext
+            val isOneTime = entity.repeatDaysBitmask == 0
+            val updated = entity.copy(
+                lastTriggeredAt = System.currentTimeMillis(),
+                isEnabled = if (isOneTime) false else entity.isEnabled,
+            )
+            alarmDao.update(updated)
+            Timber.i("Recorded trigger for alarm id=$alarmId, isOneTime=$isOneTime")
+
+            if (!isOneTime) {
+                alarmScheduler.schedule(updated.toDomain())
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to record trigger for alarm id=$alarmId")
         }
     }
 

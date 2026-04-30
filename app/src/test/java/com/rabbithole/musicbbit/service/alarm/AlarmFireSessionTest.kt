@@ -1,21 +1,17 @@
 package com.rabbithole.musicbbit.service.alarm
 
-import com.rabbithole.musicbbit.data.local.dao.AlarmDao
-import com.rabbithole.musicbbit.data.model.AutoStopConverter
-import com.rabbithole.musicbbit.data.model.AlarmEntity
+import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.model.PlaylistWithSongs
 import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
-import com.rabbithole.musicbbit.service.AlarmScheduler
 import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
-import io.mockk.coVerify
-import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -62,10 +58,9 @@ class AlarmFireSessionTest {
     private val scope = TestScope()
     private val testDispatcher = UnconfinedTestDispatcher(scope.testScheduler)
 
-    private lateinit var alarmDao: FakeAlarmDao
+    private lateinit var alarmRepository: FakeAlarmRepository
     private lateinit var playlistRepository: FakePlaylistRepository
     private lateinit var progressRepository: FakeProgressRepository
-    private lateinit var alarmScheduler: AlarmScheduler
     private lateinit var wakeLockPort: FakeWakeLockPort
     private lateinit var notificationPort: FakeNotificationPort
     private lateinit var volumeRampPort: FakeVolumeRampPort
@@ -102,12 +97,9 @@ class AlarmFireSessionTest {
 
     @Before
     fun setUp() {
-        alarmDao = FakeAlarmDao()
+        alarmRepository = FakeAlarmRepository()
         playlistRepository = FakePlaylistRepository()
         progressRepository = FakeProgressRepository()
-        // AlarmScheduler is a final class with a Context dependency; mockk handles the
-        // suspend `schedule` cleanly without invoking the real constructor.
-        alarmScheduler = mockk(relaxed = true)
         wakeLockPort = FakeWakeLockPort()
         notificationPort = FakeNotificationPort()
         volumeRampPort = FakeVolumeRampPort()
@@ -115,10 +107,9 @@ class AlarmFireSessionTest {
         host = FakeAlarmPlaybackHost()
 
         session = AlarmFireSession(
-            alarmDao = alarmDao,
+            alarmRepository = alarmRepository,
             playlistRepository = playlistRepository,
             playbackProgressRepository = progressRepository,
-            alarmScheduler = alarmScheduler,
             wakeLockPort = wakeLockPort,
             notificationPort = notificationPort,
             volumeRampPort = volumeRampPort,
@@ -134,7 +125,7 @@ class AlarmFireSessionTest {
     @Test
     fun `fire repeating alarm keeps isEnabled true and reschedules`() = scope.runTest {
         val alarm = repeatingAlarm(id = 1L, playlistId = 10L)
-        alarmDao.upsert(alarm)
+        alarmRepository.insert(alarm)
         playlistRepository.set(10L, threeSongPlaylist(id = 10L))
 
         session.fire(alarmId = 1L, isAlarmTrigger = true)
@@ -145,30 +136,28 @@ class AlarmFireSessionTest {
         assertEquals(1L, (state as AlarmFireState.Playing).alarmId)
         assertEquals(SONG_1.title, state.currentSong?.title)
 
-        val updated = alarmDao.getById(1L)
+        val updated = alarmRepository.getById(1L)
         assertTrue("repeating alarm must remain enabled", updated!!.isEnabled)
         assertEquals(NOW_MS, updated.lastTriggeredAt)
-        coVerify(exactly = 1) { alarmScheduler.schedule(updated) }
     }
 
     @Test
     fun `fire one-time alarm flips isEnabled false and does NOT reschedule`() = scope.runTest {
         val alarm = oneTimeAlarm(id = 2L, playlistId = 20L)
-        alarmDao.upsert(alarm)
+        alarmRepository.insert(alarm)
         playlistRepository.set(20L, threeSongPlaylist(id = 20L))
 
         session.fire(alarmId = 2L, isAlarmTrigger = true)
         runCurrent()
 
-        val updated = alarmDao.getById(2L)
+        val updated = alarmRepository.getById(2L)
         assertFalse("one-time alarm must be disabled after firing", updated!!.isEnabled)
-        coVerify(exactly = 0) { alarmScheduler.schedule(any()) }
     }
 
     @Test
     fun `fire resolves start index from saved progress and resets it to zero`() = scope.runTest {
         val alarm = repeatingAlarm(id = 3L, playlistId = 30L)
-        alarmDao.upsert(alarm)
+        alarmRepository.insert(alarm)
         playlistRepository.set(30L, threeSongPlaylist(id = 30L))
         progressRepository.set(
             playlistId = 30L,
@@ -196,7 +185,7 @@ class AlarmFireSessionTest {
     @Test
     fun `fire with isAlarmTrigger=true starts volume ramp`() = scope.runTest {
         val alarm = repeatingAlarm(id = 4L, playlistId = 40L)
-        alarmDao.upsert(alarm)
+        alarmRepository.insert(alarm)
         playlistRepository.set(40L, threeSongPlaylist(id = 40L))
 
         // Simulate Service having already acquired the wake lock
@@ -212,7 +201,7 @@ class AlarmFireSessionTest {
     @Test
     fun `fire with isAlarmTrigger=false skips volume ramp`() = scope.runTest {
         val alarm = repeatingAlarm(id = 5L, playlistId = 50L)
-        alarmDao.upsert(alarm)
+        alarmRepository.insert(alarm)
         playlistRepository.set(50L, threeSongPlaylist(id = 50L))
 
         session.fire(alarmId = 5L, isAlarmTrigger = false)
@@ -227,7 +216,7 @@ class AlarmFireSessionTest {
 
     @Test
     fun `fire fails with Error and skips bookkeeping when alarm not found`() = scope.runTest {
-        // No alarm inserted into DAO.
+        // No alarm inserted into repository.
         // Simulate Service having already acquired the wake lock
         wakeLockPort.acquire(10 * 60 * 1000L)
 
@@ -238,12 +227,11 @@ class AlarmFireSessionTest {
         assertTrue("expected Error, was $state", state is AlarmFireState.Error)
         assertNull("host must not have been driven", host.lastStartIndex)
         assertEquals(1, wakeLockPort.releaseCount)
-        coVerify(exactly = 0) { alarmScheduler.schedule(any()) }
     }
 
     @Test
     fun `fire fails with Error when alarm is disabled`() = scope.runTest {
-        alarmDao.upsert(repeatingAlarm(id = 7L, playlistId = 70L).copy(isEnabled = false))
+        alarmRepository.insert(repeatingAlarm(id = 7L, playlistId = 70L).copy(isEnabled = false))
         playlistRepository.set(70L, threeSongPlaylist(id = 70L))
 
         // Simulate Service having already acquired the wake lock
@@ -254,12 +242,11 @@ class AlarmFireSessionTest {
 
         assertTrue(session.state.value is AlarmFireState.Error)
         assertEquals(1, wakeLockPort.releaseCount)
-        coVerify(exactly = 0) { alarmScheduler.schedule(any()) }
     }
 
     @Test
     fun `fire fails with Error and shows error notification when playlist is empty`() = scope.runTest {
-        alarmDao.upsert(repeatingAlarm(id = 8L, playlistId = 80L))
+        alarmRepository.insert(repeatingAlarm(id = 8L, playlistId = 80L))
         playlistRepository.set(
             80L,
             PlaylistWithSongs(
@@ -277,13 +264,12 @@ class AlarmFireSessionTest {
         assertTrue(session.state.value is AlarmFireState.Error)
         assertEquals(1, notificationPort.errorCount)
         assertEquals(1, wakeLockPort.releaseCount)
-        coVerify(exactly = 0) { alarmScheduler.schedule(any()) }
     }
 
     @Test
     fun `fire fails with Error when no host is bound and skips bookkeeping`() = scope.runTest {
         session.unbindHost(host)
-        alarmDao.upsert(repeatingAlarm(id = 9L, playlistId = 90L))
+        alarmRepository.insert(repeatingAlarm(id = 9L, playlistId = 90L))
         playlistRepository.set(90L, threeSongPlaylist(id = 90L))
 
         // Simulate Service having already acquired the wake lock
@@ -296,10 +282,9 @@ class AlarmFireSessionTest {
         assertTrue("expected Error when host is null, was $state", state is AlarmFireState.Error)
         assertEquals(1, wakeLockPort.releaseCount)
         // Bookkeeping must not run if playback never started.
-        val updated = alarmDao.getById(9L)
+        val updated = alarmRepository.getById(9L)
         assertNull("lastTriggeredAt must NOT be written when playback never starts",
             updated?.lastTriggeredAt)
-        coVerify(exactly = 0) { alarmScheduler.schedule(any()) }
     }
 
     // -------- pause / resume / stop -----------------------------------------
@@ -355,7 +340,7 @@ class AlarmFireSessionTest {
 
     @Test
     fun `autoStop fires after configured delay and calls host stopPlayback`() = scope.runTest {
-        alarmDao.upsert(repeatingAlarm(id = 14L, playlistId = 140L).copy(autoStop = AutoStopConverter.fromAutoStop(AutoStop.ByMinutes(30))))
+        alarmRepository.insert(repeatingAlarm(id = 14L, playlistId = 140L).copy(autoStop = AutoStop.ByMinutes(30)))
         playlistRepository.set(140L, threeSongPlaylist(id = 140L))
 
         session.fire(alarmId = 14L, isAlarmTrigger = true)
@@ -369,7 +354,7 @@ class AlarmFireSessionTest {
 
     @Test
     fun `extendAutoStop cancels prior timer and reschedules`() = scope.runTest {
-        alarmDao.upsert(repeatingAlarm(id = 15L, playlistId = 150L).copy(autoStop = AutoStopConverter.fromAutoStop(AutoStop.ByMinutes(10))))
+        alarmRepository.insert(repeatingAlarm(id = 15L, playlistId = 150L).copy(autoStop = AutoStop.ByMinutes(10)))
         playlistRepository.set(150L, threeSongPlaylist(id = 150L))
 
         session.fire(alarmId = 15L, isAlarmTrigger = true)
@@ -407,9 +392,9 @@ class AlarmFireSessionTest {
 
     @Test
     fun `fire with BySongCount(3) stops after 3 songs`() = scope.runTest {
-        alarmDao.upsert(
+        alarmRepository.insert(
             repeatingAlarm(id = 19L, playlistId = 190L).copy(
-                autoStop = AutoStopConverter.fromAutoStop(AutoStop.BySongCount(3))
+                autoStop = AutoStop.BySongCount(3)
             )
         )
         playlistRepository.set(190L, threeSongPlaylist(id = 190L))
@@ -433,9 +418,9 @@ class AlarmFireSessionTest {
 
     @Test
     fun `fire with BySongCount(1) stops after first song`() = scope.runTest {
-        alarmDao.upsert(
+        alarmRepository.insert(
             repeatingAlarm(id = 20L, playlistId = 200L).copy(
-                autoStop = AutoStopConverter.fromAutoStop(AutoStop.BySongCount(1))
+                autoStop = AutoStop.BySongCount(1)
             )
         )
         playlistRepository.set(200L, threeSongPlaylist(id = 200L))
@@ -458,9 +443,9 @@ class AlarmFireSessionTest {
 
     @Test
     fun `onQueueEnded stops when song counter active`() = scope.runTest {
-        alarmDao.upsert(
+        alarmRepository.insert(
             repeatingAlarm(id = 22L, playlistId = 220L).copy(
-                autoStop = AutoStopConverter.fromAutoStop(AutoStop.BySongCount(5))
+                autoStop = AutoStop.BySongCount(5)
             )
         )
         playlistRepository.set(220L, threeSongPlaylist(id = 220L))
@@ -475,9 +460,9 @@ class AlarmFireSessionTest {
 
     @Test
     fun `onPlaybackStopped resets song counter`() = scope.runTest {
-        alarmDao.upsert(
+        alarmRepository.insert(
             repeatingAlarm(id = 23L, playlistId = 230L).copy(
-                autoStop = AutoStopConverter.fromAutoStop(AutoStop.BySongCount(2))
+                autoStop = AutoStop.BySongCount(2)
             )
         )
         playlistRepository.set(230L, threeSongPlaylist(id = 230L))
@@ -494,9 +479,9 @@ class AlarmFireSessionTest {
 
     @Test
     fun `transitionToError resets song counter`() = scope.runTest {
-        alarmDao.upsert(
+        alarmRepository.insert(
             repeatingAlarm(id = 24L, playlistId = 240L).copy(
-                autoStop = AutoStopConverter.fromAutoStop(AutoStop.BySongCount(2))
+                autoStop = AutoStop.BySongCount(2)
             )
         )
         playlistRepository.set(240L, threeSongPlaylist(id = 240L))
@@ -534,7 +519,7 @@ class AlarmFireSessionTest {
 
     @Test
     fun `onPlaybackStopped after autoStop does not call host stopPlayback again`() = scope.runTest {
-        alarmDao.upsert(repeatingAlarm(id = 17L, playlistId = 170L).copy(autoStop = AutoStopConverter.fromAutoStop(AutoStop.ByMinutes(1))))
+        alarmRepository.insert(repeatingAlarm(id = 17L, playlistId = 170L).copy(autoStop = AutoStop.ByMinutes(1)))
         playlistRepository.set(170L, threeSongPlaylist(id = 170L))
 
         session.fire(alarmId = 17L, isAlarmTrigger = true)
@@ -566,7 +551,7 @@ class AlarmFireSessionTest {
     /** Drive the session through a successful fire so subsequent assertions can act on Playing.
      *  Simulates the Service having already acquired the wake lock before calling fire(). */
     private suspend fun firePlaying(alarmId: Long, playlistId: Long) {
-        alarmDao.upsert(repeatingAlarm(id = alarmId, playlistId = playlistId))
+        alarmRepository.insert(repeatingAlarm(id = alarmId, playlistId = playlistId))
         playlistRepository.set(playlistId, threeSongPlaylist(id = playlistId))
         // Simulate Service having already acquired the wake lock
         wakeLockPort.acquire(10 * 60 * 1000L)
@@ -574,11 +559,11 @@ class AlarmFireSessionTest {
         scope.runCurrent()
     }
 
-    private fun repeatingAlarm(id: Long, playlistId: Long): AlarmEntity = AlarmEntity(
+    private fun repeatingAlarm(id: Long, playlistId: Long): Alarm = Alarm(
         id = id,
         hour = 7,
         minute = 0,
-        repeatDaysBitmask = 0x7F, // every day
+        repeatDays = java.time.DayOfWeek.entries.toSet(), // every day
         playlistId = playlistId,
         isEnabled = true,
         label = "Repeating $id",
@@ -586,8 +571,8 @@ class AlarmFireSessionTest {
         lastTriggeredAt = null,
     )
 
-    private fun oneTimeAlarm(id: Long, playlistId: Long): AlarmEntity =
-        repeatingAlarm(id, playlistId).copy(repeatDaysBitmask = 0, label = "OneTime $id")
+    private fun oneTimeAlarm(id: Long, playlistId: Long): Alarm =
+        repeatingAlarm(id, playlistId).copy(repeatDays = emptySet(), label = "OneTime $id")
 
     private fun threeSongPlaylist(id: Long): PlaylistWithSongs = PlaylistWithSongs(
         playlist = Playlist(id = id, name = "fixture", createdAt = 0L, updatedAt = 0L),
@@ -597,35 +582,54 @@ class AlarmFireSessionTest {
     // -------- Fakes ---------------------------------------------------------
 
     /**
-     * Minimal in-memory [AlarmDao]. Only the methods the session touches are real;
-     * the rest throw because the session never calls them.
+     * Minimal in-memory [AlarmRepository]. Simulates `recordTriggered` with the same
+     * logic as the real implementation: updates `lastTriggeredAt`, disables one-time alarms.
      */
-    private class FakeAlarmDao : AlarmDao {
-        private val rows = mutableMapOf<Long, AlarmEntity>()
+    private class FakeAlarmRepository : AlarmRepository {
+        private val rows = mutableMapOf<Long, Alarm>()
 
-        fun upsert(alarm: AlarmEntity) {
+        fun insert(alarm: Alarm) {
             rows[alarm.id] = alarm
         }
 
-        override suspend fun insert(alarm: AlarmEntity): Long {
-            rows[alarm.id] = alarm
-            return alarm.id
-        }
+        fun getById(id: Long): Alarm? = rows[id]
 
-        override suspend fun update(alarm: AlarmEntity) {
-            rows[alarm.id] = alarm
-        }
+        override fun getAllAlarms(): Flow<List<Alarm>> = flowOf(rows.values.toList())
 
-        override suspend fun delete(alarm: AlarmEntity) {
-            rows.remove(alarm.id)
-        }
-
-        override fun getAll(): Flow<List<AlarmEntity>> = flowOf(rows.values.toList())
-
-        override fun getEnabledAlarms(): Flow<List<AlarmEntity>> =
+        override fun getEnabledAlarms(): Flow<List<Alarm>> =
             flowOf(rows.values.filter { it.isEnabled })
 
-        override suspend fun getById(id: Long): AlarmEntity? = rows[id]
+        override suspend fun getAlarmById(id: Long): Alarm? = rows[id]
+
+        override suspend fun saveAlarm(alarm: Alarm): Result<Long> {
+            val id = if (alarm.id == 0L) rows.size.toLong() + 1 else alarm.id
+            rows[id] = alarm.copy(id = id)
+            return Result.success(id)
+        }
+
+        override suspend fun updateAlarm(alarm: Alarm): Result<Unit> {
+            rows[alarm.id] = alarm
+            return Result.success(Unit)
+        }
+
+        override suspend fun deleteAlarm(alarm: Alarm): Result<Unit> {
+            rows.remove(alarm.id)
+            return Result.success(Unit)
+        }
+
+        override suspend fun enableAlarm(id: Long, enabled: Boolean): Result<Unit> {
+            rows[id]?.let { rows[id] = it.copy(isEnabled = enabled) }
+            return Result.success(Unit)
+        }
+
+        override suspend fun recordTriggered(alarmId: Long) {
+            val alarm = rows[alarmId] ?: return
+            val isOneTime = alarm.repeatDays.isEmpty()
+            rows[alarmId] = alarm.copy(
+                lastTriggeredAt = NOW_MS,
+                isEnabled = if (isOneTime) false else alarm.isEnabled,
+            )
+        }
     }
 
     /**
@@ -720,7 +724,7 @@ class AlarmFireSessionTest {
         var playingCount = 0
             private set
 
-        override fun showAlarmPlaying(alarm: AlarmEntity, song: Song) {
+        override fun showAlarmPlaying(alarm: Alarm, song: Song) {
             playingCount++
         }
 

@@ -1,16 +1,13 @@
 package com.rabbithole.musicbbit.service.alarm
 
-import com.rabbithole.musicbbit.data.local.dao.AlarmDao
-import com.rabbithole.musicbbit.data.model.AlarmEntity
-import com.rabbithole.musicbbit.data.model.AutoStopConverter
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.di.MainDispatcher
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
-import com.rabbithole.musicbbit.service.AlarmScheduler
 import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
@@ -52,10 +49,9 @@ import timber.log.Timber
  */
 @Singleton
 class AlarmFireSession @Inject constructor(
-    private val alarmDao: AlarmDao,
+    private val alarmRepository: AlarmRepository,
     private val playlistRepository: PlaylistRepository,
     private val playbackProgressRepository: PlaybackProgressRepository,
-    private val alarmScheduler: AlarmScheduler,
     private val wakeLockPort: WakeLockPort,
     private val notificationPort: NotificationPort,
     private val volumeRampPort: VolumeRampPort,
@@ -165,7 +161,7 @@ class AlarmFireSession @Inject constructor(
             mutex.withLock {
                 _state.value = AlarmFireState.Loading(alarmId)
 
-                val alarm = alarmDao.getById(alarmId)
+                val alarm = alarmRepository.getAlarmById(alarmId)
                 if (alarm == null || !alarm.isEnabled) {
                     Timber.w("Alarm id=$alarmId not found or disabled")
                     transitionToError(alarmId, "Alarm not found or disabled")
@@ -214,7 +210,7 @@ class AlarmFireSession @Inject constructor(
                         Timber.i("Started volume ramp for alarm playback")
                     }
 
-                    when (val stop = AutoStopConverter.toAutoStop(alarm.autoStop)) {
+                    when (val stop = alarm.autoStop) {
                         is AutoStop.ByMinutes -> scheduleAutoStop(stop.minutes, alarmId)
                         is AutoStop.BySongCount -> {
                             songsRemaining = stop.count
@@ -238,42 +234,19 @@ class AlarmFireSession @Inject constructor(
                 }
 
                 if (playbackStarted) {
-                    bookkeepAlarmTrigger(alarm)
+                    bookkeepAlarmTrigger(alarmId)
                 }
             }
         }
     }
 
     /**
-     * Update [com.rabbithole.musicbbit.data.model.AlarmEntity.lastTriggeredAt], auto-disable
-     * one-time alarms (`repeatDaysBitmask == 0`), and reschedule repeating alarms for their
-     * next occurrence.
-     *
-     * Runs on the injected IO dispatcher (we're already on the outer IO launch). Wrapped in try/catch
-     * so a DAO/scheduler failure does not poison the [AlarmFireState.Playing] state.
+     * Delegate alarm-trigger bookkeeping to [AlarmRepository.recordTriggered], which
+     * updates [com.rabbithole.musicbbit.domain.model.Alarm.lastTriggeredAt], auto-disables
+     * one-time alarms, and reschedules repeating alarms for their next occurrence.
      */
-    private suspend fun bookkeepAlarmTrigger(
-        alarm: AlarmEntity,
-    ) {
-        try {
-            val isOneTime = alarm.repeatDaysBitmask == 0
-            val updatedAlarm = alarm.copy(
-                lastTriggeredAt = clock.nowMs(),
-                isEnabled = if (isOneTime) false else alarm.isEnabled,
-            )
-            alarmDao.update(updatedAlarm)
-            Timber.i(
-                "Updated alarm id=${alarm.id}: lastTriggeredAt=${updatedAlarm.lastTriggeredAt}, " +
-                    "isEnabled=${updatedAlarm.isEnabled}, isOneTime=$isOneTime"
-            )
-
-            if (!isOneTime) {
-                Timber.i("Rescheduling repeating alarm id=${alarm.id}")
-                alarmScheduler.schedule(updatedAlarm)
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "AlarmFireSession.bookkeepAlarmTrigger failed for alarm id=${alarm.id}")
-        }
+    private suspend fun bookkeepAlarmTrigger(alarmId: Long) {
+        alarmRepository.recordTriggered(alarmId)
     }
 
     /**
