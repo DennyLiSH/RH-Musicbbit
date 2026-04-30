@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.rabbithole.musicbbit.domain.model.Alarm
-import com.rabbithole.musicbbit.domain.model.toBitmask
 import com.rabbithole.musicbbit.service.alarm.NextOccurrenceCalculator
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
@@ -59,11 +58,10 @@ class AlarmScheduler @Inject constructor(
             return
         }
 
-        val bitmask = alarm.repeatDays.toBitmask()
         val triggerTime = nextOccurrenceCalculator.nextOccurrence(
             alarm.hour,
             alarm.minute,
-            bitmask,
+            alarm.repeatDays,
             alarm.excludeHolidays,
         )
 
@@ -71,7 +69,7 @@ class AlarmScheduler @Inject constructor(
 
         Timber.i(
             "Scheduling alarm id=${alarm.id} at ${alarm.hour}:${alarm.minute} " +
-                "(triggerTime=$triggerTime, repeatMask=$bitmask)"
+                "(triggerTime=$triggerTime, repeatDays=${alarm.repeatDays})"
         )
 
         val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime, createShowIntent())

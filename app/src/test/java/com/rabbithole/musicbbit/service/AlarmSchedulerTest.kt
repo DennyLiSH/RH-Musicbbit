@@ -90,9 +90,10 @@ class AlarmSchedulerTest {
     @Test
     fun `schedule enabled alarm sets alarmClock with correct triggerTime`() = runTest {
         val triggerTime = System.currentTimeMillis() + 60_000L
+        val allDays = java.time.DayOfWeek.entries.toSet()
 
         coEvery {
-            nextOccurrenceCalculator.nextOccurrence(7, 30, 0b1111111, false)
+            nextOccurrenceCalculator.nextOccurrence(7, 30, allDays, false)
         } returns triggerTime
 
         alarmScheduler.schedule(enabledAlarm())
@@ -134,7 +135,7 @@ class AlarmSchedulerTest {
 
         val alarms = listOf(
             enabledAlarm(id = 1L, hour = 7, minute = 30),
-            enabledAlarm(id = 2L, hour = 22, minute = 0, repeatDaysBitmask = 0b0011111, excludeHolidays = true),
+            enabledAlarm(id = 2L, hour = 22, minute = 0, repeatDaysBitmask = 0b0011111, excludeHolidays = true)
         )
 
         alarmScheduler.rescheduleAll(alarms)
@@ -182,22 +183,22 @@ class AlarmSchedulerTest {
     fun `schedule passes correct params to calculator`() = runTest {
         val hour = 9
         val minute = 15
-        val bitmask = 0b0110011
+        val repeatDays = bitmaskToDays(0b0110011)
         val excludeHolidays = true
 
         coEvery {
-            nextOccurrenceCalculator.nextOccurrence(hour, minute, bitmask, excludeHolidays)
+            nextOccurrenceCalculator.nextOccurrence(hour, minute, repeatDays, excludeHolidays)
         } returns System.currentTimeMillis() + 120_000L
 
         alarmScheduler.schedule(enabledAlarm(
             hour = hour,
             minute = minute,
-            repeatDaysBitmask = bitmask,
+            repeatDaysBitmask = 0b0110011,
             excludeHolidays = excludeHolidays,
         ))
 
         coVerify(exactly = 1) {
-            nextOccurrenceCalculator.nextOccurrence(hour, minute, bitmask, excludeHolidays)
+            nextOccurrenceCalculator.nextOccurrence(hour, minute, repeatDays, excludeHolidays)
         }
     }
 }

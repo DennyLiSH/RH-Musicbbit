@@ -1,6 +1,7 @@
 package com.rabbithole.musicbbit.service.alarm
 
 import com.rabbithole.musicbbit.domain.repository.HolidayRepository
+import java.time.DayOfWeek
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -78,7 +79,8 @@ class NextOccurrenceCalculatorHolidayTest {
         val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
 
         // Daily mode (all days) with excludeHolidays=true should skip the holiday
-        val result = calculator.nextOccurrence(10, 0, 0b1111111, excludeHolidays = true)
+        val allDays = DayOfWeek.entries.toSet()
+        val result = calculator.nextOccurrence(10, 0, allDays, excludeHolidays = true)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -102,7 +104,8 @@ class NextOccurrenceCalculatorHolidayTest {
         val calculator = createCalculator(isWorkdayResult = true, now = now)
 
         // With excludeHolidays=true, Saturday as workday should ring
-        val result = calculator.nextOccurrence(10, 0, 0b1111111, excludeHolidays = true)
+        val allDays = DayOfWeek.entries.toSet()
+        val result = calculator.nextOccurrence(10, 0, allDays, excludeHolidays = true)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -126,7 +129,8 @@ class NextOccurrenceCalculatorHolidayTest {
         }
         val calculator = createCalculator(now = now)
 
-        val result = calculator.nextOccurrence(2, 30, 0b1111111, excludeHolidays = false)
+        val allDays = DayOfWeek.entries.toSet()
+        val result = calculator.nextOccurrence(2, 30, allDays, excludeHolidays = false)
 
         // At 1:00 AM, the 2:30 AM alarm time is in the future.
         // Because DST springs forward, 2:30 AM local doesn't exist.
@@ -153,7 +157,8 @@ class NextOccurrenceCalculatorHolidayTest {
         }
         val calculator = createCalculator(now = now)
 
-        val result = calculator.nextOccurrence(2, 30, 0b1111111, excludeHolidays = false)
+        val allDays = DayOfWeek.entries.toSet()
+        val result = calculator.nextOccurrence(2, 30, allDays, excludeHolidays = false)
 
         // At 1:00 AM, the 2:30 AM alarm time is in the future.
         // After fall back, 2:30 AM is standard time (UTC-5).
@@ -169,11 +174,15 @@ class NextOccurrenceCalculatorHolidayTest {
 
     @Test
     fun `nextOccurrence - weekdays mode on Monday holiday skips to Tuesday`() = runTest {
-        // Jan 15 2024 is Monday (holiday). Weekdays bitmask = Mon-Fri = 0b0011111.
+        // Jan 15 2024 is Monday (holiday). Weekdays = Mon-Fri.
         val now = fixedNow(day = 15, hour = 8)
         val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
 
-        val result = calculator.nextOccurrence(10, 0, 0b0011111, excludeHolidays = false)
+        val weekdays = setOf(
+            DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+            DayOfWeek.THURSDAY, DayOfWeek.FRIDAY,
+        )
+        val result = calculator.nextOccurrence(10, 0, weekdays, excludeHolidays = false)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -192,7 +201,8 @@ class NextOccurrenceCalculatorHolidayTest {
         val now = fixedNow(day = 15, hour = 8)
         val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
 
-        val result = calculator.nextOccurrence(10, 0, 0b1111111, excludeHolidays = false)
+        val allDays = DayOfWeek.entries.toSet()
+        val result = calculator.nextOccurrence(10, 0, allDays, excludeHolidays = false)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -216,7 +226,8 @@ class NextOccurrenceCalculatorHolidayTest {
             now = now,
         )
 
-        val result = calculator.nextOccurrence(10, 0, 0b1111111, excludeHolidays = true)
+        val allDays = DayOfWeek.entries.toSet()
+        val result = calculator.nextOccurrence(10, 0, allDays, excludeHolidays = true)
 
         // Expected: 2024-01-18 10:00 (Thursday)
         val expected = Calendar.getInstance().apply {
@@ -231,11 +242,11 @@ class NextOccurrenceCalculatorHolidayTest {
     }
 
     @Test
-    fun `nextOccurrence - weekday-only bitmask on holiday skips to next matching day`() = runTest {
-        // Jan 15 2024 is Monday (holiday). Monday-only bitmask (bit 0 = 1).
+    fun `nextOccurrence - weekday-only set on holiday skips to next matching day`() = runTest {
+        // Jan 15 2024 is Monday (holiday). Monday-only set.
         // excludeHolidays=false but the logic for non-everyday mode checks:
         //   dayMatches && isWorkday -> return; !dayMatches && isWorkday && weekend -> return
-        // Monday matches bitmask but isWorkday=false -> skip.
+        // Monday matches set but isWorkday=false -> skip.
         // Tuesday-Friday: dayMatches=false, isWorkday=true, but NOT weekend -> skip.
         // Saturday-Sunday: isWorkday=false (realistic weekend behavior) -> skip.
         // Next Monday (Jan 22): dayMatches=true, isWorkday=true -> return.
@@ -253,8 +264,8 @@ class NextOccurrenceCalculatorHolidayTest {
         every { clock.nowMs() } returns now.timeInMillis
         val calculator = NextOccurrenceCalculator(holidayRepository, clock)
 
-        // Monday-only bitmask: bit 0 = Monday
-        val result = calculator.nextOccurrence(10, 0, 1, excludeHolidays = false)
+        // Monday-only set
+        val result = calculator.nextOccurrence(10, 0, setOf(DayOfWeek.MONDAY), excludeHolidays = false)
 
         // Expected: 2024-01-22 Mon 10:00
         val expected = Calendar.getInstance().apply {
@@ -280,7 +291,8 @@ class NextOccurrenceCalculatorHolidayTest {
         }
         val calculator = createCalculator(now = now)
 
-        val result = calculator.nextOccurrence(2, 0, 0b1111111, excludeHolidays = false)
+        val allDays = DayOfWeek.entries.toSet()
+        val result = calculator.nextOccurrence(2, 0, allDays, excludeHolidays = false)
 
         // Result should be >= now (2:00 AM resolves to 3:00 AM DST)
         assertTrue(
@@ -303,7 +315,8 @@ class NextOccurrenceCalculatorHolidayTest {
 
         val calculator = NextOccurrenceCalculator(holidayRepository, clock)
 
-        val result = calculator.nextOccurrence(10, 0, 0b1111111, excludeHolidays = true)
+        val allDays = DayOfWeek.entries.toSet()
+        val result = calculator.nextOccurrence(10, 0, allDays, excludeHolidays = true)
 
         // Fallback path should still return a positive timestamp
         assertTrue("Fallback should return a positive timestamp, got $result", result > 0)

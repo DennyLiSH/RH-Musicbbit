@@ -1,6 +1,7 @@
 package com.rabbithole.musicbbit.service.alarm
 
 import com.rabbithole.musicbbit.domain.repository.HolidayRepository
+import java.time.DayOfWeek
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,7 +23,7 @@ class NextOccurrenceCalculator @Inject constructor(
     private val clock: Clock,
 ) {
 
-    suspend fun nextOccurrence(hour: Int, minute: Int, repeatDaysBitmask: Int, excludeHolidays: Boolean = false): Long {
+    suspend fun nextOccurrence(hour: Int, minute: Int, repeatDays: Set<DayOfWeek>, excludeHolidays: Boolean = false): Long {
         val now = Calendar.getInstance().apply { timeInMillis = clock.nowMs() }
         val year = now.get(Calendar.YEAR)
         holidayRepository.maybeRefreshHolidays(year)
@@ -33,7 +34,7 @@ class NextOccurrenceCalculator @Inject constructor(
             set(Calendar.MILLISECOND, 0)
         }
 
-        if (repeatDaysBitmask == 0 && candidate.before(now)) {
+        if (repeatDays.isEmpty() && candidate.before(now)) {
             candidate.add(Calendar.DAY_OF_MONTH, 1)
         }
 
@@ -45,17 +46,17 @@ class NextOccurrenceCalculator @Inject constructor(
                 candidate.get(Calendar.DAY_OF_MONTH),
             )
             val isWorkday = holidayRepository.isWorkday(dateStr)
-            val dayMatches = isDayMatchingBitmask(candidate, repeatDaysBitmask) || repeatDaysBitmask == 0
+            val dayMatches = candidate.toDayOfWeek() in repeatDays || repeatDays.isEmpty()
 
             if (candidate.before(now)) {
                 candidate.add(Calendar.DAY_OF_MONTH, 1)
                 continue
             }
 
-            if (repeatDaysBitmask == 0) {
+            if (repeatDays.isEmpty()) {
                 if (isWorkday) return candidate.timeInMillis
             } else {
-                val isEveryday = repeatDaysBitmask == 0b1111111
+                val isEveryday = repeatDays.size == 7
 
                 if (!excludeHolidays && isEveryday) {
                     // Daily mode: ring every day regardless of holidays
@@ -76,7 +77,7 @@ class NextOccurrenceCalculator @Inject constructor(
 
             if (candidate.get(Calendar.YEAR) > now.get(Calendar.YEAR) + 1) {
                 Timber.w("Could not find valid workday within search window, falling back to basic calculation")
-                return nextOccurrenceFallback(hour, minute, repeatDaysBitmask, now)
+                return nextOccurrenceFallback(hour, minute, repeatDays, now)
             }
         }
     }
@@ -89,7 +90,7 @@ class NextOccurrenceCalculator @Inject constructor(
         fun nextOccurrenceFallback(
             hour: Int,
             minute: Int,
-            repeatDaysBitmask: Int,
+            repeatDays: Set<DayOfWeek>,
             now: Calendar,
         ): Long {
             val candidate = Calendar.getInstance().apply {
@@ -100,32 +101,28 @@ class NextOccurrenceCalculator @Inject constructor(
                 set(Calendar.MILLISECOND, 0)
             }
 
-            if (repeatDaysBitmask == 0) {
+            if (repeatDays.isEmpty()) {
                 if (candidate.before(now)) {
                     candidate.add(Calendar.DAY_OF_MONTH, 1)
                 }
             } else {
-                while (candidate.before(now) || !isDayMatchingBitmask(candidate, repeatDaysBitmask)) {
+                while (candidate.before(now) || candidate.toDayOfWeek() !in repeatDays) {
                     candidate.add(Calendar.DAY_OF_MONTH, 1)
                 }
             }
 
             return candidate.timeInMillis
         }
-
-        private fun isDayMatchingBitmask(calendar: Calendar, bitmask: Int): Boolean {
-            val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
-            val bit = when (dayOfWeek) {
-                Calendar.MONDAY -> 0
-                Calendar.TUESDAY -> 1
-                Calendar.WEDNESDAY -> 2
-                Calendar.THURSDAY -> 3
-                Calendar.FRIDAY -> 4
-                Calendar.SATURDAY -> 5
-                Calendar.SUNDAY -> 6
-                else -> return false
-            }
-            return bitmask and (1 shl bit) != 0
-        }
     }
+}
+
+private fun Calendar.toDayOfWeek(): DayOfWeek = when (get(Calendar.DAY_OF_WEEK)) {
+    Calendar.MONDAY -> DayOfWeek.MONDAY
+    Calendar.TUESDAY -> DayOfWeek.TUESDAY
+    Calendar.WEDNESDAY -> DayOfWeek.WEDNESDAY
+    Calendar.THURSDAY -> DayOfWeek.THURSDAY
+    Calendar.FRIDAY -> DayOfWeek.FRIDAY
+    Calendar.SATURDAY -> DayOfWeek.SATURDAY
+    Calendar.SUNDAY -> DayOfWeek.SUNDAY
+    else -> DayOfWeek.MONDAY
 }

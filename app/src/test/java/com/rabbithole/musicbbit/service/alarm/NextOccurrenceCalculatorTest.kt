@@ -5,6 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
+import java.time.DayOfWeek
 import java.util.Calendar
 
 /**
@@ -35,7 +36,7 @@ class NextOccurrenceCalculatorTest {
     fun `nextOccurrenceFallback - one-time alarm in future returns same day`() {
         val now = fixedNow(hour = 10, minute = 0)
 
-        val result = NextOccurrenceCalculator.nextOccurrenceFallback(14, 0, 0, now)
+        val result = NextOccurrenceCalculator.nextOccurrenceFallback(14, 0, emptySet(), now)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -51,7 +52,7 @@ class NextOccurrenceCalculatorTest {
     fun `nextOccurrenceFallback - one-time alarm in past returns next day`() {
         val now = fixedNow(hour = 15, minute = 0)
 
-        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, 0, now)
+        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, emptySet(), now)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -68,7 +69,7 @@ class NextOccurrenceCalculatorTest {
     fun `nextOccurrenceFallback - one-time alarm at exact same time returns same day`() {
         val now = fixedNow(hour = 10, minute = 0)
 
-        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, 0, now)
+        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, emptySet(), now)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -84,7 +85,7 @@ class NextOccurrenceCalculatorTest {
     fun `nextOccurrenceFallback - one-time alarm one minute in past returns next day`() {
         val now = fixedNow(hour = 10, minute = 1)
 
-        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, 0, now)
+        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, emptySet(), now)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -101,7 +102,8 @@ class NextOccurrenceCalculatorTest {
     fun `nextOccurrenceFallback - repeating alarm all days finds today if future`() {
         val now = fixedNow(hour = 8, minute = 0)
 
-        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, 0b1111111, now)
+        val allDays = DayOfWeek.entries.toSet()
+        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, allDays, now)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -117,7 +119,8 @@ class NextOccurrenceCalculatorTest {
     fun `nextOccurrenceFallback - repeating alarm all days finds tomorrow if past`() {
         val now = fixedNow(hour = 15, minute = 0)
 
-        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, 0b1111111, now)
+        val allDays2 = DayOfWeek.entries.toSet()
+        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, allDays2, now)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -133,9 +136,8 @@ class NextOccurrenceCalculatorTest {
     @Test
     fun `nextOccurrenceFallback - repeating alarm skips to next matching day`() {
         val now = fixedNow(hour = 10, minute = 0)
-        val wednesdayOnly = 1 shl 2
 
-        val result = NextOccurrenceCalculator.nextOccurrenceFallback(8, 0, wednesdayOnly, now)
+        val result = NextOccurrenceCalculator.nextOccurrenceFallback(8, 0, setOf(DayOfWeek.WEDNESDAY), now)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -154,9 +156,8 @@ class NextOccurrenceCalculatorTest {
             set(2024, Calendar.JANUARY, 19, 15, 0, 0)
             set(Calendar.MILLISECOND, 0)
         }
-        val mondayOnly = 1 shl 0
 
-        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, mondayOnly, now)
+        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, setOf(DayOfWeek.MONDAY), now)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -172,9 +173,8 @@ class NextOccurrenceCalculatorTest {
     @Test
     fun `nextOccurrenceFallback - repeating alarm same day selected but past time finds next week`() {
         val now = fixedNow(hour = 15, minute = 0)
-        val mondayOnly = 1 shl 0
 
-        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, mondayOnly, now)
+        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, setOf(DayOfWeek.MONDAY), now)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -190,9 +190,8 @@ class NextOccurrenceCalculatorTest {
     @Test
     fun `nextOccurrenceFallback - repeating alarm same day selected and future time returns today`() {
         val now = fixedNow(hour = 8, minute = 0)
-        val mondayOnly = 1 shl 0
 
-        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, mondayOnly, now)
+        val result = NextOccurrenceCalculator.nextOccurrenceFallback(10, 0, setOf(DayOfWeek.MONDAY), now)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -210,9 +209,8 @@ class NextOccurrenceCalculatorTest {
             set(2024, Calendar.JANUARY, 17, 10, 0, 0)
             set(Calendar.MILLISECOND, 0)
         }
-        val weekendMask = (1 shl 5) or (1 shl 6)
 
-        val result = NextOccurrenceCalculator.nextOccurrenceFallback(8, 0, weekendMask, now)
+        val result = NextOccurrenceCalculator.nextOccurrenceFallback(8, 0, setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY), now)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -228,7 +226,8 @@ class NextOccurrenceCalculatorTest {
     @Test
     fun `nextOccurrenceFallback - result is always in the future`() {
         val now = fixedNow(hour = 12, minute = 30)
-        val result = NextOccurrenceCalculator.nextOccurrenceFallback(9, 30, 0b1010101, now)
+        val alternatingDays = setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY, DayOfWeek.SUNDAY)
+        val result = NextOccurrenceCalculator.nextOccurrenceFallback(9, 30, alternatingDays, now)
         assertTrue("Trigger time must be >= now", result >= now.timeInMillis)
     }
 }

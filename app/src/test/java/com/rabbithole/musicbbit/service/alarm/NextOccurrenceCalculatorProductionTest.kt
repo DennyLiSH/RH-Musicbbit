@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
+import java.time.DayOfWeek
 import java.util.Calendar
 
 @RunWith(JUnit4::class)
@@ -48,7 +49,8 @@ class NextOccurrenceCalculatorProductionTest {
         val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
 
         // Daily mode (all days, excludeHolidays=false) should ring even on non-workday
-        val result = calculator.nextOccurrence(10, 0, 0b1111111, excludeHolidays = false)
+        val allDays = DayOfWeek.entries.toSet()
+        val result = calculator.nextOccurrence(10, 0, allDays, excludeHolidays = false)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -66,7 +68,8 @@ class NextOccurrenceCalculatorProductionTest {
         val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
 
         // Excluding holidays (all days, excludeHolidays=true) should skip non-workday
-        val result = calculator.nextOccurrence(10, 0, 0b1111111, excludeHolidays = true)
+        val allDays = DayOfWeek.entries.toSet()
+        val result = calculator.nextOccurrence(10, 0, allDays, excludeHolidays = true)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -89,7 +92,8 @@ class NextOccurrenceCalculatorProductionTest {
         val calculator = createCalculator(now = now)
 
         // With excludeHolidays=true, Saturday as workday should ring
-        val result = calculator.nextOccurrence(10, 0, 0b1111111, excludeHolidays = true)
+        val allDays = DayOfWeek.entries.toSet()
+        val result = calculator.nextOccurrence(10, 0, allDays, excludeHolidays = true)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
@@ -106,8 +110,12 @@ class NextOccurrenceCalculatorProductionTest {
         val now = fixedNow(day = 15, hour = 8)  // Monday
         val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
 
-        // Weekdays mode (Mon-Fri, bitmask=0b0011111) on a holiday should skip
-        val result = calculator.nextOccurrence(10, 0, 0b0011111, excludeHolidays = false)
+        // Weekdays mode (Mon-Fri) on a holiday should skip
+        val weekdays = setOf(
+            DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+            DayOfWeek.THURSDAY, DayOfWeek.FRIDAY,
+        )
+        val result = calculator.nextOccurrence(10, 0, weekdays, excludeHolidays = false)
 
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
