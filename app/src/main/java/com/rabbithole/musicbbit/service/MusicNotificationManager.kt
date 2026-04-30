@@ -10,22 +10,27 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.rabbithole.musicbbit.MainActivity
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.service.playback.MusicNotificationPort
+import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Manages the foreground notification for [MusicPlaybackService].
  *
  * Encapsulates channel creation, notification building, and posting.
  */
-class MusicNotificationManager(
-    private val context: Context,
-    private val channelId: String = "music_playback_channel",
-    private val notificationId: Int = 1,
-) {
+@Singleton
+class MusicNotificationManager @Inject constructor(
+    @ApplicationContext private val context: Context,
+) : MusicNotificationPort {
+    private val channelId = "music_playback_channel"
+    private val notificationId = 1
     private val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-    fun createChannel() {
+    override fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channelName = try {
                 context.getString(R.string.app_name)
@@ -45,7 +50,7 @@ class MusicNotificationManager(
         }
     }
 
-    fun buildNotification(state: PlaybackState): Notification {
+    override fun buildNotification(state: PlaybackState): Notification {
         val song = state.currentSong
 
         val contentIntent = PendingIntent.getActivity(

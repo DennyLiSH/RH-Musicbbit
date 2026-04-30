@@ -6,7 +6,11 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
+import com.rabbithole.musicbbit.service.playback.AudioFocusPort
+import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Manages audio focus for music playback.
@@ -14,12 +18,24 @@ import timber.log.Timber
  * Requests audio focus when playback starts and abandons it when playback stops.
  * Handles focus change callbacks to pause/resume playback appropriately.
  */
-class AudioFocusManager(
-    private val context: Context,
-    private val onFocusLoss: () -> Unit,
-    private val onFocusLossTransient: () -> Unit,
-    private val onFocusGain: () -> Unit
-) {
+@Singleton
+class AudioFocusManager @Inject constructor(
+    @ApplicationContext private val context: Context,
+) : AudioFocusPort {
+
+    private var onFocusLoss: () -> Unit = {}
+    private var onFocusLossTransient: () -> Unit = {}
+    private var onFocusGain: () -> Unit = {}
+
+    override fun registerCallbacks(
+        onFocusLoss: () -> Unit,
+        onFocusLossTransient: () -> Unit,
+        onFocusGain: () -> Unit,
+    ) {
+        this.onFocusLoss = onFocusLoss
+        this.onFocusLossTransient = onFocusLossTransient
+        this.onFocusGain = onFocusGain
+    }
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
     private var audioFocusChangeListener: AudioManager.OnAudioFocusChangeListener? = null
@@ -31,7 +47,7 @@ class AudioFocusManager(
      * @return true if focus was granted, false otherwise.
      */
     @Suppress("DEPRECATION")
-    fun requestFocus(): Boolean {
+    override fun requestFocus(): Boolean {
         val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val request = createFocusRequest()
             audioFocusRequest = request
@@ -54,7 +70,7 @@ class AudioFocusManager(
     /**
      * Abandon audio focus.
      */
-    fun abandonFocus() {
+    override fun abandonFocus() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             audioFocusRequest?.let {
                 audioManager.abandonAudioFocusRequest(it)

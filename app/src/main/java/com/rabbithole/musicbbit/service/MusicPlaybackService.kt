@@ -55,7 +55,9 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
     @Inject
     lateinit var alarmFireSession: AlarmFireSession
 
-    private lateinit var audioFocusManager: AudioFocusManager
+    @Inject
+    lateinit var audioFocusManager: AudioFocusManager
+
     private var wasPausedByFocusLoss = false
 
     private val serviceJob = SupervisorJob()
@@ -64,7 +66,9 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
     private val _playbackState = MutableStateFlow(PlaybackState())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
-    private lateinit var notificationManager: MusicNotificationManager
+    @Inject
+    lateinit var notificationManager: MusicNotificationManager
+
     private lateinit var progressTracker: PlaybackProgressTracker
     private var playerEventsJob: Job? = null
 
@@ -128,7 +132,6 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
     override fun onCreate() {
         super.onCreate()
         Timber.i("MusicPlaybackService created")
-        notificationManager = MusicNotificationManager(this)
         notificationManager.createChannel()
         progressTracker = PlaybackProgressTracker(
             scope = serviceScope,
@@ -137,7 +140,29 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
             getState = { _playbackState.value }
         )
         observePlayerEvents()
-        initAudioFocusManager()
+        audioFocusManager.registerCallbacks(
+            onFocusLoss = {
+                Timber.i("Audio focus lost: pausing playback")
+                if (_playbackState.value.isPlaying) {
+                    wasPausedByFocusLoss = true
+                    pause()
+                }
+            },
+            onFocusLossTransient = {
+                Timber.i("Audio focus lost transiently: pausing playback")
+                if (_playbackState.value.isPlaying) {
+                    wasPausedByFocusLoss = true
+                    pause()
+                }
+            },
+            onFocusGain = {
+                Timber.i("Audio focus gained")
+                if (wasPausedByFocusLoss && !playerPort.isPlaying() && _playbackState.value.currentSong != null) {
+                    wasPausedByFocusLoss = false
+                    resume()
+                }
+            }
+        )
         progressTracker.startTickLoop(PROGRESS_TICK_INTERVAL_MS) { pos ->
             _playbackState.update { it.copy(positionMs = pos) }
         }
@@ -166,32 +191,6 @@ class MusicPlaybackService : Service(), AlarmPlaybackHost {
         }
     }
 
-    private fun initAudioFocusManager() {
-        audioFocusManager = AudioFocusManager(
-            context = this,
-            onFocusLoss = {
-                Timber.i("Audio focus lost: pausing playback")
-                if (_playbackState.value.isPlaying) {
-                    wasPausedByFocusLoss = true
-                    pause()
-                }
-            },
-            onFocusLossTransient = {
-                Timber.i("Audio focus lost transiently: pausing playback")
-                if (_playbackState.value.isPlaying) {
-                    wasPausedByFocusLoss = true
-                    pause()
-                }
-            },
-            onFocusGain = {
-                Timber.i("Audio focus gained")
-                if (wasPausedByFocusLoss && !playerPort.isPlaying() && _playbackState.value.currentSong != null) {
-                    wasPausedByFocusLoss = false
-                    resume()
-                }
-            }
-        )
-    }
 
     override fun onBind(intent: Intent): IBinder = binder
 
