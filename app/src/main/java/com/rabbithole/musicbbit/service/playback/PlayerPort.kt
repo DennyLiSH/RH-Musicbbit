@@ -53,6 +53,12 @@ interface PlayerPort {
     fun setRepeatMode(mode: PlayerRepeatMode)
 
     /**
+     * Configure the player for alarm playback (USAGE_ALARM) or normal media playback (USAGE_MEDIA).
+     * Alarm audio attributes ensure playback continues even when the device is in silent/do-not-disturb mode.
+     */
+    fun configureForAlarmPlayback(enabled: Boolean)
+
+    /**
      * Release underlying resources. Idempotent — safe to call multiple times.
      */
     fun release()

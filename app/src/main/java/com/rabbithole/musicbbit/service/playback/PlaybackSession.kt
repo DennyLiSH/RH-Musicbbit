@@ -192,6 +192,7 @@ class PlaybackSession @Inject constructor(
             return
         }
         Timber.i("Playing single song: ${song.title}, playlistId=$playlistId")
+        playerPort.configureForAlarmPlayback(false)
         serviceStarter.startService()
 
         playerPort.setQueue(
@@ -220,9 +221,9 @@ class PlaybackSession @Inject constructor(
             Timber.w("playQueue called with empty list")
             return
         }
-        if (!audioFocusPort.requestFocus()) {
-            Timber.w("Failed to gain audio focus")
-            return
+        val focusGranted = audioFocusPort.requestFocus()
+        if (!focusGranted) {
+            Timber.w("Failed to gain audio focus, continuing playback anyway")
         }
         val safeIndex = startIndex.coerceIn(0, songs.lastIndex)
         val startSong = songs[safeIndex]
@@ -230,6 +231,7 @@ class PlaybackSession @Inject constructor(
         Timber.i(
             "Playing queue of ${songs.size} songs, startIndex=$safeIndex, playlistId=$playlistId"
         )
+        playerPort.configureForAlarmPlayback(false)
         serviceStarter.startService()
 
         val mediaItems = songs.map { song ->
@@ -346,6 +348,7 @@ class PlaybackSession @Inject constructor(
         playlistId: Long,
         alarmId: Long
     ) {
+        playerPort.configureForAlarmPlayback(true)
         playQueue(songs, startIndex, playlistId)
         _playbackState.update {
             it.copy(

@@ -1,6 +1,8 @@
 package com.rabbithole.musicbbit.service.playback
 
 import android.content.Context
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -74,6 +76,7 @@ class ExoPlayerAdapter @Inject constructor(
 
     private val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build().apply {
         addListener(listener)
+        setWakeMode(C.WAKE_MODE_LOCAL)
     }
 
     private var released: Boolean = false
@@ -156,6 +159,16 @@ class ExoPlayerAdapter @Inject constructor(
             PlayerRepeatMode.ONE -> Player.REPEAT_MODE_ONE
             PlayerRepeatMode.ALL -> Player.REPEAT_MODE_ALL
         }
+    }
+
+    override fun configureForAlarmPlayback(enabled: Boolean) {
+        ensureAlive()
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(if (enabled) C.USAGE_ALARM else C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+            .build()
+        exoPlayer.setAudioAttributes(audioAttributes, false)
+        Timber.d("ExoPlayer audio attributes set to %s", if (enabled) "USAGE_ALARM" else "USAGE_MEDIA")
     }
 
     override fun release() {
