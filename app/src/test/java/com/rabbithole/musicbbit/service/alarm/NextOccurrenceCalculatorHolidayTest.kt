@@ -173,7 +173,7 @@ class NextOccurrenceCalculatorHolidayTest {
     }
 
     @Test
-    fun `nextOccurrence - weekdays mode on Monday holiday skips to Tuesday`() = runTest {
+    fun `nextOccurrence - weekdays mode rings on Monday holiday when excludeHolidays is false`() = runTest {
         // Jan 15 2024 is Monday (holiday). Weekdays = Mon-Fri.
         val now = fixedNow(day = 15, hour = 8)
         val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
@@ -184,6 +184,30 @@ class NextOccurrenceCalculatorHolidayTest {
         )
         val result = calculator.nextOccurrence(10, 0, weekdays, excludeHolidays = false)
 
+        // With excludeHolidays=false, weekdays mode rings on selected days regardless of holidays
+        val expected = Calendar.getInstance().apply {
+            timeInMillis = now.timeInMillis
+            set(Calendar.HOUR_OF_DAY, 10)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        assertEquals(expected.timeInMillis, result)
+    }
+
+    @Test
+    fun `nextOccurrence - weekdays mode on Monday holiday skips to Tuesday when excludeHolidays is true`() = runTest {
+        // Jan 15 2024 is Monday (holiday). Weekdays = Mon-Fri.
+        val now = fixedNow(day = 15, hour = 8)
+        val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
+
+        val weekdays = setOf(
+            DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+            DayOfWeek.THURSDAY, DayOfWeek.FRIDAY,
+        )
+        val result = calculator.nextOccurrence(10, 0, weekdays, excludeHolidays = true)
+
+        // With excludeHolidays=true, Monday (holiday) is skipped, Tuesday is the next match
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
             add(Calendar.DAY_OF_MONTH, 1)
@@ -242,14 +266,10 @@ class NextOccurrenceCalculatorHolidayTest {
     }
 
     @Test
-    fun `nextOccurrence - weekday-only set on holiday skips to next matching day`() = runTest {
-        // Jan 15 2024 is Monday (holiday). Monday-only set.
-        // excludeHolidays=false but the logic for non-everyday mode checks:
-        //   dayMatches && isWorkday -> return; !dayMatches && isWorkday && weekend -> return
-        // Monday matches set but isWorkday=false -> skip.
-        // Tuesday-Friday: dayMatches=false, isWorkday=true, but NOT weekend -> skip.
-        // Saturday-Sunday: isWorkday=false (realistic weekend behavior) -> skip.
-        // Next Monday (Jan 22): dayMatches=true, isWorkday=true -> return.
+    fun `nextOccurrence - weekday-only set rings on holiday when excludeHolidays is false`() = runTest {
+        // Jan 15 2024 is Monday (holiday). Monday-only set with excludeHolidays=false.
+        // Since excludeHolidays=false, the alarm should ring on selected days regardless
+        // of whether they are holidays.
         val now = fixedNow(day = 15, hour = 8)
         val holidayRepository = mockk<HolidayRepository>()
         coEvery { holidayRepository.maybeRefreshHolidays(any()) } returns Unit
@@ -266,6 +286,44 @@ class NextOccurrenceCalculatorHolidayTest {
 
         // Monday-only set
         val result = calculator.nextOccurrence(10, 0, setOf(DayOfWeek.MONDAY), excludeHolidays = false)
+
+        // Expected: 2024-01-15 Mon 10:00 (rings on the holiday Monday)
+        val expected = Calendar.getInstance().apply {
+            timeInMillis = now.timeInMillis
+            set(Calendar.HOUR_OF_DAY, 10)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        assertEquals(expected.timeInMillis, result)
+    }
+
+    @Test
+    fun `nextOccurrence - weekday-only set on holiday skips to next matching day when excludeHolidays is true`() = runTest {
+        // Jan 15 2024 is Monday (holiday). Monday-only set with excludeHolidays=true.
+        // With excludeHolidays=true, the alarm skips holidays and honours adjusted workdays:
+        //   dayMatches && isWorkday -> return
+        //   !dayMatches && isWorkday && weekend -> return (adjusted workday)
+        // Monday matches set but isWorkday=false -> skip.
+        // Tuesday-Friday: dayMatches=false -> skip.
+        // Saturday-Sunday: isWorkday=false -> skip.
+        // Next Monday (Jan 22): dayMatches=true, isWorkday=true -> return.
+        val now = fixedNow(day = 15, hour = 8)
+        val holidayRepository = mockk<HolidayRepository>()
+        coEvery { holidayRepository.maybeRefreshHolidays(any()) } returns Unit
+        coEvery { holidayRepository.isWorkday(any()) } answers {
+            val dateStr = firstArg<String>()
+            val localDate = java.time.LocalDate.parse(dateStr)
+            val dayOfWeek = localDate.dayOfWeek
+            val isWeekend = dayOfWeek == java.time.DayOfWeek.SATURDAY || dayOfWeek == java.time.DayOfWeek.SUNDAY
+            !isWeekend && dateStr != "2024-01-15"
+        }
+        val clock = mockk<Clock>()
+        every { clock.nowMs() } returns now.timeInMillis
+        val calculator = NextOccurrenceCalculator(holidayRepository, clock)
+
+        // Monday-only set
+        val result = calculator.nextOccurrence(10, 0, setOf(DayOfWeek.MONDAY), excludeHolidays = true)
 
         // Expected: 2024-01-22 Mon 10:00
         val expected = Calendar.getInstance().apply {

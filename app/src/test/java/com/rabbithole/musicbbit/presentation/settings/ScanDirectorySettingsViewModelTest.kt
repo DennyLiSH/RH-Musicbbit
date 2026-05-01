@@ -21,7 +21,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
+import timber.log.Timber
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ScanDirectorySettingsViewModelTest {
@@ -31,6 +33,17 @@ class ScanDirectorySettingsViewModelTest {
     private lateinit var scanDirectoryRepository: ScanDirectoryRepository
     private lateinit var musicRepository: MusicRepository
     private lateinit var alarmRingSettingsRepository: AlarmRingSettingsRepository
+
+    companion object {
+        @JvmStatic
+        @BeforeClass
+        fun plantTimber() {
+            Timber.uprootAll()
+            Timber.plant(object : Timber.Tree() {
+                override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {}
+            })
+        }
+    }
 
     @Before
     fun setUp() {
@@ -92,7 +105,7 @@ class ScanDirectorySettingsViewModelTest {
     }
 
     @Test
-    fun `add directory failure sets error`() = runTest(testDispatcher) {
+    fun `add directory failure sets error`() = runTest {
         every { scanDirectoryRepository.getAll() } returns flowOf(emptyList())
         every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(true)
         every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3500L)
@@ -103,11 +116,13 @@ class ScanDirectorySettingsViewModelTest {
             musicRepository,
             alarmRingSettingsRepository
         )
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val tempDir = System.getProperty("java.io.tmpdir")!!
         viewModel.onAction(ScanDirectorySettingsAction.OnScanDirectoryPreview(tempDir, "Temp"))
 
         viewModel.onAction(ScanDirectorySettingsAction.OnConfirmAddDirectory)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as ScanDirectorySettingsUiState.Success
         assertEquals(R.string.settings_error_add_failed, state.errorMessageResId)
@@ -134,7 +149,7 @@ class ScanDirectorySettingsViewModelTest {
     }
 
     @Test
-    fun `retry reloads directories after error`() = runTest(testDispatcher) {
+    fun `retry reloads directories after error`() = runTest {
         val errorFlow = kotlinx.coroutines.flow.flow<List<ScanDirectory>> { throw RuntimeException("DB error") }
         every { scanDirectoryRepository.getAll() } returns errorFlow
         every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(true)
@@ -143,6 +158,7 @@ class ScanDirectorySettingsViewModelTest {
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository, musicRepository, alarmRingSettingsRepository
         )
+        testDispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value is ScanDirectorySettingsUiState.Error)
 
@@ -150,6 +166,7 @@ class ScanDirectorySettingsViewModelTest {
             listOf(ScanDirectory(id = 1L, path = "/music", name = "Music", addedAt = 0L))
         )
         viewModel.retry()
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as ScanDirectorySettingsUiState.Success
         assertEquals(1, state.directories.size)

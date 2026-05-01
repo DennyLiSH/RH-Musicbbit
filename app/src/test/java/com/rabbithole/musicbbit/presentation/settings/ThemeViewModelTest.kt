@@ -17,7 +17,9 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
+import timber.log.Timber
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ThemeViewModelTest {
@@ -25,6 +27,17 @@ class ThemeViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
 
     private lateinit var themeRepository: ThemeRepository
+
+    companion object {
+        @JvmStatic
+        @BeforeClass
+        fun plantTimber() {
+            Timber.uprootAll()
+            Timber.plant(object : Timber.Tree() {
+                override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {}
+            })
+        }
+    }
 
     @Before
     fun setUp() {
@@ -61,13 +74,15 @@ class ThemeViewModelTest {
     }
 
     @Test
-    fun `set theme mode failure sets error`() = runTest(testDispatcher) {
+    fun `set theme mode failure sets error`() = runTest {
         every { themeRepository.getThemeMode() } returns flowOf(ThemeMode.SYSTEM)
         coEvery { themeRepository.setThemeMode(ThemeMode.LIGHT) } returns Result.failure(RuntimeException("Failed"))
 
         val viewModel = ThemeViewModel(themeRepository)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.setThemeMode(ThemeMode.LIGHT)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(R.string.theme_error_set_failed, viewModel.uiState.value.errorMessageResId)
     }

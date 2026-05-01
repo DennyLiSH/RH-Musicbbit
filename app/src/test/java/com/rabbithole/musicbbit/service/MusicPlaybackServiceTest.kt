@@ -112,6 +112,7 @@ class MusicPlaybackServiceTest {
         service.onCreate()
 
         val mockPlaybackSession = mockk<PlaybackSession>(relaxed = true)
+        every { mockPlaybackSession.playbackState } returns MutableStateFlow(PlaybackState())
         service.javaClass.getDeclaredField("playbackSession").apply {
             isAccessible = true
             set(service, mockPlaybackSession)
@@ -130,6 +131,7 @@ class MusicPlaybackServiceTest {
         service.onCreate()
 
         val mockPlaybackSession = mockk<PlaybackSession>(relaxed = true)
+        every { mockPlaybackSession.playbackState } returns MutableStateFlow(PlaybackState())
         service.javaClass.getDeclaredField("playbackSession").apply {
             isAccessible = true
             set(service, mockPlaybackSession)

@@ -18,7 +18,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
+import timber.log.Timber
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistListViewModelTest {
@@ -26,6 +28,17 @@ class PlaylistListViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
 
     private lateinit var playlistRepository: PlaylistRepository
+
+    companion object {
+        @JvmStatic
+        @BeforeClass
+        fun plantTimber() {
+            Timber.uprootAll()
+            Timber.plant(object : Timber.Tree() {
+                override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {}
+            })
+        }
+    }
 
     @Before
     fun setUp() {
@@ -79,13 +92,15 @@ class PlaylistListViewModelTest {
     }
 
     @Test
-    fun `create playlist failure sets error in Success state`() = runTest(testDispatcher) {
+    fun `create playlist failure sets error in Success state`() = runTest {
         every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
         coEvery { playlistRepository.createPlaylist("New") } returns Result.failure(RuntimeException("Failed"))
 
         val viewModel = PlaylistListViewModel(playlistRepository)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.onAction(PlaylistListAction.OnCreatePlaylist("New"))
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as PlaylistListUiState.Success
         assertEquals(com.rabbithole.musicbbit.R.string.playlist_error_add_song_failed, state.errorMessageResId)
@@ -106,15 +121,17 @@ class PlaylistListViewModelTest {
     }
 
     @Test
-    fun `retry reloads playlists after error`() = runTest(testDispatcher) {
+    fun `retry reloads playlists after error`() = runTest {
         val errorFlow = kotlinx.coroutines.flow.flow<List<Playlist>> { throw RuntimeException("DB error") }
         every { playlistRepository.getAllPlaylists() } returns errorFlow
 
         val viewModel = PlaylistListViewModel(playlistRepository)
+        testDispatcher.scheduler.advanceUntilIdle()
         assertTrue(viewModel.uiState.value is PlaylistListUiState.Error)
 
         every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
         viewModel.retry()
+        testDispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value is PlaylistListUiState.Success)
     }

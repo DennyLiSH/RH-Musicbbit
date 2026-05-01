@@ -44,6 +44,45 @@ class NextOccurrenceCalculatorProductionTest {
     }
 
     @Test
+    fun `nextOccurrence - one-time alarm rings on non-workday when excludeHolidays is false`() = runTest {
+        val now = fixedNow(day = 15, hour = 8)  // Monday
+        val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
+
+        // One-time alarm with excludeHolidays=false should ring on the scheduled day
+        // regardless of whether it is a workday (cron-style)
+        val result = calculator.nextOccurrence(10, 0, repeatDays = emptySet(), excludeHolidays = false)
+
+        val expected = Calendar.getInstance().apply {
+            timeInMillis = now.timeInMillis
+            set(Calendar.HOUR_OF_DAY, 10)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        assertEquals(expected.timeInMillis, result)
+    }
+
+    @Test
+    fun `nextOccurrence - one-time alarm skips non-workday when excludeHolidays is true`() = runTest {
+        val now = fixedNow(day = 15, hour = 8)  // Monday
+        val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
+
+        // One-time alarm with excludeHolidays=true should skip non-workdays
+        val result = calculator.nextOccurrence(10, 0, repeatDays = emptySet(), excludeHolidays = true)
+
+        // Expected: 2024-01-16 10:00 (Tuesday, the next workday)
+        val expected = Calendar.getInstance().apply {
+            timeInMillis = now.timeInMillis
+            add(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 10)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        assertEquals(expected.timeInMillis, result)
+    }
+
+    @Test
     fun `nextOccurrence - daily mode with excludeHolidays=false rings on holiday`() = runTest {
         val now = fixedNow(day = 15, hour = 8)  // Monday
         val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
@@ -106,17 +145,42 @@ class NextOccurrenceCalculatorProductionTest {
     }
 
     @Test
-    fun `nextOccurrence - weekdays mode skips holiday`() = runTest {
+    fun `nextOccurrence - weekdays mode rings on holiday when excludeHolidays is false`() = runTest {
         val now = fixedNow(day = 15, hour = 8)  // Monday
         val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
 
-        // Weekdays mode (Mon-Fri) on a holiday should skip
+        // Weekdays mode (Mon-Fri) with excludeHolidays=false should ring on selected days
+        // regardless of holidays
         val weekdays = setOf(
             DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
             DayOfWeek.THURSDAY, DayOfWeek.FRIDAY,
         )
         val result = calculator.nextOccurrence(10, 0, weekdays, excludeHolidays = false)
 
+        // Should ring on Monday (the holiday) because excludeHolidays=false
+        val expected = Calendar.getInstance().apply {
+            timeInMillis = now.timeInMillis
+            set(Calendar.HOUR_OF_DAY, 10)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        assertEquals(expected.timeInMillis, result)
+    }
+
+    @Test
+    fun `nextOccurrence - weekdays mode skips holiday when excludeHolidays is true`() = runTest {
+        val now = fixedNow(day = 15, hour = 8)  // Monday
+        val calculator = createCalculator(nonWorkdayDates = listOf("2024-01-15"), now = now)
+
+        // Weekdays mode (Mon-Fri) with excludeHolidays=true should skip holidays
+        val weekdays = setOf(
+            DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+            DayOfWeek.THURSDAY, DayOfWeek.FRIDAY,
+        )
+        val result = calculator.nextOccurrence(10, 0, weekdays, excludeHolidays = true)
+
+        // Should skip Monday (holiday) and ring on Tuesday
         val expected = Calendar.getInstance().apply {
             timeInMillis = now.timeInMillis
             add(Calendar.DAY_OF_MONTH, 1)

@@ -17,7 +17,9 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
+import timber.log.Timber
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AddToPlaylistBottomSheetViewModelTest {
@@ -25,6 +27,17 @@ class AddToPlaylistBottomSheetViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
 
     private lateinit var playlistRepository: PlaylistRepository
+
+    companion object {
+        @JvmStatic
+        @BeforeClass
+        fun plantTimber() {
+            Timber.uprootAll()
+            Timber.plant(object : Timber.Tree() {
+                override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {}
+            })
+        }
+    }
 
     @Before
     fun setUp() {
@@ -53,41 +66,46 @@ class AddToPlaylistBottomSheetViewModelTest {
     }
 
     @Test
-    fun `load playlists error emits Error`() = runTest(testDispatcher) {
+    fun `load playlists error emits Error`() = runTest {
         val errorFlow = kotlinx.coroutines.flow.flow<List<Playlist>> { throw RuntimeException("DB error") }
         every { playlistRepository.getAllPlaylists() } returns errorFlow
 
         val viewModel = AddToPlaylistBottomSheetViewModel(playlistRepository)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value is AddToPlaylistUiState.Error)
     }
 
     @Test
-    fun `retry reloads after error`() = runTest(testDispatcher) {
+    fun `retry reloads after error`() = runTest {
         val errorFlow = kotlinx.coroutines.flow.flow<List<Playlist>> { throw RuntimeException("DB error") }
         every { playlistRepository.getAllPlaylists() } returns errorFlow
 
         val viewModel = AddToPlaylistBottomSheetViewModel(playlistRepository)
+        testDispatcher.scheduler.advanceUntilIdle()
         assertTrue(viewModel.uiState.value is AddToPlaylistUiState.Error)
 
         every { playlistRepository.getAllPlaylists() } returns flowOf(
             listOf(Playlist(id = 1L, name = "Favorites", createdAt = 0L, updatedAt = 0L))
         )
         viewModel.retry()
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as AddToPlaylistUiState.Success
         assertEquals(1, state.playlists.size)
     }
 
     @Test
-    fun `onPlaylistSelected failure sets error message in Success state`() = runTest(testDispatcher) {
+    fun `onPlaylistSelected failure sets error message in Success state`() = runTest {
         val playlists = listOf(Playlist(id = 1L, name = "Favorites", createdAt = 0L, updatedAt = 0L))
         every { playlistRepository.getAllPlaylists() } returns flowOf(playlists)
         coEvery { playlistRepository.addSongToPlaylist(1L, 10L) } returns Result.failure(RuntimeException("Failed"))
 
         val viewModel = AddToPlaylistBottomSheetViewModel(playlistRepository)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.onPlaylistSelected(playlistId = 1L, songId = 10L)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as AddToPlaylistUiState.Success
         assertEquals(R.string.playlist_error_add_song_failed, state.errorMessageResId)

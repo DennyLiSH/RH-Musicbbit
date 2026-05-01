@@ -7,22 +7,19 @@ import com.rabbithole.musicbbit.service.PlayMode
 import com.rabbithole.musicbbit.service.PlaybackSource
 import com.rabbithole.musicbbit.service.PlaybackState
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
-import io.mockk.Runs
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
-import io.mockk.just
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -35,24 +32,20 @@ import timber.log.Timber
 /**
  * JVM unit tests for [PlaybackSession].
  *
- * Covers:
- *   - Initial state is empty
- *   - play() requests focus, starts service, sets queue, and plays
- *   - play() does nothing when focus request fails
- *   - pause() pauses the player
- *   - resume() requests focus and plays
- *   - stop() abandons focus, stops player, clears queue, stops service
- *   - playAlarmQueue() sets source = ALARM and alarmId
- *   - PlayerEvent.IsPlayingChanged updates state
- *   - PlayerEvent.MediaItemTransition updates current song and queueIndex
- *   - setPlayMode(RANDOM) enables shuffle
- *   - setPlayMode(REPEAT_ONE) sets repeat one
+ * Uses a dedicated [sessionDispatcher] (separate from any TestScope) so that
+ * PlaybackSession's internal infinite loops (tickLoop, saveLoop) never
+ * interfere with test finalisation.
+ *
+ * Event delivery is synchronous because [UnconfinedTestDispatcher] dispatches
+ * eagerly — by the time `tryEmit()` returns the collector has already processed
+ * the event.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaybackSessionTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
-    private val testScope = TestScope(testDispatcher)
+    // Separate dispatcher — its scheduler is NOT shared with any TestScope,
+    // so runBlocking / runTest finalisation never tries to drain the infinite loops.
+    private val sessionDispatcher = UnconfinedTestDispatcher()
 
     private lateinit var playerPort: PlayerPort
     private lateinit var playbackProgressRepository: PlaybackProgressRepository
@@ -100,6 +93,8 @@ class PlaybackSessionTest {
 
         every { playerPort.events } returns playerEvents
 
+        coEvery { playbackProgressRepository.saveProgress(any()) } returns Result.success(Unit)
+
         session = PlaybackSession(
             playerPort = playerPort,
             playbackProgressRepository = playbackProgressRepository,
@@ -107,8 +102,16 @@ class PlaybackSessionTest {
             serviceStarter = serviceStarter,
             audioFocusPort = audioFocusPort,
             volumeRampPort = volumeRampPort,
-            mainDispatcher = testDispatcher,
+            mainDispatcher = sessionDispatcher,
         )
+    }
+
+    @After
+    fun tearDown() {
+        // Cancel session's internal scope to stop tickLoop / saveLoop / eventCollector
+        val scopeField = PlaybackSession::class.java.getDeclaredField("sessionScope")
+        scopeField.isAccessible = true
+        (scopeField.get(session) as CoroutineScope).cancel()
     }
 
     // -------- initial state ---------------------------------------------------
@@ -200,8 +203,7 @@ class PlaybackSessionTest {
     // -------- stop() ----------------------------------------------------------
 
     @Test
-    fun `stop abandons focus stops player clears queue and stops service`() = testScope.runTest {
-        // Set up some state first
+    fun `stop abandons focus stops player clears queue and stops service`() {
         every { audioFocusPort.requestFocus() } returns true
         session.play(SONG_1, playlistId = 10L)
 
@@ -226,7 +228,7 @@ class PlaybackSessionTest {
     // -------- playAlarmQueue() ------------------------------------------------
 
     @Test
-    fun `playAlarmQueue sets source to ALARM and alarmId`() {
+    fun `playAlarmQueue sets source to ALARM and alarmId`() = runBlocking {
         every { audioFocusPort.requestFocus() } returns true
         coEvery { playbackProgressRepository.getProgress(any(), any()) } returns Result.success(null)
 
@@ -240,41 +242,38 @@ class PlaybackSessionTest {
     }
 
     // -------- PlayerEvent handling --------------------------------------------
+    // tryEmit() delivers synchronously with UnconfinedTestDispatcher
 
     @Test
-    fun `IsPlayingChanged true updates state and starts save loop`() = testScope.runTest {
-        // Pre-condition: set up a song so saveLoop has something to save
+    fun `IsPlayingChanged true updates state and starts save loop`() {
         every { audioFocusPort.requestFocus() } returns true
         session.play(SONG_1, playlistId = 10L)
 
         every { playerPort.currentPositionMs() } returns 5_000L
 
-        playerEvents.emit(PlayerEvent.IsPlayingChanged(true))
-        advanceUntilIdle()
+        playerEvents.tryEmit(PlayerEvent.IsPlayingChanged(true))
 
         val state = session.playbackState.value
         assertTrue(state.isPlaying)
     }
 
     @Test
-    fun `IsPlayingChanged false updates state`() = testScope.runTest {
-        playerEvents.emit(PlayerEvent.IsPlayingChanged(false))
-        advanceUntilIdle()
+    fun `IsPlayingChanged false updates state`() {
+        playerEvents.tryEmit(PlayerEvent.IsPlayingChanged(false))
 
         val state = session.playbackState.value
         assertFalse(state.isPlaying)
     }
 
     @Test
-    fun `MediaItemTransition updates current song and queueIndex`() = testScope.runTest {
-        playerEvents.emit(
+    fun `MediaItemTransition updates current song and queueIndex`() {
+        playerEvents.tryEmit(
             PlayerEvent.MediaItemTransition(
                 itemTag = SONG_2,
                 itemIndex = 1,
                 reason = TransitionReason.AUTO,
             )
         )
-        advanceUntilIdle()
 
         val state = session.playbackState.value
         assertEquals(SONG_2, state.currentSong)
@@ -283,20 +282,18 @@ class PlaybackSessionTest {
     }
 
     @Test
-    fun `PlaybackReady updates duration`() = testScope.runTest {
-        playerEvents.emit(PlayerEvent.PlaybackReady(durationMs = 200_000L))
-        advanceUntilIdle()
+    fun `PlaybackReady updates duration`() {
+        playerEvents.tryEmit(PlayerEvent.PlaybackReady(durationMs = 200_000L))
 
         val state = session.playbackState.value
         assertEquals(200_000L, state.durationMs)
     }
 
     @Test
-    fun `PositionDiscontinuity updates position and queueIndex`() = testScope.runTest {
-        playerEvents.emit(
+    fun `PositionDiscontinuity updates position and queueIndex`() {
+        playerEvents.tryEmit(
             PlayerEvent.PositionDiscontinuity(newPositionMs = 30_000L, itemIndex = 2)
         )
-        advanceUntilIdle()
 
         val state = session.playbackState.value
         assertEquals(30_000L, state.positionMs)
@@ -304,13 +301,11 @@ class PlaybackSessionTest {
     }
 
     @Test
-    fun `QueueEnded with USER source calls stop`() = testScope.runTest {
-        // Set up state with USER source
+    fun `QueueEnded with USER source calls stop`() {
         every { audioFocusPort.requestFocus() } returns true
         session.play(SONG_1, playlistId = 10L)
 
-        playerEvents.emit(PlayerEvent.QueueEnded)
-        advanceUntilIdle()
+        playerEvents.tryEmit(PlayerEvent.QueueEnded)
 
         verify { playerPort.stop() }
         verify { playerPort.clearQueue() }
@@ -318,14 +313,13 @@ class PlaybackSessionTest {
     }
 
     @Test
-    fun `QueueEnded with ALARM source does not call stop`() = testScope.runTest {
+    fun `QueueEnded with ALARM source does not call stop`() = runBlocking {
         every { audioFocusPort.requestFocus() } returns true
         coEvery { playbackProgressRepository.getProgress(any(), any()) } returns Result.success(null)
 
         session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, alarmId = 42L)
 
-        playerEvents.emit(PlayerEvent.QueueEnded)
-        advanceUntilIdle()
+        playerEvents.tryEmit(PlayerEvent.QueueEnded)
 
         // stop should NOT be called for ALARM source
         verify(exactly = 0) { playerPort.stop() }
@@ -426,12 +420,11 @@ class PlaybackSessionTest {
     // -------- playQueue() -----------------------------------------------------
 
     @Test
-    fun `playQueue requests focus and plays queue`() = testScope.runTest {
+    fun `playQueue requests focus and plays queue`() = runBlocking {
         every { audioFocusPort.requestFocus() } returns true
         coEvery { playbackProgressRepository.getProgress(SONG_1.id, 10L) } returns Result.success(null)
 
         session.playQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L)
-        advanceUntilIdle()
 
         verify { audioFocusPort.requestFocus() }
         verify { serviceStarter.startService() }
@@ -446,7 +439,7 @@ class PlaybackSessionTest {
     }
 
     @Test
-    fun `playQueue restores progress when available`() = testScope.runTest {
+    fun `playQueue restores progress when available`() = runBlocking {
         every { audioFocusPort.requestFocus() } returns true
         val progress = PlaybackProgress(
             songId = SONG_1.id,
@@ -457,20 +450,24 @@ class PlaybackSessionTest {
         coEvery { playbackProgressRepository.getProgress(SONG_1.id, 10L) } returns Result.success(progress)
 
         session.playQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L)
-        advanceUntilIdle()
 
         verify { playerPort.seekTo(30_000L) }
     }
 
     @Test
-    fun `playQueue does nothing when focus request fails`() {
+    fun `playQueue continues playback even when focus request fails`() = runBlocking {
         every { audioFocusPort.requestFocus() } returns false
+        coEvery { playbackProgressRepository.getProgress(SONG_1.id, 10L) } returns Result.success(null)
 
         session.playQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
 
         verify { audioFocusPort.requestFocus() }
-        verify(exactly = 0) { serviceStarter.startService() }
-        verify(exactly = 0) { playerPort.setQueue(any(), any(), any()) }
+        verify { serviceStarter.startService() }
+        verify { playerPort.setQueue(any(), 0, 0L) }
+        verify { playerPort.play() }
+
+        val state = session.playbackState.value
+        assertEquals(SONG_1, state.currentSong)
     }
 
     @Test
@@ -484,22 +481,23 @@ class PlaybackSessionTest {
     // -------- audio focus callbacks -------------------------------------------
 
     @Test
-    fun `focus loss pauses playback when playing`() = testScope.runTest {
+    fun `focus loss pauses playback when playing`() {
         every { audioFocusPort.requestFocus() } returns true
         session.play(SONG_1, playlistId = 10L)
 
-        // Simulate focus loss by capturing the callback and invoking it
+        // Playback must actually be playing for focus loss to trigger pause
+        playerEvents.tryEmit(PlayerEvent.IsPlayingChanged(true))
+
         val focusLossSlot = slot<() -> Unit>()
         verify { audioFocusPort.registerCallbacks(capture(focusLossSlot), any(), any()) }
 
         focusLossSlot.captured.invoke()
-        advanceUntilIdle()
 
         verify { playerPort.pause() }
     }
 
     @Test
-    fun `focus gain resumes playback when previously paused by focus loss`() = testScope.runTest {
+    fun `focus gain resumes playback when previously paused by focus loss`() {
         every { audioFocusPort.requestFocus() } returns true
         every { playerPort.isPlaying() } returns false
         session.play(SONG_1, playlistId = 10L)
@@ -514,11 +512,14 @@ class PlaybackSessionTest {
             )
         }
 
-        // Lose focus
+        // Start playing
+        playerEvents.tryEmit(PlayerEvent.IsPlayingChanged(true))
+        // Lose focus -> wasPausedByFocusLoss = true, pause()
         focusLossSlot.captured.invoke()
-        // Then regain focus
+        // Player reports it's no longer playing -> isPlaying = false
+        playerEvents.tryEmit(PlayerEvent.IsPlayingChanged(false))
+        // Regain focus -> resume()
         focusGainSlot.captured.invoke()
-        advanceUntilIdle()
 
         verify(atLeast = 1) { playerPort.play() }
     }

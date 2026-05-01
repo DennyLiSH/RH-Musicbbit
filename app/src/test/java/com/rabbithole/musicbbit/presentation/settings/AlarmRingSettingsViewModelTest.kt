@@ -16,7 +16,9 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
+import timber.log.Timber
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AlarmRingSettingsViewModelTest {
@@ -24,6 +26,17 @@ class AlarmRingSettingsViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
 
     private lateinit var alarmRingSettingsRepository: AlarmRingSettingsRepository
+
+    companion object {
+        @JvmStatic
+        @BeforeClass
+        fun plantTimber() {
+            Timber.uprootAll()
+            Timber.plant(object : Timber.Tree() {
+                override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {}
+            })
+        }
+    }
 
     @Before
     fun setUp() {

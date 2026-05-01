@@ -21,7 +21,9 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
+import timber.log.Timber
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistDetailViewModelTest {
@@ -30,6 +32,17 @@ class PlaylistDetailViewModelTest {
 
     private lateinit var playlistRepository: PlaylistRepository
     private lateinit var musicRepository: MusicRepository
+
+    companion object {
+        @JvmStatic
+        @BeforeClass
+        fun plantTimber() {
+            Timber.uprootAll()
+            Timber.plant(object : Timber.Tree() {
+                override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {}
+            })
+        }
+    }
 
     @Before
     fun setUp() {
@@ -128,18 +141,20 @@ class PlaylistDetailViewModelTest {
     }
 
     @Test
-    fun `retry reloads playlist after error`() = runTest(testDispatcher) {
+    fun `retry reloads playlist after error`() = runTest {
         val errorFlow = kotlinx.coroutines.flow.flow<PlaylistWithSongs?> { throw RuntimeException("DB error") }
         every { playlistRepository.getPlaylistWithSongs(1L) } returns errorFlow
         every { musicRepository.getAllSongs() } returns flowOf(emptyList())
 
         val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value is PlaylistDetailUiState.Error)
 
         val playlist = Playlist(id = 1L, name = "Test", createdAt = 0L, updatedAt = 0L)
         every { playlistRepository.getPlaylistWithSongs(1L) } returns flowOf(PlaylistWithSongs(playlist, emptyList()))
         viewModel.retry()
+        testDispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value is PlaylistDetailUiState.Success)
     }
