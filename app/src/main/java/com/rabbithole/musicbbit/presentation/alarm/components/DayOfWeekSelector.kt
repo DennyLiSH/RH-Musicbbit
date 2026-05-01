@@ -18,9 +18,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.rabbithole.musicbbit.R
 import java.time.DayOfWeek
 
 private val ALL_DAYS = listOf(
@@ -121,7 +123,7 @@ fun DayOfWeekSelector(
                 }
             )
             ShortcutButton(
-                label = "Excl. Holidays",
+                label = stringResource(R.string.alarm_excluding_holidays_short),
                 selected = selectedDays == EVERYDAY && excludeHolidays,
                 onClick = {
                     onDaysChanged(EVERYDAY)
@@ -151,7 +153,7 @@ fun DayOfWeekSelector(
                 enabled = !isOneTime
             )
             Text(
-                text = "Exclude holidays",
+                text = stringResource(R.string.alarm_excluding_holidays),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(start = 8.dp),
                 color = if (isOneTime) {
