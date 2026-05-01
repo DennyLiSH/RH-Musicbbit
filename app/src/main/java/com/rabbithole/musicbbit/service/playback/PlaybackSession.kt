@@ -1,5 +1,6 @@
 package com.rabbithole.musicbbit.service.playback
 
+import com.rabbithole.musicbbit.di.MainDispatcher
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.service.PlayMode
@@ -43,7 +44,7 @@ class PlaybackSession @Inject constructor(
     private val serviceStarter: ServiceStarter,
     private val audioFocusPort: AudioFocusPort,
     private val volumeRampPort: VolumeRampPort,
-    private val mainDispatcher: CoroutineDispatcher,
+    @MainDispatcher private val mainDispatcher: CoroutineDispatcher,
 ) : PlaybackController {
 
     private val sessionJob = SupervisorJob()
