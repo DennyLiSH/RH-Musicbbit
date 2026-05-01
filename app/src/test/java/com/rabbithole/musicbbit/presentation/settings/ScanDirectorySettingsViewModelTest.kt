@@ -92,11 +92,11 @@ class ScanDirectorySettingsViewModelTest {
     }
 
     @Test
-    fun `add directory failure sets error`() = runTest {
+    fun `add directory failure sets error`() = runTest(testDispatcher) {
         every { scanDirectoryRepository.getAll() } returns flowOf(emptyList())
         every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(true)
         every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3500L)
-        coEvery { scanDirectoryRepository.add(any()) } coAnswers { Result.failure(RuntimeException("Failed")) }
+        coEvery { scanDirectoryRepository.add(any()) } returns Result.failure(RuntimeException("Failed"))
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
@@ -108,7 +108,6 @@ class ScanDirectorySettingsViewModelTest {
         viewModel.onAction(ScanDirectorySettingsAction.OnScanDirectoryPreview(tempDir, "Temp"))
 
         viewModel.onAction(ScanDirectorySettingsAction.OnConfirmAddDirectory)
-        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as ScanDirectorySettingsUiState.Success
         assertEquals(R.string.settings_error_add_failed, state.errorMessageResId)
@@ -135,7 +134,7 @@ class ScanDirectorySettingsViewModelTest {
     }
 
     @Test
-    fun `retry reloads directories after error`() = runTest {
+    fun `retry reloads directories after error`() = runTest(testDispatcher) {
         val errorFlow = kotlinx.coroutines.flow.flow<List<ScanDirectory>> { throw RuntimeException("DB error") }
         every { scanDirectoryRepository.getAll() } returns errorFlow
         every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(true)

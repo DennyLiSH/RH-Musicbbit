@@ -79,14 +79,13 @@ class PlaylistListViewModelTest {
     }
 
     @Test
-    fun `create playlist failure sets error in Success state`() = runTest {
+    fun `create playlist failure sets error in Success state`() = runTest(testDispatcher) {
         every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
-        coEvery { playlistRepository.createPlaylist("New") } coAnswers { Result.failure(RuntimeException("Failed")) }
+        coEvery { playlistRepository.createPlaylist("New") } returns Result.failure(RuntimeException("Failed"))
 
         val viewModel = PlaylistListViewModel(playlistRepository)
 
         viewModel.onAction(PlaylistListAction.OnCreatePlaylist("New"))
-        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as PlaylistListUiState.Success
         assertEquals(com.rabbithole.musicbbit.R.string.playlist_error_add_song_failed, state.errorMessageResId)
@@ -107,7 +106,7 @@ class PlaylistListViewModelTest {
     }
 
     @Test
-    fun `retry reloads playlists after error`() = runTest {
+    fun `retry reloads playlists after error`() = runTest(testDispatcher) {
         val errorFlow = kotlinx.coroutines.flow.flow<List<Playlist>> { throw RuntimeException("DB error") }
         every { playlistRepository.getAllPlaylists() } returns errorFlow
 

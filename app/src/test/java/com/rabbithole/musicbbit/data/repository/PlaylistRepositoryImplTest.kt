@@ -3,7 +3,7 @@ package com.rabbithole.musicbbit.data.repository
 import app.cash.turbine.test
 import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistSongDao
-import com.rabbithole.musicbbit.data.local.dao.SongDao
+import com.rabbithole.musicbbit.data.local.model.PlaylistWithSongsEntity
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.model.Song
@@ -28,13 +28,12 @@ class PlaylistRepositoryImplTest {
 
     private val playlistDao: PlaylistDao = mockk()
     private val playlistSongDao: PlaylistSongDao = mockk()
-    private val songDao: SongDao = mockk()
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var repository: PlaylistRepositoryImpl
 
     @Before
     fun setup() {
-        repository = PlaylistRepositoryImpl(playlistDao, playlistSongDao, songDao, testDispatcher)
+        repository = PlaylistRepositoryImpl(playlistDao, playlistSongDao, testDispatcher)
     }
 
     // ------------------------------------------------------------------
@@ -81,17 +80,11 @@ class PlaylistRepositoryImplTest {
     @Test
     fun `playlist exists with songs - returns PlaylistWithSongs with correct data`() = runTest(testDispatcher) {
         val playlist = playlistEntity(id = 1L, name = "Morning Vibes")
-        val playlistSongs = listOf(
-            playlistSongEntity(playlistId = 1L, songId = 10L, sortOrder = 0),
-            playlistSongEntity(playlistId = 1L, songId = 20L, sortOrder = 1)
-        )
         val song1 = songEntity(id = 10L, title = "Song A")
         val song2 = songEntity(id = 20L, title = "Song B")
 
         every { playlistDao.getAll() } returns flowOf(listOf(playlist))
-        every { playlistSongDao.getByPlaylistId(1L) } returns flowOf(playlistSongs)
-        coEvery { songDao.getById(10L) } returns song1
-        coEvery { songDao.getById(20L) } returns song2
+        coEvery { playlistDao.getPlaylistWithSongs(1L) } returns PlaylistWithSongsEntity(playlist, listOf(song1, song2))
 
         repository.getPlaylistWithSongs(1L).test {
             val result = awaitItem()
@@ -113,7 +106,7 @@ class PlaylistRepositoryImplTest {
         val playlist = playlistEntity(id = 2L, name = "Empty Playlist")
 
         every { playlistDao.getAll() } returns flowOf(listOf(playlist))
-        every { playlistSongDao.getByPlaylistId(2L) } returns flowOf(emptyList())
+        coEvery { playlistDao.getPlaylistWithSongs(2L) } returns PlaylistWithSongsEntity(playlist, emptyList())
 
         repository.getPlaylistWithSongs(2L).test {
             val result = awaitItem()
@@ -131,7 +124,6 @@ class PlaylistRepositoryImplTest {
     @Test
     fun `playlist does not exist - emits null`() = runTest(testDispatcher) {
         every { playlistDao.getAll() } returns flowOf(emptyList())
-        every { playlistSongDao.getByPlaylistId(99L) } returns flowOf(emptyList())
 
         repository.getPlaylistWithSongs(99L).test {
             val result = awaitItem()
@@ -145,18 +137,12 @@ class PlaylistRepositoryImplTest {
     // ------------------------------------------------------------------
 
     @Test
-    fun `song deleted but junction table has residual - filters out null songs`() = runTest(testDispatcher) {
+    fun `playlist with partial songs - returns only available songs`() = runTest(testDispatcher) {
         val playlist = playlistEntity(id = 3L, name = "Partial Playlist")
-        val playlistSongs = listOf(
-            playlistSongEntity(playlistId = 3L, songId = 30L, sortOrder = 0),
-            playlistSongEntity(playlistId = 3L, songId = 40L, sortOrder = 1)
-        )
         val existingSong = songEntity(id = 30L, title = "Still Here")
 
         every { playlistDao.getAll() } returns flowOf(listOf(playlist))
-        every { playlistSongDao.getByPlaylistId(3L) } returns flowOf(playlistSongs)
-        coEvery { songDao.getById(30L) } returns existingSong
-        coEvery { songDao.getById(40L) } returns null
+        coEvery { playlistDao.getPlaylistWithSongs(3L) } returns PlaylistWithSongsEntity(playlist, listOf(existingSong))
 
         repository.getPlaylistWithSongs(3L).test {
             val result = awaitItem()
@@ -178,7 +164,10 @@ class PlaylistRepositoryImplTest {
         val playlistV2 = playlistEntity(id = 4L, name = "New Name")
 
         every { playlistDao.getAll() } returns playlistFlow
-        every { playlistSongDao.getByPlaylistId(4L) } returns flowOf(emptyList())
+        coEvery { playlistDao.getPlaylistWithSongs(4L) } returnsMany listOf(
+            PlaylistWithSongsEntity(playlistV1, emptyList()),
+            PlaylistWithSongsEntity(playlistV2, emptyList())
+        )
 
         playlistFlow.emit(listOf(playlistV1))
 

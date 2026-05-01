@@ -38,7 +38,7 @@ class AddToPlaylistBottomSheetViewModelTest {
     }
 
     @Test
-    fun `load playlists emits Success`() = runTest {
+    fun `load playlists emits Success`() = runTest(testDispatcher) {
         val playlists = listOf(
             Playlist(id = 1L, name = "Favorites", createdAt = 0L, updatedAt = 0L),
             Playlist(id = 2L, name = "Workout", createdAt = 0L, updatedAt = 0L)
@@ -53,7 +53,7 @@ class AddToPlaylistBottomSheetViewModelTest {
     }
 
     @Test
-    fun `load playlists error emits Error`() = runTest {
+    fun `load playlists error emits Error`() = runTest(testDispatcher) {
         val errorFlow = kotlinx.coroutines.flow.flow<List<Playlist>> { throw RuntimeException("DB error") }
         every { playlistRepository.getAllPlaylists() } returns errorFlow
 
@@ -63,7 +63,7 @@ class AddToPlaylistBottomSheetViewModelTest {
     }
 
     @Test
-    fun `retry reloads after error`() = runTest {
+    fun `retry reloads after error`() = runTest(testDispatcher) {
         val errorFlow = kotlinx.coroutines.flow.flow<List<Playlist>> { throw RuntimeException("DB error") }
         every { playlistRepository.getAllPlaylists() } returns errorFlow
 
@@ -80,16 +80,14 @@ class AddToPlaylistBottomSheetViewModelTest {
     }
 
     @Test
-    fun `onPlaylistSelected failure sets error message in Success state`() = runTest {
+    fun `onPlaylistSelected failure sets error message in Success state`() = runTest(testDispatcher) {
         val playlists = listOf(Playlist(id = 1L, name = "Favorites", createdAt = 0L, updatedAt = 0L))
         every { playlistRepository.getAllPlaylists() } returns flowOf(playlists)
         coEvery { playlistRepository.addSongToPlaylist(1L, 10L) } returns Result.failure(RuntimeException("Failed"))
 
         val viewModel = AddToPlaylistBottomSheetViewModel(playlistRepository)
-        testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.onPlaylistSelected(playlistId = 1L, songId = 10L)
-        testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as AddToPlaylistUiState.Success
         assertEquals(R.string.playlist_error_add_song_failed, state.errorMessageResId)

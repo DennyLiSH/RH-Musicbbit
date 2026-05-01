@@ -128,7 +128,7 @@ class PlaylistDetailViewModelTest {
     }
 
     @Test
-    fun `retry reloads playlist after error`() = runTest {
+    fun `retry reloads playlist after error`() = runTest(testDispatcher) {
         val errorFlow = kotlinx.coroutines.flow.flow<PlaylistWithSongs?> { throw RuntimeException("DB error") }
         every { playlistRepository.getPlaylistWithSongs(1L) } returns errorFlow
         every { musicRepository.getAllSongs() } returns flowOf(emptyList())

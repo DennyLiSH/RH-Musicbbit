@@ -190,7 +190,7 @@ class AlarmReceiverTest {
 
         // --- Verify playlist data is queryable through PlaylistRepositoryImpl ---
         val playlistRepo = PlaylistRepositoryImpl(
-            playlistDao, playlistSongDao, songDao, Dispatchers.IO
+            playlistDao, playlistSongDao, Dispatchers.IO
         )
         val playlistWithSongs = playlistRepo.getPlaylistWithSongs(playlistId).first()
         assertNotNull("PlaylistWithSongs should not be null before trigger", playlistWithSongs)

@@ -147,9 +147,10 @@ class AlarmSchedulerTest {
     }
 
     @Test
+    @Config(sdk = [30])
     fun `canScheduleExactAlarms returns true below API 31`() {
         val result = alarmScheduler.canScheduleExactAlarms()
-        assertTrue("Should be able to schedule exact alarms on API 33 shadow", result)
+        assertTrue("Should be able to schedule exact alarms on API 30 shadow", result)
     }
 
     @Test

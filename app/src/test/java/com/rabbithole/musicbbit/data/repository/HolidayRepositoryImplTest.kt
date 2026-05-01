@@ -1,6 +1,8 @@
 package com.rabbithole.musicbbit.data.repository
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import com.rabbithole.musicbbit.data.local.dao.HolidayDao
 import com.rabbithole.musicbbit.data.local.model.HolidayEntity
 import com.rabbithole.musicbbit.data.remote.api.HolidayApi
@@ -11,6 +13,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -26,12 +29,14 @@ class HolidayRepositoryImplTest {
     private val holidayApi: HolidayApi = mockk()
     private val json: Json = Json { ignoreUnknownKeys = true }
     private val context: Context = mockk(relaxed = true)
+    private val dataStore: DataStore<Preferences> = mockk(relaxed = true)
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var repository: HolidayRepositoryImpl
 
     @Before
     fun setup() {
-        repository = HolidayRepositoryImpl(holidayDao, holidayApi, json, testDispatcher, context)
+        every { dataStore.data } returns emptyFlow()
+        repository = HolidayRepositoryImpl(holidayDao, holidayApi, json, testDispatcher, context, dataStore)
     }
 
     // ------------------------------------------------------------------

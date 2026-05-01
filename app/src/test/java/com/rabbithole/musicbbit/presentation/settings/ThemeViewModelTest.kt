@@ -52,6 +52,7 @@ class ThemeViewModelTest {
         coEvery { themeRepository.setThemeMode(ThemeMode.LIGHT) } returns Result.success(Unit)
 
         val viewModel = ThemeViewModel(themeRepository)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.setThemeMode(ThemeMode.LIGHT)
         testDispatcher.scheduler.advanceUntilIdle()
@@ -60,14 +61,13 @@ class ThemeViewModelTest {
     }
 
     @Test
-    fun `set theme mode failure sets error`() = runTest {
+    fun `set theme mode failure sets error`() = runTest(testDispatcher) {
         every { themeRepository.getThemeMode() } returns flowOf(ThemeMode.SYSTEM)
-        coEvery { themeRepository.setThemeMode(ThemeMode.LIGHT) } coAnswers { Result.failure(RuntimeException("Failed")) }
+        coEvery { themeRepository.setThemeMode(ThemeMode.LIGHT) } returns Result.failure(RuntimeException("Failed"))
 
         val viewModel = ThemeViewModel(themeRepository)
 
         viewModel.setThemeMode(ThemeMode.LIGHT)
-        testDispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(R.string.theme_error_set_failed, viewModel.uiState.value.errorMessageResId)
     }

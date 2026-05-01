@@ -114,19 +114,18 @@ class MusicRepositoryImplTest {
     }
 
     @Test
-    fun `searchSongs filters by title and artist`() = runTest(testDispatcher) {
+    fun `searchSongs delegates to songDao`() = runTest(testDispatcher) {
         val songs = listOf(
             songEntity(id = 1L, title = "Hello World", artist = "Artist A"),
-            songEntity(id = 2L, title = "Goodbye", artist = "Hello B"),
-            songEntity(id = 3L, title = "Random", artist = "Random Artist")
+            songEntity(id = 2L, title = "Hello Again", artist = "Artist B")
         )
-        every { songDao.getAll() } returns flowOf(songs)
+        every { songDao.searchSongs("hello") } returns flowOf(songs)
 
         repository.searchSongs("hello").test {
             val results = awaitItem()
             assertEquals(2, results.size)
             assertEquals("Hello World", results[0].title)
-            assertEquals("Goodbye", results[1].title) // artist "Hello B" matches
+            assertEquals("Hello Again", results[1].title)
             awaitComplete()
         }
     }
