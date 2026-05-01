@@ -19,8 +19,8 @@ android {
         applicationId = "com.rabbithole.musicbbit"
         minSdk = 24
         targetSdk = 36
-        versionCode = 5
-        versionName = "26.04.5"
+        versionCode = 6
+        versionName = "26.05.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -105,6 +105,7 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.mockk)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
