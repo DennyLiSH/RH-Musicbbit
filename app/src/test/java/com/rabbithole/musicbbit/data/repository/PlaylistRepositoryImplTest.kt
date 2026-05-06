@@ -12,7 +12,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -84,6 +84,10 @@ class PlaylistRepositoryImplTest {
         val song2 = songEntity(id = 20L, title = "Song B")
 
         every { playlistDao.getAll() } returns flowOf(listOf(playlist))
+        every { playlistSongDao.getByPlaylistId(1L) } returns flowOf(
+            listOf(playlistSongEntity(playlistId = 1L, songId = 10L, sortOrder = 0),
+                playlistSongEntity(playlistId = 1L, songId = 20L, sortOrder = 1))
+        )
         coEvery { playlistDao.getPlaylistWithSongs(1L) } returns PlaylistWithSongsEntity(playlist, listOf(song1, song2))
 
         repository.getPlaylistWithSongs(1L).test {
@@ -106,6 +110,7 @@ class PlaylistRepositoryImplTest {
         val playlist = playlistEntity(id = 2L, name = "Empty Playlist")
 
         every { playlistDao.getAll() } returns flowOf(listOf(playlist))
+        every { playlistSongDao.getByPlaylistId(2L) } returns flowOf(emptyList())
         coEvery { playlistDao.getPlaylistWithSongs(2L) } returns PlaylistWithSongsEntity(playlist, emptyList())
 
         repository.getPlaylistWithSongs(2L).test {
@@ -124,6 +129,7 @@ class PlaylistRepositoryImplTest {
     @Test
     fun `playlist does not exist - emits null`() = runTest(testDispatcher) {
         every { playlistDao.getAll() } returns flowOf(emptyList())
+        every { playlistSongDao.getByPlaylistId(99L) } returns flowOf(emptyList())
 
         repository.getPlaylistWithSongs(99L).test {
             val result = awaitItem()
@@ -142,6 +148,9 @@ class PlaylistRepositoryImplTest {
         val existingSong = songEntity(id = 30L, title = "Still Here")
 
         every { playlistDao.getAll() } returns flowOf(listOf(playlist))
+        every { playlistSongDao.getByPlaylistId(3L) } returns flowOf(
+            listOf(playlistSongEntity(playlistId = 3L, songId = 30L, sortOrder = 0))
+        )
         coEvery { playlistDao.getPlaylistWithSongs(3L) } returns PlaylistWithSongsEntity(playlist, listOf(existingSong))
 
         repository.getPlaylistWithSongs(3L).test {
@@ -159,17 +168,17 @@ class PlaylistRepositoryImplTest {
 
     @Test
     fun `playlist data changes - flow re-emits updated value`() = runTest(testDispatcher) {
-        val playlistFlow = MutableSharedFlow<List<Playlist>>(replay = 1)
         val playlistV1 = playlistEntity(id = 4L, name = "Old Name")
         val playlistV2 = playlistEntity(id = 4L, name = "New Name")
 
+        val playlistFlow = MutableStateFlow(listOf(playlistV1))
+
         every { playlistDao.getAll() } returns playlistFlow
+        every { playlistSongDao.getByPlaylistId(4L) } returns flowOf(emptyList())
         coEvery { playlistDao.getPlaylistWithSongs(4L) } returnsMany listOf(
             PlaylistWithSongsEntity(playlistV1, emptyList()),
             PlaylistWithSongsEntity(playlistV2, emptyList())
         )
-
-        playlistFlow.emit(listOf(playlistV1))
 
         repository.getPlaylistWithSongs(4L).test {
             val first = awaitItem()
@@ -240,5 +249,92 @@ class PlaylistRepositoryImplTest {
 
         assertTrue(result.isSuccess)
         coVerify(exactly = 0) { playlistSongDao.insertAll(any()) }
+    }
+
+    // ------------------------------------------------------------------
+    // Scenario 9: junction table change triggers flow re-emission (bug fix)
+    // ------------------------------------------------------------------
+
+    @Test
+    fun `adding song to playlist_songs triggers flow re-emission`() = runTest(testDispatcher) {
+        val playlist = playlistEntity(id = 5L, name = "Reactive Playlist")
+        val song1 = songEntity(id = 50L, title = "First Song")
+        val song2 = songEntity(id = 51L, title = "Second Song")
+
+        val playlistFlow = MutableStateFlow(listOf(playlist))
+        val junctionFlow = MutableStateFlow(emptyList<PlaylistSongEntity>())
+
+        every { playlistDao.getAll() } returns playlistFlow
+        every { playlistSongDao.getByPlaylistId(5L) } returns junctionFlow
+        coEvery { playlistDao.getPlaylistWithSongs(5L) } returnsMany listOf(
+            PlaylistWithSongsEntity(playlist, emptyList()),
+            PlaylistWithSongsEntity(playlist, listOf(song1)),
+            PlaylistWithSongsEntity(playlist, listOf(song1, song2))
+        )
+
+        repository.getPlaylistWithSongs(5L).test {
+            // Initial emission: no songs in junction table
+            val first = awaitItem()
+            assertNotNull(first)
+            assertEquals(0, first!!.songs.size)
+
+            // Simulate adding a song to playlist_songs (junction table change)
+            junctionFlow.emit(listOf(playlistSongEntity(playlistId = 5L, songId = 50L, sortOrder = 0)))
+
+            val second = awaitItem()
+            assertNotNull(second)
+            assertEquals(1, second!!.songs.size)
+            assertEquals("First Song", second.songs[0].title)
+
+            // Simulate adding another song
+            junctionFlow.emit(listOf(
+                playlistSongEntity(playlistId = 5L, songId = 50L, sortOrder = 0),
+                playlistSongEntity(playlistId = 5L, songId = 51L, sortOrder = 1)
+            ))
+
+            val third = awaitItem()
+            assertNotNull(third)
+            assertEquals(2, third!!.songs.size)
+            assertEquals("First Song", third.songs[0].title)
+            assertEquals("Second Song", third.songs[1].title)
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Scenario 10: songs sorted by sortOrder from junction table
+    // ------------------------------------------------------------------
+
+    @Test
+    fun `songs are sorted by sortOrder from junction table`() = runTest(testDispatcher) {
+        val playlist = playlistEntity(id = 6L, name = "Sorted Playlist")
+        // Songs returned by Room in arbitrary order
+        val songC = songEntity(id = 60L, title = "Song C")
+        val songA = songEntity(id = 61L, title = "Song A")
+        val songB = songEntity(id = 62L, title = "Song B")
+
+        every { playlistDao.getAll() } returns flowOf(listOf(playlist))
+        // Junction table defines order: songA=0, songB=1, songC=2
+        every { playlistSongDao.getByPlaylistId(6L) } returns flowOf(
+            listOf(
+                playlistSongEntity(playlistId = 6L, songId = 61L, sortOrder = 0),
+                playlistSongEntity(playlistId = 6L, songId = 62L, sortOrder = 1),
+                playlistSongEntity(playlistId = 6L, songId = 60L, sortOrder = 2)
+            )
+        )
+        // Room returns songs in different order than desired sort
+        coEvery { playlistDao.getPlaylistWithSongs(6L) } returns PlaylistWithSongsEntity(
+            playlist, listOf(songC, songA, songB)
+        )
+
+        repository.getPlaylistWithSongs(6L).test {
+            val result = awaitItem()
+            assertNotNull(result)
+            assertEquals(3, result!!.songs.size)
+            // Should be sorted by sortOrder: A(0), B(1), C(2)
+            assertEquals("Song A", result.songs[0].title)
+            assertEquals("Song B", result.songs[1].title)
+            assertEquals("Song C", result.songs[2].title)
+            awaitComplete()
+        }
     }
 }

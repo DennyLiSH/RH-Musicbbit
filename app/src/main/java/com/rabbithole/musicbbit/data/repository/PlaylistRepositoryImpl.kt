@@ -9,6 +9,7 @@ import com.rabbithole.musicbbit.domain.model.PlaylistWithSongs
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -61,10 +62,16 @@ class PlaylistRepositoryImpl @Inject constructor(
     }
 
     override fun getPlaylistWithSongs(playlistId: Long): Flow<PlaylistWithSongs?> {
-        return playlistDao.getAll().map { playlists ->
+        return combine(
+            playlistDao.getAll(),
+            playlistSongDao.getByPlaylistId(playlistId)
+        ) { playlists, playlistSongs ->
             playlists.find { it.id == playlistId }?.let { playlist ->
                 val withSongs = playlistDao.getPlaylistWithSongs(playlistId)
-                PlaylistWithSongs(playlist = playlist, songs = withSongs?.songs ?: emptyList())
+                val songs = withSongs?.songs ?: emptyList()
+                val sortOrderMap = playlistSongs.associate { it.songId to it.sortOrder }
+                val sortedSongs = songs.sortedBy { sortOrderMap[it.id] ?: Int.MAX_VALUE }
+                PlaylistWithSongs(playlist = playlist, songs = sortedSongs)
             }
         }.flowOn(ioDispatcher)
     }
