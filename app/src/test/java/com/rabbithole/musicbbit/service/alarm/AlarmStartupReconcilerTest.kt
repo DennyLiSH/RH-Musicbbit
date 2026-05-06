@@ -25,7 +25,7 @@ import java.time.DayOfWeek
  * Covers the three reconciliation scenarios:
  *   - One-shot alarm that already triggered but is still enabled -> disable it
  *   - Repeating alarm -> reschedule unconditionally (idempotent)
- *   - One-shot alarm not yet triggered -> leave untouched
+ *   - One-shot alarm not yet triggered -> reschedule (PendingIntent may be lost)
  *
  * All tests use [UnconfinedTestDispatcher] so the reconciler's internal scope
  * executes eagerly without needing virtual-time advances.
@@ -110,7 +110,7 @@ class AlarmStartupReconcilerTest {
     }
 
     @Test
-    fun `one-shot alarm not yet triggered is untouched`() = runTest(testDispatcher) {
+    fun `one-shot alarm not yet triggered is rescheduled`() = runTest(testDispatcher) {
         val alarm = Alarm(
             id = 3L,
             hour = 10,
@@ -126,9 +126,11 @@ class AlarmStartupReconcilerTest {
 
         reconciler.reconcileInternal()
 
+        // Alarm should remain enabled and be rescheduled via schedule()
         val unchanged = fakeRepository.getAlarmById(3L)
         assertNotNull(unchanged)
         assertTrue(unchanged!!.isEnabled)
+        coVerify { alarmScheduler.schedule(alarm) }
         coVerify(exactly = 0) { alarmScheduler.rescheduleAll(any()) }
     }
 

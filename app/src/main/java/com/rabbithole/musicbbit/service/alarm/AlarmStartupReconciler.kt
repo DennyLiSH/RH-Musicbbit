@@ -25,7 +25,7 @@ import javax.inject.Singleton
  * - One-shot alarm that has already triggered (lastTriggeredAt != null) but
  *   is still enabled -> disable it.
  * - Repeating alarm -> unconditionally reschedule (idempotent).
- * - One-shot alarm not yet triggered -> no action needed.
+ * - One-shot alarm not yet triggered -> reschedule (PendingIntent may be lost after reboot or process kill).
  *
  * The work is launched on a background scope so [Application.onCreate] is not blocked.
  */
@@ -73,11 +73,10 @@ class AlarmStartupReconciler @Inject constructor(
                             alarmScheduler.rescheduleAll(listOf(alarm))
                         }
 
-                        // One-shot not yet triggered: nothing to do
+                        // One-shot not yet triggered: reschedule (PendingIntent may be lost)
                         else -> {
-                            Timber.d(
-                                "AlarmStartupReconciler: one-shot alarm ${alarm.id} not yet triggered, skipping"
-                            )
+                            Timber.i("AlarmStartupReconciler: rescheduling one-shot alarm ${alarm.id} (pendingIntent may be lost)")
+                            alarmScheduler.schedule(alarm)
                         }
                     }
                 } catch (e: Exception) {
