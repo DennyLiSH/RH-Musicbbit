@@ -9,6 +9,7 @@ import com.rabbithole.musicbbit.R
 
 @Composable
 fun AutostartGuideDialog(
+    isManualGuide: Boolean,
     onDismiss: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -16,11 +17,23 @@ fun AutostartGuideDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.autostart_guide_title)) },
         text = {
-            Text(stringResource(R.string.autostart_guide_message))
+            Text(
+                if (isManualGuide) {
+                    stringResource(R.string.autostart_manual_guide_message)
+                } else {
+                    stringResource(R.string.autostart_guide_message)
+                }
+            )
         },
         confirmButton = {
             TextButton(onClick = onOpenSettings) {
-                Text(stringResource(R.string.autostart_guide_open_settings))
+                Text(
+                    if (isManualGuide) {
+                        stringResource(R.string.autostart_manual_guide_open_settings)
+                    } else {
+                        stringResource(R.string.autostart_guide_open_settings)
+                    }
+                )
             }
         },
         dismissButton = {

@@ -1,6 +1,7 @@
 package com.rabbithole.musicbbit.presentation.alarm
 
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -51,6 +52,8 @@ data class AlarmEditUiState(
     val showPermissionDialog: Boolean = false,
     val showFullScreenIntentDialog: Boolean = false,
     val showAutostartGuideDialog: Boolean = false,
+    val showAutostartManualGuideDialog: Boolean = false,
+    val autostartIntent: Intent? = null,
     val volumeRampDurationSeconds: Int = 0
 )
 
@@ -68,6 +71,7 @@ sealed interface AlarmEditAction {
     data object OnPermissionDialogDismissed : AlarmEditAction
     data object OnFullScreenIntentDialogDismissed : AlarmEditAction
     data object OnAutostartGuideDialogDismissed : AlarmEditAction
+    data object OnAutostartManualGuideDialogDismissed : AlarmEditAction
 }
 
 @HiltViewModel
@@ -227,6 +231,10 @@ class AlarmEditViewModel @Inject constructor(
             is AlarmEditAction.OnAutostartGuideDialogDismissed -> {
                 _uiState.update { it.copy(showAutostartGuideDialog = false, saveCompleted = true) }
             }
+
+            is AlarmEditAction.OnAutostartManualGuideDialogDismissed -> {
+                _uiState.update { it.copy(showAutostartManualGuideDialog = false, saveCompleted = true) }
+            }
         }
     }
 
@@ -279,7 +287,14 @@ class AlarmEditViewModel @Inject constructor(
                     .onSuccess { savedId ->
                         Timber.i("Alarm saved successfully, id=%d", savedId)
                         if (AutostartHelper.isChineseOem()) {
-                            _uiState.update { it.copy(isSaving = false, showAutostartGuideDialog = true) }
+                            when (val result = AutostartHelper.getAutostartResult(context)) {
+                                is AutostartResult.Resolved -> {
+                                    _uiState.update { it.copy(isSaving = false, showAutostartGuideDialog = true, autostartIntent = result.intent) }
+                                }
+                                is AutostartResult.NeedsManualGuide -> {
+                                    _uiState.update { it.copy(isSaving = false, showAutostartManualGuideDialog = true) }
+                                }
+                            }
                         } else {
                             _uiState.update { it.copy(isSaving = false, saveCompleted = true) }
                         }

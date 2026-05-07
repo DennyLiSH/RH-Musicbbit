@@ -269,10 +269,22 @@ fun AlarmEditScreen(
 
     if (uiState.showAutostartGuideDialog) {
         AutostartGuideDialog(
+            isManualGuide = false,
             onDismiss = { viewModel.onAction(AlarmEditAction.OnAutostartGuideDialogDismissed) },
             onOpenSettings = {
-                context.startActivity(AutostartHelper.getAutostartIntent(context))
+                uiState.autostartIntent?.let { context.startActivity(it) }
                 viewModel.onAction(AlarmEditAction.OnAutostartGuideDialogDismissed)
+            }
+        )
+    }
+
+    if (uiState.showAutostartManualGuideDialog) {
+        AutostartGuideDialog(
+            isManualGuide = true,
+            onDismiss = { viewModel.onAction(AlarmEditAction.OnAutostartManualGuideDialogDismissed) },
+            onOpenSettings = {
+                context.startActivity(AutostartHelper.getManualGuideSettingsIntent())
+                viewModel.onAction(AlarmEditAction.OnAutostartManualGuideDialogDismissed)
             }
         )
     }
