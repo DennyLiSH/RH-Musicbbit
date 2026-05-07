@@ -28,3 +28,6 @@ data object ScanDirectorySettings
 
 @Serializable
 data object PermissionDiagnostics
+
+@Serializable
+data object About
