@@ -19,8 +19,8 @@ android {
         applicationId = "com.rabbithole.musicbbit"
         minSdk = 24
         targetSdk = 36
-        versionCode = 6
-        versionName = "26.05.1"
+        versionCode = 7
+        versionName = "26.05.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
