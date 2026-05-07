@@ -96,6 +96,11 @@ dependencies {
     // Timber logging
     implementation(libs.timber)
 
+    // WorkManager (alarm integrity periodic check)
+    implementation(libs.work.runtime.ktx)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.work.compiler)
+
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.mockk)
