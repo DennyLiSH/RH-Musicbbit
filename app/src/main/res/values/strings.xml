@@ -167,6 +167,12 @@
     <string name="error_load_failed">Failed to load data</string>
     <string name="retry">Retry</string>
 
+    <!-- About -->
+    <string name="settings_about_title">About</string>
+    <string name="settings_about_description">Version info</string>
+    <string name="about_screen_title">About</string>
+    <string name="about_version_label">Version</string>
+
     <!-- Permission Diagnostics -->
     <string name="permission_diagnostics_title">Permission Diagnostics</string>
     <string name="permission_diagnostics_all_granted">All permissions granted</string>
