@@ -271,8 +271,7 @@ fun AlarmEditScreen(
         AutostartGuideDialog(
             onDismiss = { viewModel.onAction(AlarmEditAction.OnAutostartGuideDialogDismissed) },
             onOpenSettings = {
-                val intent = AutostartHelper.getAutostartIntent(context)
-                intent?.let { context.startActivity(it) }
+                context.startActivity(AutostartHelper.getAutostartIntent(context))
                 viewModel.onAction(AlarmEditAction.OnAutostartGuideDialogDismissed)
             }
         )
