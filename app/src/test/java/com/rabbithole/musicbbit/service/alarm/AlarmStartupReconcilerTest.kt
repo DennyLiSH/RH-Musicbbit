@@ -4,6 +4,7 @@ import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import io.mockk.coVerify
+import io.mockk.verify
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -50,15 +51,18 @@ class AlarmStartupReconcilerTest {
 
     private lateinit var fakeRepository: FakeAlarmRepository
     private lateinit var alarmScheduler: AlarmScheduler
+    private lateinit var alarmIntegrityScheduler: AlarmIntegrityScheduler
     private lateinit var reconciler: AlarmStartupReconciler
 
     @Before
     fun setUp() {
         fakeRepository = FakeAlarmRepository()
         alarmScheduler = mockk(relaxed = true)
+        alarmIntegrityScheduler = mockk(relaxed = true)
         reconciler = AlarmStartupReconciler(
             alarmRepository = fakeRepository,
             alarmScheduler = alarmScheduler,
+            alarmIntegrityScheduler = alarmIntegrityScheduler,
             ioDispatcher = testDispatcher,
         )
     }
@@ -132,6 +136,15 @@ class AlarmStartupReconcilerTest {
         assertTrue(unchanged!!.isEnabled)
         coVerify { alarmScheduler.schedule(alarm) }
         coVerify(exactly = 0) { alarmScheduler.rescheduleAll(any()) }
+    }
+
+    @Test
+    fun `reconcile calls alarmIntegrityScheduler schedule`() = runTest(testDispatcher) {
+        // No alarms needed — just verify schedule() is called after reconcileInternal
+        reconciler.reconcile()
+
+        // With UnconfinedTestDispatcher the launched coroutine executes eagerly
+        verify { alarmIntegrityScheduler.schedule() }
     }
 
     // -------------------------------------------------------------------------

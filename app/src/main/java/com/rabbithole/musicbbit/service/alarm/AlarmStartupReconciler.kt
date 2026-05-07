@@ -33,6 +33,7 @@ import javax.inject.Singleton
 class AlarmStartupReconciler @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val alarmScheduler: AlarmScheduler,
+    private val alarmIntegrityScheduler: AlarmIntegrityScheduler,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + ioDispatcher)
@@ -45,6 +46,7 @@ class AlarmStartupReconciler @Inject constructor(
     fun reconcile() {
         scope.launch {
             reconcileInternal()
+            alarmIntegrityScheduler.schedule()
         }
     }
 
