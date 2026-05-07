@@ -30,6 +30,7 @@ import com.rabbithole.musicbbit.presentation.player.PlayerScreen
 import com.rabbithole.musicbbit.presentation.player.PlayerViewModel
 import com.rabbithole.musicbbit.presentation.playlist.PlaylistDetailScreen
 import com.rabbithole.musicbbit.presentation.playlist.PlaylistListScreen
+import com.rabbithole.musicbbit.presentation.about.AboutScreen
 import com.rabbithole.musicbbit.presentation.settings.PermissionDiagnosticsScreen
 import com.rabbithole.musicbbit.presentation.settings.ScanDirectorySettingsScreen
 import com.rabbithole.musicbbit.presentation.settings.SettingsScreen
@@ -106,6 +107,9 @@ fun AppNavigation(
                 }
                 composable<PermissionDiagnostics> {
                     PermissionDiagnosticsScreen(navController = navController)
+                }
+                composable<About> {
+                    AboutScreen(navController = navController)
                 }
                 composable<Settings> {
                     SettingsScreen(navController = navController)
