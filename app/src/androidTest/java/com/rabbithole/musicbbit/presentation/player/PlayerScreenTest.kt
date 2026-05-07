@@ -29,7 +29,7 @@ class PlayerScreenTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun `play button visible when not playing`() {
+    fun playButtonVisibleWhenNotPlaying() {
         val viewModel = createMockViewModel(
             playbackState = PlaybackState(isPlaying = false)
         )
@@ -46,7 +46,7 @@ class PlayerScreenTest {
     }
 
     @Test
-    fun `pause button visible when playing`() {
+    fun pauseButtonVisibleWhenPlaying() {
         val viewModel = createMockViewModel(
             playbackState = PlaybackState(isPlaying = true)
         )
@@ -63,7 +63,7 @@ class PlayerScreenTest {
     }
 
     @Test
-    fun `song title displays when current song is non-null`() {
+    fun songTitleDisplaysWhenCurrentSongNonNull() {
         val song = Song(
             id = 1L,
             path = "/music/test.mp3",
@@ -90,7 +90,7 @@ class PlayerScreenTest {
     }
 
     @Test
-    fun `progress slider exists in semantics tree`() {
+    fun progressSliderExistsInSemanticsTree() {
         val viewModel = createMockViewModel(
             playbackState = PlaybackState(positionMs = 30000L, durationMs = 180000L)
         )
