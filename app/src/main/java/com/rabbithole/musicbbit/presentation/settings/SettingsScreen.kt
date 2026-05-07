@@ -19,7 +19,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -38,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ThemeMode
+import com.rabbithole.musicbbit.navigation.About
 import com.rabbithole.musicbbit.navigation.PermissionDiagnostics
 import com.rabbithole.musicbbit.navigation.ScanDirectorySettings
 
@@ -95,6 +96,15 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_permission_diagnostics),
                 description = stringResource(R.string.settings_check_permissions),
                 onClick = { navController.navigate(PermissionDiagnostics) }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // About card
+            SettingsNavCard(
+                title = stringResource(R.string.settings_about_title),
+                description = stringResource(R.string.settings_about_description),
+                onClick = { navController.navigate(About) }
             )
         }
     }
@@ -169,7 +179,7 @@ private fun VolumeRampSection(
                 label = { Text(stringResource(R.string.settings_volume_ramp_duration)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                 modifier = Modifier
-                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                     .fillMaxWidth()
             )
             ExposedDropdownMenu(
