@@ -50,6 +50,7 @@ data class AlarmEditUiState(
     val errorMessageResId: Int? = null,
     val showPermissionDialog: Boolean = false,
     val showFullScreenIntentDialog: Boolean = false,
+    val showAutostartGuideDialog: Boolean = false,
     val volumeRampDurationSeconds: Int = 0
 )
 
@@ -66,6 +67,7 @@ sealed interface AlarmEditAction {
     data object OnSave : AlarmEditAction
     data object OnPermissionDialogDismissed : AlarmEditAction
     data object OnFullScreenIntentDialogDismissed : AlarmEditAction
+    data object OnAutostartGuideDialogDismissed : AlarmEditAction
 }
 
 @HiltViewModel
@@ -221,6 +223,10 @@ class AlarmEditViewModel @Inject constructor(
             is AlarmEditAction.OnFullScreenIntentDialogDismissed -> {
                 _uiState.update { it.copy(showFullScreenIntentDialog = false) }
             }
+
+            is AlarmEditAction.OnAutostartGuideDialogDismissed -> {
+                _uiState.update { it.copy(showAutostartGuideDialog = false, saveCompleted = true) }
+            }
         }
     }
 
@@ -272,7 +278,11 @@ class AlarmEditViewModel @Inject constructor(
                 alarmRepository.saveAlarm(alarm)
                     .onSuccess { savedId ->
                         Timber.i("Alarm saved successfully, id=%d", savedId)
-                        _uiState.update { it.copy(isSaving = false, saveCompleted = true) }
+                        if (AutostartHelper.isChineseOem()) {
+                            _uiState.update { it.copy(isSaving = false, showAutostartGuideDialog = true) }
+                        } else {
+                            _uiState.update { it.copy(isSaving = false, saveCompleted = true) }
+                        }
                     }
                     .onFailure { error ->
                         Timber.e(error, "Failed to save alarm")

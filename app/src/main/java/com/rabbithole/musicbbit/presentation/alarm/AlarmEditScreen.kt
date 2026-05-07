@@ -266,6 +266,17 @@ fun AlarmEditScreen(
             }
         )
     }
+
+    if (uiState.showAutostartGuideDialog) {
+        AutostartGuideDialog(
+            onDismiss = { viewModel.onAction(AlarmEditAction.OnAutostartGuideDialogDismissed) },
+            onOpenSettings = {
+                val intent = AutostartHelper.getAutostartIntent(context)
+                intent?.let { context.startActivity(it) }
+                viewModel.onAction(AlarmEditAction.OnAutostartGuideDialogDismissed)
+            }
+        )
+    }
 }
 
 @Composable

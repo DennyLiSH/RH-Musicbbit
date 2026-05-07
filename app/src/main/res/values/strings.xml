@@ -175,4 +175,10 @@
     <string name="permission_diagnostics_not_granted">Not granted</string>
     <string name="permission_diagnostics_fix">Fix</string>
     <string name="permission_diagnostics_settings">Settings</string>
+
+    <!-- Autostart Guide (Chinese OEM ROMs) -->
+    <string name="autostart_guide_title">开启自启动权限</string>
+    <string name="autostart_guide_message">为确保闹钟准时响起，请在系统设置中开启本应用的自启动权限。否则系统可能会在后台清除应用，导致闹钟失效。</string>
+    <string name="autostart_guide_open_settings">去设置</string>
+    <string name="autostart_guide_skip">以后再说</string>
 </resources>
