@@ -6,6 +6,7 @@ import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
+import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 import timber.log.Timber
 
@@ -16,7 +17,7 @@ import timber.log.Timber
  * This is a deep module: a lot of data-fetching and decision-making behind a tiny interface
  * (`resolve(alarmId)`). Errors are normalized so the caller can handle them uniformly.
  */
-class AlarmPlaybackResolver(
+class AlarmPlaybackResolver @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val playlistRepository: PlaylistRepository,
     private val playbackProgressRepository: PlaybackProgressRepository,
