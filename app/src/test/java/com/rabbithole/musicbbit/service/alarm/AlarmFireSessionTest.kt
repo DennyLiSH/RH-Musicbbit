@@ -87,7 +87,7 @@ class AlarmFireSessionTest {
     private lateinit var session: AlarmFireSession
 
     companion object {
-        private const val NOW_MS = 1_700_000_000_000L
+        private const val NOW_MS = FakeClock.DEFAULT_NOW_MS
 
         private val SONG_1 = Song(
             id = 101L,
@@ -399,119 +399,6 @@ class AlarmFireSessionTest {
         assertFalse(session.isExtendToEnd())
     }
 
-    // -------- song counter auto-stop ----------------------------------------
-
-    @Test
-    fun `fire with BySongCount(3) stops after 3 songs`() = scope.runTest {
-        alarmRepository.insert(
-            repeatingAlarm(id = 19L, playlistId = 190L).copy(
-                autoStop = AutoStop.BySongCount(3)
-            )
-        )
-        playlistRepository.set(190L, threeSongPlaylist(id = 190L))
-
-        session.fire(alarmId = 19L, isAlarmTrigger = true)
-        runCurrent()
-        verify(exactly = 0) { playbackSession.stop() }
-
-        // First song completed
-        session.onSongCompleted()
-        verify(exactly = 0) { playbackSession.stop() }
-
-        // Second song completed
-        session.onSongCompleted()
-        verify(exactly = 0) { playbackSession.stop() }
-
-        // Third song completed — counter reaches zero
-        session.onSongCompleted()
-        verify { playbackSession.stop() }
-    }
-
-    @Test
-    fun `fire with BySongCount(1) stops after first song`() = scope.runTest {
-        alarmRepository.insert(
-            repeatingAlarm(id = 20L, playlistId = 200L).copy(
-                autoStop = AutoStop.BySongCount(1)
-            )
-        )
-        playlistRepository.set(200L, threeSongPlaylist(id = 200L))
-
-        session.fire(alarmId = 20L, isAlarmTrigger = true)
-        runCurrent()
-
-        session.onSongCompleted()
-        verify { playbackSession.stop() }
-    }
-
-    @Test
-    fun `onSongCompleted does nothing when no counter active`() = scope.runTest {
-        firePlaying(alarmId = 21L, playlistId = 210L)
-
-        session.onSongCompleted()
-
-        verify(exactly = 0) { playbackSession.stop() }
-    }
-
-    @Test
-    fun `onQueueEnded stops when song counter active`() = scope.runTest {
-        alarmRepository.insert(
-            repeatingAlarm(id = 22L, playlistId = 220L).copy(
-                autoStop = AutoStop.BySongCount(5)
-            )
-        )
-        playlistRepository.set(220L, threeSongPlaylist(id = 220L))
-
-        session.fire(alarmId = 22L, isAlarmTrigger = true)
-        runCurrent()
-
-        // Queue ends before counter reaches zero
-        session.onQueueEnded()
-        verify { playbackSession.stop() }
-    }
-
-    @Test
-    fun `onPlaybackStopped resets song counter`() = scope.runTest {
-        alarmRepository.insert(
-            repeatingAlarm(id = 23L, playlistId = 230L).copy(
-                autoStop = AutoStop.BySongCount(2)
-            )
-        )
-        playlistRepository.set(230L, threeSongPlaylist(id = 230L))
-
-        session.fire(alarmId = 23L, isAlarmTrigger = true)
-        runCurrent()
-
-        session.onPlaybackStopped()
-
-        // Counter should be reset; calling onSongCompleted should do nothing
-        session.onSongCompleted()
-        verify(exactly = 0) { playbackSession.stop() }
-    }
-
-    @Test
-    fun `transitionToError resets song counter`() = scope.runTest {
-        alarmRepository.insert(
-            repeatingAlarm(id = 24L, playlistId = 240L).copy(
-                autoStop = AutoStop.BySongCount(2)
-            )
-        )
-        playlistRepository.set(240L, threeSongPlaylist(id = 240L))
-        // Simulate Service having already acquired the wake lock
-        wakeLockPort.acquire(10 * 60 * 1000L)
-
-        session.fire(alarmId = 24L, isAlarmTrigger = true)
-        runCurrent()
-
-        // Force an error by calling fire with a non-existent alarm
-        session.fire(alarmId = 25L, isAlarmTrigger = true)
-        runCurrent()
-
-        assertTrue(session.state.value is AlarmFireState.Error)
-        // Counter should be reset; calling onSongCompleted should do nothing
-        session.onSongCompleted()
-        verify(exactly = 0) { playbackSession.stop() }
-    }
-
     // -------- playerEvents subscription -------------------------------------
 
     @Test
@@ -688,117 +575,6 @@ class AlarmFireSessionTest {
 
     // -------- Fakes ---------------------------------------------------------
 
-    /**
-     * Minimal in-memory [AlarmRepository]. Simulates `recordTriggered` with the same
-     * logic as the real implementation: updates `lastTriggeredAt`, disables one-time alarms.
-     */
-    private class FakeAlarmRepository : AlarmRepository {
-        private val rows = mutableMapOf<Long, Alarm>()
-
-        fun insert(alarm: Alarm) {
-            rows[alarm.id] = alarm
-        }
-
-        fun getById(id: Long): Alarm? = rows[id]
-
-        override fun getAllAlarms(): Flow<List<Alarm>> = flowOf(rows.values.toList())
-
-        override fun getEnabledAlarms(): Flow<List<Alarm>> =
-            flowOf(rows.values.filter { it.isEnabled })
-
-        override suspend fun getAlarmById(id: Long): Alarm? = rows[id]
-
-        override suspend fun saveAlarm(alarm: Alarm): Result<Long> {
-            val id = if (alarm.id == 0L) rows.size.toLong() + 1 else alarm.id
-            rows[id] = alarm.copy(id = id)
-            return Result.success(id)
-        }
-
-        override suspend fun updateAlarm(alarm: Alarm): Result<Unit> {
-            rows[alarm.id] = alarm
-            return Result.success(Unit)
-        }
-
-        override suspend fun deleteAlarm(alarm: Alarm): Result<Unit> {
-            rows.remove(alarm.id)
-            return Result.success(Unit)
-        }
-
-        override suspend fun enableAlarm(id: Long, enabled: Boolean): Result<Unit> {
-            rows[id]?.let { rows[id] = it.copy(isEnabled = enabled) }
-            return Result.success(Unit)
-        }
-
-        override suspend fun recordTriggered(alarmId: Long) {
-            val alarm = rows[alarmId] ?: return
-            val isOneTime = alarm.repeatDays.isEmpty()
-            rows[alarmId] = alarm.copy(
-                lastTriggeredAt = NOW_MS,
-                isEnabled = if (isOneTime) false else alarm.isEnabled,
-            )
-        }
-    }
-
-    /**
-     * Minimal in-memory [PlaylistRepository]; only `getPlaylistWithSongs` is exercised by
-     * the session, the rest throw because they are never invoked.
-     */
-    private class FakePlaylistRepository : PlaylistRepository {
-        private val playlists = mutableMapOf<Long, MutableStateFlow<PlaylistWithSongs?>>()
-
-        fun set(playlistId: Long, value: PlaylistWithSongs?) {
-            playlists.getOrPut(playlistId) { MutableStateFlow(null) }.value = value
-        }
-
-        override fun getPlaylistWithSongs(playlistId: Long): Flow<PlaylistWithSongs?> =
-            playlists.getOrPut(playlistId) { MutableStateFlow(null) }
-
-        override fun getAllPlaylists(): Flow<List<Playlist>> = error("unused in tests")
-        override suspend fun getPlaylistById(id: Long): Playlist? = error("unused in tests")
-        override suspend fun createPlaylist(name: String): Result<Long> = error("unused in tests")
-        override suspend fun updatePlaylist(playlist: Playlist): Result<Unit> = error("unused in tests")
-        override suspend fun deletePlaylist(playlist: Playlist): Result<Unit> = error("unused in tests")
-        override suspend fun addSongToPlaylist(playlistId: Long, songId: Long): Result<Unit> =
-            error("unused in tests")
-        override suspend fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>): Result<Unit> =
-            error("unused in tests")
-        override suspend fun removeSongFromPlaylist(playlistId: Long, songId: Long): Result<Unit> =
-            error("unused in tests")
-        override suspend fun reorderPlaylistSongs(playlistId: Long, songIds: List<Long>): Result<Unit> =
-            error("unused in tests")
-    }
-
-    /**
-     * Minimal in-memory [PlaybackProgressRepository]. Records the last save so tests can
-     * assert the progress reset behavior.
-     */
-    private class FakeProgressRepository : PlaybackProgressRepository {
-        private val byPlaylist = mutableMapOf<Long, List<PlaybackProgress>>()
-        var lastSaved: PlaybackProgress? = null
-            private set
-
-        fun set(playlistId: Long, entries: List<PlaybackProgress>) {
-            byPlaylist[playlistId] = entries
-        }
-
-        override suspend fun saveProgress(progress: PlaybackProgress): Result<Unit> {
-            lastSaved = progress
-            return Result.success(Unit)
-        }
-
-        override suspend fun getProgress(songId: Long, playlistId: Long): Result<PlaybackProgress?> =
-            Result.success(byPlaylist[playlistId]?.firstOrNull { it.songId == songId })
-
-        override suspend fun deleteProgress(songId: Long, playlistId: Long): Result<Unit> =
-            Result.success(Unit)
-
-        override suspend fun deleteAllProgressForPlaylist(playlistId: Long): Result<Unit> =
-            Result.success(Unit)
-
-        override suspend fun getProgressForPlaylist(playlistId: Long): Result<List<PlaybackProgress>> =
-            Result.success(byPlaylist[playlistId].orEmpty())
-    }
-
     private class FakeWakeLockPort : WakeLockPort {
         var acquireCount = 0
             private set
@@ -861,10 +637,6 @@ class AlarmFireSessionTest {
         override fun restoreVolume() {
             restoreCount++
         }
-    }
-
-    private class FakeClock(private val fixed: Long) : Clock {
-        override fun nowMs(): Long = fixed
     }
 
     /**

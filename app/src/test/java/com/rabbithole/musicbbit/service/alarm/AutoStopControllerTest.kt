@@ -23,6 +23,7 @@ class AutoStopControllerTest {
         assertFalse(triggered)
 
         advanceTimeBy(60_000L)
+        runCurrent()
         assertTrue(triggered)
     }
 
@@ -34,6 +35,7 @@ class AutoStopControllerTest {
         controller.start(AutoStop.ByMinutes(1)) { triggered = true }
         controller.cancel()
         advanceTimeBy(60_000L)
+        runCurrent()
 
         assertFalse(triggered)
     }
@@ -49,10 +51,12 @@ class AutoStopControllerTest {
 
         // Original 10-minute deadline should NOT trigger
         advanceTimeBy(6 * 60_000L)
+        runCurrent()
         assertFalse(triggered)
 
         // Fresh 20-minute deadline should fire
         advanceTimeBy(15 * 60_000L)
+        runCurrent()
         assertTrue(triggered)
     }
 
@@ -63,6 +67,7 @@ class AutoStopControllerTest {
 
         controller.extend(5) { triggered = true }
         advanceTimeBy(10 * 60_000L)
+        runCurrent()
 
         assertFalse(triggered)
     }
@@ -122,6 +127,7 @@ class AutoStopControllerTest {
 
         assertFalse(controller.isExtendToEnd())
         advanceTimeBy(60_000L)
+        runCurrent()
         assertFalse(triggered)
     }
 }
