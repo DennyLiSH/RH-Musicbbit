@@ -51,9 +51,9 @@ class PlaybackSession @Inject constructor(
     private val sessionScope = CoroutineScope(sessionJob + mainDispatcher)
 
     private val _playbackState = MutableStateFlow(PlaybackState())
-    override val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
+    val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
-    override val playerEvents: SharedFlow<PlayerEvent> = playerPort.events
+    val playerEvents: SharedFlow<PlayerEvent> = playerPort.events
 
     private lateinit var progressTracker: PlaybackProgressTracker
     private var playerEventsJob: Job? = null
@@ -185,7 +185,7 @@ class PlaybackSession @Inject constructor(
 
     // -------- Public playback API --------------------------------------------
 
-    override fun play(song: Song, playlistId: Long) {
+    fun play(song: Song, playlistId: Long) {
         if (!audioFocusPort.requestFocus()) {
             Timber.w("Failed to gain audio focus")
             return
@@ -215,7 +215,7 @@ class PlaybackSession @Inject constructor(
         }
     }
 
-    override fun playQueue(songs: List<Song>, startIndex: Int, playlistId: Long) {
+    fun playQueue(songs: List<Song>, startIndex: Int, playlistId: Long) {
         if (songs.isEmpty()) {
             Timber.w("playQueue called with empty list")
             return
@@ -262,7 +262,7 @@ class PlaybackSession @Inject constructor(
         }
     }
 
-    override fun pause() {
+    fun pause() {
         Timber.i("Pausing playback")
         wasPausedByFocusLoss = false
         volumeRampPort.restoreVolume()
@@ -270,7 +270,7 @@ class PlaybackSession @Inject constructor(
         progressTracker.saveProgress()
     }
 
-    override fun resume() {
+    fun resume() {
         Timber.i("Resuming playback")
         if (!audioFocusPort.requestFocus()) {
             Timber.w("Failed to gain audio focus, cannot resume")
@@ -281,7 +281,7 @@ class PlaybackSession @Inject constructor(
         }
     }
 
-    override fun next() {
+    fun next() {
         Timber.i("Skipping to next")
         if (playerPort.hasNext()) {
             progressTracker.saveProgress()
@@ -291,7 +291,7 @@ class PlaybackSession @Inject constructor(
         }
     }
 
-    override fun previous() {
+    fun previous() {
         Timber.i("Skipping to previous")
         if (playerPort.hasPrevious()) {
             progressTracker.saveProgress()
@@ -301,13 +301,13 @@ class PlaybackSession @Inject constructor(
         }
     }
 
-    override fun seekTo(positionMs: Long) {
+    fun seekTo(positionMs: Long) {
         Timber.d("Seeking to $positionMs ms")
         playerPort.seekTo(positionMs)
         _playbackState.update { it.copy(positionMs = positionMs) }
     }
 
-    override fun stop() {
+    fun stop() {
         Timber.i("Stopping playback")
         audioFocusPort.abandonFocus()
         volumeRampPort.restoreVolume()
@@ -320,7 +320,7 @@ class PlaybackSession @Inject constructor(
         serviceStarter.stopService()
     }
 
-    override fun setPlayMode(mode: PlayMode) {
+    fun setPlayMode(mode: PlayMode) {
         Timber.i("Setting play mode: $mode")
         playerPort.setShuffleEnabled(mode == PlayMode.RANDOM)
         playerPort.setRepeatMode(
@@ -332,7 +332,7 @@ class PlaybackSession @Inject constructor(
         _playbackState.update { it.copy(playMode = mode) }
     }
 
-    override fun preloadFirstSong(uri: String) {
+    fun preloadFirstSong(uri: String) {
         playerPort.setQueue(
             items = listOf(PlayItem(uri = uri)),
             startIndex = 0,
@@ -341,7 +341,7 @@ class PlaybackSession @Inject constructor(
         Timber.d("Preloaded first song: $uri")
     }
 
-    override fun playAlarmQueue(
+    fun playAlarmQueue(
         songs: List<Song>,
         startIndex: Int,
         playlistId: Long,
