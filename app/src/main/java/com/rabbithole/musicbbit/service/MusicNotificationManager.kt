@@ -30,7 +30,7 @@ class MusicNotificationManager @Inject constructor(
     private val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-    override fun createChannel() {
+    override fun ensureChannelExists() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channelName = try {
                 context.getString(R.string.app_name)
@@ -50,7 +50,19 @@ class MusicNotificationManager @Inject constructor(
         }
     }
 
-    override fun buildNotification(state: PlaybackState): Notification {
+    override fun buildAndNotify(state: PlaybackState) {
+        val notification = buildNotification(state)
+        notificationManager.notify(notificationId, notification)
+    }
+
+    /**
+     * Builds the notification for [MusicPlaybackService.startForeground].
+     *
+     * This method intentionally remains public (not part of [MusicNotificationPort])
+     * because [android.app.Notification] is required by the Service API and must not
+     * leak into the pure-Kotlin `service/playback/` seam.
+     */
+    fun buildNotification(state: PlaybackState): Notification {
         val song = state.currentSong
 
         val contentIntent = PendingIntent.getActivity(
@@ -97,10 +109,6 @@ class MusicNotificationManager @Inject constructor(
         )
 
         return builder.build()
-    }
-
-    override fun notify(notification: Notification) {
-        notificationManager.notify(notificationId, notification)
     }
 
     private fun createActionPendingIntent(action: String): PendingIntent {

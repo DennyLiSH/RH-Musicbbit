@@ -1,10 +1,13 @@
 package com.rabbithole.musicbbit.service.playback
 
-import android.app.Notification
 import com.rabbithole.musicbbit.service.PlaybackState
 
+/**
+ * Pure-Kotlin seam for playback notifications. No Android types leak through
+ * this interface — the [android.app.Notification] build/post cycle is fully
+ * encapsulated by the adapter.
+ */
 interface MusicNotificationPort {
-    fun createChannel()
-    fun buildNotification(state: PlaybackState): Notification
-    fun notify(notification: Notification)
+    fun ensureChannelExists()
+    fun buildAndNotify(state: PlaybackState)
 }

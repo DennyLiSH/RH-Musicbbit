@@ -5,7 +5,7 @@ import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.service.PlayMode
 import com.rabbithole.musicbbit.service.PlaybackState
-import com.rabbithole.musicbbit.service.playback.PlaybackController
+import com.rabbithole.musicbbit.service.playback.PlaybackSession
 import com.rabbithole.musicbbit.service.playback.PlayerEvent
 import io.mockk.coEvery
 import io.mockk.every
@@ -32,7 +32,7 @@ class PlayerViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
-    private lateinit var playbackController: PlaybackController
+    private lateinit var playbackController: PlaybackSession
     private lateinit var alarmRepository: AlarmRepository
     private val playbackStateFlow = MutableStateFlow(PlaybackState())
     private val playerEventsFlow = MutableSharedFlow<PlayerEvent>()

@@ -2,29 +2,21 @@ package com.rabbithole.musicbbit.service.alarm
 
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.di.MainDispatcher
-import com.rabbithole.musicbbit.domain.model.AutoStop
-import com.rabbithole.musicbbit.domain.model.PlaybackProgress
-import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
-import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
-import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
 import com.rabbithole.musicbbit.service.playback.PlayerEvent
-import com.rabbithole.musicbbit.service.playback.PlaybackController
+import com.rabbithole.musicbbit.service.playback.PlaybackSession
 import com.rabbithole.musicbbit.service.playback.TransitionReason
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -40,10 +32,9 @@ import timber.log.Timber
  * [com.rabbithole.musicbbit.service.AlarmActionReceiver], and
  * [com.rabbithole.musicbbit.presentation.alarm.AlarmRingViewModel]:
  *
- *  - Loading the alarm + playlist
- *  - Resolving the start song / position from saved progress
- *  - Acquiring the wake lock and scheduling the auto-stop timer
- *  - Driving playback through [PlaybackController]
+ *  - Loading the alarm + playlist (delegated to [AlarmPlaybackResolver])
+ *  - Acquiring the wake lock and scheduling the auto-stop timer (delegated to [AutoStopController])
+ *  - Driving playback through [PlaybackSession]
  *  - Showing / cancelling the alarm notification
  *  - Exposing observable [AlarmFireState] for UI
  *
@@ -53,13 +44,11 @@ import timber.log.Timber
 @Singleton
 class AlarmFireSession @Inject constructor(
     private val alarmRepository: AlarmRepository,
-    private val playlistRepository: PlaylistRepository,
-    private val playbackProgressRepository: PlaybackProgressRepository,
+    private val alarmPlaybackResolver: AlarmPlaybackResolver,
     private val wakeLockPort: WakeLockPort,
     private val notificationPort: NotificationPort,
     private val volumeRampPort: VolumeRampPort,
-    private val playbackController: PlaybackController,
-    private val clock: Clock,
+    private val playbackController: PlaybackSession,
     @MainDispatcher private val mainDispatcher: CoroutineDispatcher,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
@@ -71,9 +60,7 @@ class AlarmFireSession @Inject constructor(
     private val _state = MutableStateFlow<AlarmFireState>(AlarmFireState.Idle)
     val state: StateFlow<AlarmFireState> = _state.asStateFlow()
 
-    private var autoStopJob: Job? = null
-    private var songsRemaining: Int = 0
-    private var extendToEnd: Boolean = false
+    private val autoStopController = AutoStopController(sessionScope)
 
     init {
         // Subscribe to playerEvents to handle song completion and extend-to-end
@@ -82,15 +69,19 @@ class AlarmFireSession @Inject constructor(
                 when (event) {
                     is PlayerEvent.MediaItemTransition -> {
                         if (event.reason == TransitionReason.AUTO && _state.value is AlarmFireState.Playing) {
-                            onSongCompleted()
-                            if (extendToEnd) {
+                            if (autoStopController.onSongCompleted()) {
+                                playbackController.stop()
+                            }
+                            if (autoStopController.isExtendToEnd()) {
                                 playbackController.stop()
                             }
                         }
                     }
                     is PlayerEvent.QueueEnded -> {
                         if (_state.value is AlarmFireState.Playing) {
-                            onQueueEnded()
+                            if (autoStopController.onQueueEnded()) {
+                                playbackController.stop()
+                            }
                         }
                     }
                     else -> {}
@@ -109,12 +100,11 @@ class AlarmFireSession @Inject constructor(
     }
 
     /** Whether playback should stop after the current song completes. */
-    fun isExtendToEnd(): Boolean = extendToEnd
+    fun isExtendToEnd(): Boolean = autoStopController.isExtendToEnd()
 
     /** Toggle extend-to-end mode. The controller queries [isExtendToEnd] on natural transitions. */
     fun setExtendToEnd(enabled: Boolean) {
-        extendToEnd = enabled
-        Timber.i("Extend-to-end mode: $enabled")
+        autoStopController.setExtendToEnd(enabled)
     }
 
     /**
@@ -167,8 +157,8 @@ class AlarmFireSession @Inject constructor(
     }
 
     /**
-     * Fire an alarm. Loads alarm + playlist, resolves start position, drives playback via
-     * the [playbackController], schedules the auto-stop timer, and shows the alarm notification.
+     * Fire an alarm. Delegates loading to [AlarmPlaybackResolver], then drives playback,
+     * schedules auto-stop, and shows the alarm notification.
      *
      * Precondition: if this is an alarm trigger (isAlarmTrigger=true), the caller must have
      * already acquired the wake lock (e.g. [MusicPlaybackService.onStartCommand]).
@@ -183,76 +173,55 @@ class AlarmFireSession @Inject constructor(
             mutex.withLock {
                 _state.value = AlarmFireState.Loading(alarmId)
 
-                val alarm = alarmRepository.getAlarmById(alarmId)
-                if (alarm == null || !alarm.isEnabled) {
-                    Timber.w("Alarm id=$alarmId not found or disabled")
-                    transitionToError(alarmId, "Alarm not found or disabled")
-                    return@withLock
-                }
-
-                val playlistWithSongs =
-                    playlistRepository.getPlaylistWithSongs(alarm.playlistId).first()
-                if (playlistWithSongs == null || playlistWithSongs.songs.isEmpty()) {
-                    Timber.w(
-                        "Playlist id=${alarm.playlistId} is empty or not found for alarm id=$alarmId"
-                    )
-                    notificationPort.showError(
-                        notificationId = alarmId.toInt(),
-                        title = alarm.label ?: "Music Alarm",
-                        message = "Playlist is empty",
-                    )
-                    transitionToError(alarmId, "Playlist is empty")
-                    return@withLock
-                }
-
-                val songs = playlistWithSongs.songs
-                val startIndex = resolveStartIndex(songs, alarm.playlistId)
-                val startSong = songs[startIndex]
-
-                resetPlaybackProgress(startSong, alarm.playlistId)
-
-                var playbackStarted = false
-
-                withContext(mainDispatcher) {
-                    if (isAlarmTrigger && songs.isNotEmpty()) {
-                        playbackController.preloadFirstSong(songs.first().path)
+                when (val result = alarmPlaybackResolver.resolve(alarmId)) {
+                    is AlarmPlaybackResolver.Result.Success -> {
+                        startPlayback(result, isAlarmTrigger)
+                        bookkeepAlarmTrigger(alarmId)
                     }
-
-                    playbackController.playAlarmQueue(songs, startIndex, alarm.playlistId, alarmId)
-
-                    if (isAlarmTrigger) {
-                        volumeRampPort.startVolumeRamp(sessionScope)
-                        Timber.i("Started volume ramp for alarm playback")
+                    is AlarmPlaybackResolver.Result.Error -> {
+                        notificationPort.showError(
+                            notificationId = alarmId.toInt(),
+                            title = result.notificationTitle ?: "Music Alarm",
+                            message = result.notificationMessage,
+                        )
+                        transitionToError(alarmId, result.reason)
                     }
-
-                    when (val stop = alarm.autoStop) {
-                        is AutoStop.ByMinutes -> scheduleAutoStop(stop.minutes, alarmId)
-                        is AutoStop.BySongCount -> {
-                            songsRemaining = stop.count
-                            Timber.i("Song counter set to ${stop.count} for alarm $alarmId")
-                        }
-                        null -> {}
-                    }
-
-                    extendToEnd = false
-
-                    notificationPort.showAlarmPlaying(alarm, startSong)
-                    Timber.i(
-                        "Alarm notification shown for alarm id=$alarmId, song=${startSong.title}"
-                    )
-
-                    _state.value = AlarmFireState.Playing(
-                        alarmId = alarmId,
-                        currentSong = startSong,
-                    )
-                    playbackStarted = true
-                }
-
-                if (playbackStarted) {
-                    bookkeepAlarmTrigger(alarmId)
                 }
             }
         }
+    }
+
+    private suspend fun startPlayback(
+        result: AlarmPlaybackResolver.Result.Success,
+        isAlarmTrigger: Boolean
+    ) = withContext(mainDispatcher) {
+        val alarm = result.alarm
+        val songs = result.songs
+        val startIndex = result.startIndex
+        val startSong = result.startSong
+
+        if (isAlarmTrigger && songs.isNotEmpty()) {
+            playbackController.preloadFirstSong(songs.first().path)
+        }
+
+        playbackController.playAlarmQueue(songs, startIndex, alarm.playlistId, alarm.id)
+
+        if (isAlarmTrigger) {
+            volumeRampPort.startVolumeRamp(sessionScope)
+            Timber.i("Started volume ramp for alarm playback")
+        }
+
+        autoStopController.start(alarm.autoStop) {
+            playbackController.stop()
+        }
+
+        notificationPort.showAlarmPlaying(alarm, startSong)
+        Timber.i("Alarm notification shown for alarm id=${alarm.id}, song=${startSong.title}")
+
+        _state.value = AlarmFireState.Playing(
+            alarmId = alarm.id,
+            currentSong = startSong,
+        )
     }
 
     /**
@@ -268,52 +237,22 @@ class AlarmFireSession @Inject constructor(
      * Extend the auto-stop timer. The previous job is cancelled; a fresh delay starts.
      */
     fun extendAutoStop(minutes: Int) {
-        if (autoStopJob == null) {
-            Timber.d("extendAutoStop: no auto-stop in flight, ignoring")
-            return
-        }
         val alarmId = state.value.alarmIdOrNull ?: -1L
         if (alarmId == -1L) {
             Timber.d("extendAutoStop: no active alarmId, ignoring")
             return
         }
-        scheduleAutoStop(minutes, alarmId)
+        autoStopController.extend(minutes) {
+            playbackController.stop()
+        }
         Timber.i("Auto-stop extended by $minutes minutes")
     }
 
     private fun transitionToError(alarmId: Long, reason: String) {
         Timber.w("AlarmFireSession transitioning to Error: alarmId=$alarmId, reason=$reason")
         if (wakeLockPort.isHeld) wakeLockPort.release()
-        songsRemaining = 0
+        autoStopController.reset()
         _state.value = AlarmFireState.Error(alarmId, reason)
-    }
-
-    /**
-     * Called when a song completes naturally (auto-advance).
-     * Decrements the song counter; when it reaches zero, stops playback.
-     * Only active when the session is in [AlarmFireState.Playing].
-     */
-    fun onSongCompleted() {
-        if (_state.value !is AlarmFireState.Playing) return
-        if (songsRemaining <= 0) return
-        songsRemaining--
-        Timber.d("Song completed, songsRemaining=$songsRemaining")
-        if (songsRemaining <= 0) {
-            Timber.i("Song counter reached zero, stopping playback")
-            playbackController.stop()
-        }
-    }
-
-    /**
-     * Called when the queue ends before the song counter reaches zero.
-     * Stops playback if a song counter is active and the session is [AlarmFireState.Playing].
-     */
-    fun onQueueEnded() {
-        if (_state.value !is AlarmFireState.Playing) return
-        if (songsRemaining > 0) {
-            Timber.i("Queue ended with songsRemaining=$songsRemaining, stopping")
-            playbackController.stop()
-        }
     }
 
     /**
@@ -321,8 +260,7 @@ class AlarmFireSession @Inject constructor(
      * to release wake lock, cancel the auto-stop job, dismiss the notification, and reset state.
      */
     fun onPlaybackStopped() {
-        cancelAutoStop()
-        songsRemaining = 0
+        autoStopController.reset()
         if (wakeLockPort.isHeld) {
             Timber.i("AlarmFireSession: releasing wake lock in onPlaybackStopped")
             wakeLockPort.release()
@@ -331,54 +269,7 @@ class AlarmFireSession @Inject constructor(
         if (alarmId != null) {
             notificationPort.cancel(alarmId)
         }
-        extendToEnd = false
         _state.value = AlarmFireState.Stopped
-    }
-
-    private fun scheduleAutoStop(minutes: Int, alarmId: Long) {
-        autoStopJob?.cancel()
-        val delayMs = minutes * 60_000L
-        Timber.i("Scheduling auto-stop in $minutes minutes for alarm $alarmId")
-        autoStopJob = sessionScope.launch {
-            delay(delayMs)
-            Timber.i("Auto-stop triggered for alarm $alarmId")
-            playbackController.stop()
-        }
-    }
-
-    private fun cancelAutoStop() {
-        autoStopJob?.cancel()
-        autoStopJob = null
-        songsRemaining = 0
-        Timber.d("Auto-stop cancelled")
-    }
-
-    private suspend fun resolveStartIndex(songs: List<Song>, playlistId: Long): Int {
-        val progressList =
-            playbackProgressRepository.getProgressForPlaylist(playlistId).getOrNull()
-        return if (!progressList.isNullOrEmpty()) {
-            val latestProgress = progressList.maxByOrNull { it.updatedAt }
-            val index = latestProgress?.let { progress ->
-                songs.indexOfFirst { it.id == progress.songId }
-            } ?: 0
-            index.coerceIn(0, songs.lastIndex)
-        } else {
-            0
-        }
-    }
-
-    private suspend fun resetPlaybackProgress(startSong: Song, playlistId: Long) {
-        val progress = PlaybackProgress(
-            songId = startSong.id,
-            positionMs = 0,
-            updatedAt = clock.nowMs(),
-            playlistId = playlistId,
-        )
-        playbackProgressRepository.saveProgress(progress).onSuccess {
-            Timber.d("Reset progress for song id=${startSong.id}")
-        }.onFailure { error ->
-            Timber.e(error, "Failed to reset progress for song id=${startSong.id}")
-        }
     }
 
     companion object {

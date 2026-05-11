@@ -2,6 +2,7 @@ package com.rabbithole.musicbbit.data.repository
 
 import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistSongDao
+import com.rabbithole.musicbbit.data.mapper.PlaylistSongMapper
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.Playlist
@@ -68,9 +69,7 @@ class PlaylistRepositoryImpl @Inject constructor(
             playlists.find { it.id == playlistId }?.let { playlist ->
                 val withSongs = playlistDao.getPlaylistWithSongs(playlistId)
                 val songs = withSongs?.songs ?: emptyList()
-                val sortOrderMap = playlistSongs.associate { it.songId to it.sortOrder }
-                val sortedSongs = songs.sortedBy { sortOrderMap[it.id] ?: Int.MAX_VALUE }
-                PlaylistWithSongs(playlist = playlist, songs = sortedSongs)
+                PlaylistSongMapper.toPlaylistWithSongs(playlist, songs, playlistSongs)
             }
         }.flowOn(ioDispatcher)
     }

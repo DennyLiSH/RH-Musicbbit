@@ -1,12 +1,11 @@
 package com.rabbithole.musicbbit.data.repository
 
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
+import com.rabbithole.musicbbit.data.mapper.AlarmMapper.toDomain
+import com.rabbithole.musicbbit.data.mapper.AlarmMapper.toEntity
 import com.rabbithole.musicbbit.data.model.AlarmEntity
-import com.rabbithole.musicbbit.data.model.AutoStopConverter
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.Alarm
-import com.rabbithole.musicbbit.domain.model.toBitmask
-import com.rabbithole.musicbbit.domain.model.toDayOfWeekSet
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import kotlinx.coroutines.CoroutineDispatcher
@@ -103,33 +102,4 @@ class AlarmRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun AlarmEntity.toDomain(): Alarm {
-        return Alarm(
-            id = id,
-            hour = hour,
-            minute = minute,
-            repeatDays = repeatDaysBitmask.toDayOfWeekSet(),
-            excludeHolidays = excludeHolidays,
-            playlistId = playlistId,
-            isEnabled = isEnabled,
-            label = label,
-            autoStop = AutoStopConverter.toAutoStop(autoStop),
-            lastTriggeredAt = lastTriggeredAt
-        )
-    }
-
-    private fun Alarm.toEntity(): AlarmEntity {
-        return AlarmEntity(
-            id = id,
-            hour = hour,
-            minute = minute,
-            repeatDaysBitmask = repeatDays.toBitmask(),
-            excludeHolidays = excludeHolidays,
-            playlistId = playlistId,
-            isEnabled = isEnabled,
-            label = label,
-            autoStop = AutoStopConverter.fromAutoStop(autoStop),
-            lastTriggeredAt = lastTriggeredAt
-        )
-    }
 }

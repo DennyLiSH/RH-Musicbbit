@@ -10,10 +10,8 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.service.AlarmScheduler
-import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
 import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -58,6 +56,7 @@ class AlarmEditViewModelTest {
     private lateinit var playlistRepository: PlaylistRepository
     private lateinit var alarmScheduler: AlarmScheduler
     private lateinit var alarmRingSettingsRepository: AlarmRingSettingsRepository
+    private lateinit var permissionOrchestrator: AlarmEditPermissionOrchestrator
 
     @Before
     fun setUp() {
@@ -66,9 +65,11 @@ class AlarmEditViewModelTest {
         playlistRepository = mockk(relaxed = true)
         alarmScheduler = mockk(relaxed = true)
         alarmRingSettingsRepository = mockk(relaxed = true)
-        mockkObject(FullScreenIntentPermissionHelper)
-        every { FullScreenIntentPermissionHelper.isGranted(any()) } returns true
-        every { alarmScheduler.canScheduleExactAlarms() } returns true
+        permissionOrchestrator = mockk(relaxed = true)
+        every { permissionOrchestrator.checkPermissions() } returns
+            AlarmEditPermissionOrchestrator.PermissionCheckResult.AllGranted
+        every { permissionOrchestrator.checkAutostartGuide() } returns
+            AlarmEditPermissionOrchestrator.AutostartGuideResult.NotApplicable
     }
 
     @After
@@ -200,6 +201,90 @@ class AlarmEditViewModelTest {
     }
 
     @Test
+    fun `save shows permission dialog when exact alarm permission needed`() = runTest {
+        every { playlistRepository.getAllPlaylists() } returns flowOf(
+            listOf(Playlist(10L, "Morning Mix", 0L, 0L))
+        )
+        every { permissionOrchestrator.checkPermissions() } returns
+            AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsExactAlarm
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        viewModel.onAction(AlarmEditAction.OnPlaylistSelected(10L))
+        viewModel.onAction(AlarmEditAction.OnSave)
+
+        val state = viewModel.uiState.value
+        assertTrue("showPermissionDialog should be true", state.showPermissionDialog)
+        assertFalse("saveCompleted should be false", state.saveCompleted)
+    }
+
+    @Test
+    fun `save shows full screen intent dialog when fsi permission needed`() = runTest {
+        every { playlistRepository.getAllPlaylists() } returns flowOf(
+            listOf(Playlist(10L, "Morning Mix", 0L, 0L))
+        )
+        every { permissionOrchestrator.checkPermissions() } returns
+            AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsFullScreenIntent
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        viewModel.onAction(AlarmEditAction.OnPlaylistSelected(10L))
+        viewModel.onAction(AlarmEditAction.OnSave)
+
+        val state = viewModel.uiState.value
+        assertTrue("showFullScreenIntentDialog should be true", state.showFullScreenIntentDialog)
+        assertFalse("saveCompleted should be false", state.saveCompleted)
+    }
+
+    @Test
+    fun `save success shows autostart guide dialog when resolved`() = runTest {
+        val mockIntent = mockk<android.content.Intent>(relaxed = true)
+        every { playlistRepository.getAllPlaylists() } returns flowOf(
+            listOf(Playlist(10L, "Morning Mix", 0L, 0L))
+        )
+        io.mockk.coEvery { alarmRepository.saveAlarm(any()) } returns Result.success(1L)
+        every { permissionOrchestrator.checkAutostartGuide() } returns
+            AlarmEditPermissionOrchestrator.AutostartGuideResult.Resolved(mockIntent)
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        viewModel.onAction(AlarmEditAction.OnPlaylistSelected(10L))
+        viewModel.onAction(AlarmEditAction.OnSave)
+
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue("showAutostartGuideDialog should be true", state.showAutostartGuideDialog)
+        assertEquals(mockIntent, state.autostartIntent)
+        assertFalse("saveCompleted should be false when guide shown", state.saveCompleted)
+    }
+
+    @Test
+    fun `save success shows manual guide dialog when needed`() = runTest {
+        every { playlistRepository.getAllPlaylists() } returns flowOf(
+            listOf(Playlist(10L, "Morning Mix", 0L, 0L))
+        )
+        io.mockk.coEvery { alarmRepository.saveAlarm(any()) } returns Result.success(1L)
+        every { permissionOrchestrator.checkAutostartGuide() } returns
+            AlarmEditPermissionOrchestrator.AutostartGuideResult.NeedsManualGuide
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        viewModel.onAction(AlarmEditAction.OnPlaylistSelected(10L))
+        viewModel.onAction(AlarmEditAction.OnSave)
+
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue("showAutostartManualGuideDialog should be true", state.showAutostartManualGuideDialog)
+        assertFalse("saveCompleted should be false when guide shown", state.saveCompleted)
+    }
+
+    @Test
     fun `save with repeat days persists correctly`() = runTest {
         every { playlistRepository.getAllPlaylists() } returns flowOf(
             listOf(Playlist(10L, "Morning Mix", 0L, 0L))
@@ -263,7 +348,8 @@ class AlarmEditViewModelTest {
             alarmRepository = alarmRepository,
             playlistRepository = playlistRepository,
             alarmScheduler = alarmScheduler,
-            alarmRingSettingsRepository = alarmRingSettingsRepository
+            alarmRingSettingsRepository = alarmRingSettingsRepository,
+            permissionOrchestrator = permissionOrchestrator
         )
     }
 }

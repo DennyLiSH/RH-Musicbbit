@@ -45,7 +45,7 @@ class PlaybackSession @Inject constructor(
     private val audioFocusPort: AudioFocusPort,
     private val volumeRampPort: VolumeRampPort,
     @MainDispatcher private val mainDispatcher: CoroutineDispatcher,
-) : PlaybackController {
+) {
 
     private val sessionJob = SupervisorJob()
     private val sessionScope = CoroutineScope(sessionJob + mainDispatcher)
@@ -63,7 +63,7 @@ class PlaybackSession @Inject constructor(
     init {
         Timber.i("PlaybackSession created")
 
-        musicNotificationPort.createChannel()
+        musicNotificationPort.ensureChannelExists()
 
         progressTracker = PlaybackProgressTracker(
             scope = sessionScope,
@@ -180,11 +180,10 @@ class PlaybackSession @Inject constructor(
     }
 
     private fun updateNotification() {
-        val notification = musicNotificationPort.buildNotification(_playbackState.value)
-        musicNotificationPort.notify(notification)
+        musicNotificationPort.buildAndNotify(_playbackState.value)
     }
 
-    // -------- PlaybackController implementation -------------------------------
+    // -------- Public playback API --------------------------------------------
 
     override fun play(song: Song, playlistId: Long) {
         if (!audioFocusPort.requestFocus()) {

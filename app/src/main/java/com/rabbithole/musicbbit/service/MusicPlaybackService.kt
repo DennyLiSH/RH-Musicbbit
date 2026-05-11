@@ -7,7 +7,6 @@ import android.os.Binder
 import android.os.IBinder
 import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
-import com.rabbithole.musicbbit.service.playback.MusicNotificationPort
 import com.rabbithole.musicbbit.service.playback.PlaybackSession
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -35,7 +34,7 @@ class MusicPlaybackService : Service() {
     lateinit var playbackSession: PlaybackSession
 
     @Inject
-    lateinit var musicNotificationPort: MusicNotificationPort
+    lateinit var musicNotificationManager: MusicNotificationManager
 
     @Inject
     lateinit var wakeLockPort: WakeLockPort
@@ -56,14 +55,14 @@ class MusicPlaybackService : Service() {
     override fun onCreate() {
         super.onCreate()
         Timber.i("MusicPlaybackService created")
-        musicNotificationPort.createChannel()
+        musicNotificationManager.ensureChannelExists()
         observePlaybackState()
     }
 
     private fun observePlaybackState() {
         stateJob = serviceScope.launch {
             playbackSession.playbackState.collect { state ->
-                val notification = musicNotificationPort.buildNotification(state)
+                val notification = musicNotificationManager.buildNotification(state)
                 startForeground(NOTIFICATION_ID, notification)
             }
         }
@@ -75,7 +74,7 @@ class MusicPlaybackService : Service() {
         Timber.i("MusicPlaybackService started, action=${intent?.action}")
 
         val state = playbackSession.playbackState.value
-        val notification = musicNotificationPort.buildNotification(state)
+        val notification = musicNotificationManager.buildNotification(state)
         startForeground(NOTIFICATION_ID, notification)
 
         when (intent?.action) {

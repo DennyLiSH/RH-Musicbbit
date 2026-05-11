@@ -1,7 +1,6 @@
 package com.rabbithole.musicbbit.presentation.alarm
 
 import android.content.Context
-import android.content.Intent
 import android.os.Build
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -16,7 +15,6 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.service.AlarmScheduler
-import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,7 +51,7 @@ data class AlarmEditUiState(
     val showFullScreenIntentDialog: Boolean = false,
     val showAutostartGuideDialog: Boolean = false,
     val showAutostartManualGuideDialog: Boolean = false,
-    val autostartIntent: Intent? = null,
+    val autostartIntent: android.content.Intent? = null,
     val volumeRampDurationSeconds: Int = 0
 )
 
@@ -81,7 +79,8 @@ class AlarmEditViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val playlistRepository: PlaylistRepository,
     private val alarmScheduler: AlarmScheduler,
-    private val alarmRingSettingsRepository: AlarmRingSettingsRepository
+    private val alarmRingSettingsRepository: AlarmRingSettingsRepository,
+    private val permissionOrchestrator: AlarmEditPermissionOrchestrator,
 ) : ViewModel() {
 
     private val alarmId: Long = savedStateHandle.toRoute<AlarmEdit>().alarmId
@@ -103,9 +102,6 @@ class AlarmEditViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Collect playlists from the repository to populate the selector.
-     */
     private fun observePlaylists() {
         playlistRepository.getAllPlaylists()
             .onEach { playlists ->
@@ -119,9 +115,6 @@ class AlarmEditViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    /**
-     * Collect volume ramp duration from settings repository.
-     */
     private fun observeVolumeRampDuration() {
         alarmRingSettingsRepository.getVolumeRampDurationSeconds()
             .onEach { seconds ->
@@ -135,9 +128,6 @@ class AlarmEditViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    /**
-     * Load existing alarm data when editing.
-     */
     private fun loadAlarm() {
         viewModelScope.launch {
             try {
@@ -178,9 +168,6 @@ class AlarmEditViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Handle user actions from the UI.
-     */
     fun onAction(action: AlarmEditAction) {
         when (action) {
             is AlarmEditAction.OnTimeChanged -> {
@@ -193,76 +180,62 @@ class AlarmEditViewModel @Inject constructor(
                     )
                 }
             }
-
             is AlarmEditAction.OnRepeatDaysChanged -> {
                 Timber.d("Repeat days changed: %s", action.days)
                 _uiState.update { it.copy(repeatDays = action.days, errorMessageResId = null) }
             }
-
             is AlarmEditAction.OnExcludeHolidaysChanged -> {
                 Timber.d("Exclude holidays changed: %s", action.exclude)
                 _uiState.update { it.copy(excludeHolidays = action.exclude, errorMessageResId = null) }
             }
-
             is AlarmEditAction.OnPlaylistSelected -> {
                 Timber.d("Playlist selected: id=%d", action.playlistId)
                 _uiState.update { it.copy(playlistId = action.playlistId, errorMessageResId = null) }
             }
-
             is AlarmEditAction.OnLabelChanged -> {
                 _uiState.update { it.copy(label = action.label, errorMessageResId = null) }
             }
-
             is AlarmEditAction.OnAutoStopChanged -> {
                 Timber.d("Auto-stop changed: %s", action.autoStop?.toString() ?: "null")
                 _uiState.update { it.copy(autoStop = action.autoStop, errorMessageResId = null) }
             }
-
             is AlarmEditAction.OnSave -> saveAlarm()
-
             is AlarmEditAction.OnPermissionDialogDismissed -> {
                 _uiState.update { it.copy(showPermissionDialog = false) }
             }
-
             is AlarmEditAction.OnFullScreenIntentDialogDismissed -> {
                 _uiState.update { it.copy(showFullScreenIntentDialog = false) }
             }
-
             is AlarmEditAction.OnAutostartGuideDialogDismissed -> {
                 _uiState.update { it.copy(showAutostartGuideDialog = false, saveCompleted = true) }
             }
-
             is AlarmEditAction.OnAutostartManualGuideDialogDismissed -> {
                 _uiState.update { it.copy(showAutostartManualGuideDialog = false, saveCompleted = true) }
             }
         }
     }
 
-    /**
-     * Validate and save the alarm.
-     */
     private fun saveAlarm() {
         val currentState = _uiState.value
 
-        // Validate: playlist must be selected
         if (currentState.playlistId <= 0) {
             Timber.w("Save failed: no playlist selected")
             _uiState.update { it.copy(errorMessageResId = R.string.alarm_edit_error_select_playlist) }
             return
         }
 
-        // Check exact alarm permission (API 31+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmScheduler.canScheduleExactAlarms()) {
-            Timber.w("Save failed: exact alarm permission not granted")
-            _uiState.update { it.copy(showPermissionDialog = true) }
-            return
-        }
-
-        // Check full-screen intent permission (API 34+)
-        if (!FullScreenIntentPermissionHelper.isGranted(context)) {
-            Timber.w("Save failed: full-screen intent permission not granted")
-            _uiState.update { it.copy(showFullScreenIntentDialog = true) }
-            return
+        when (val permissionResult = permissionOrchestrator.checkPermissions()) {
+            is AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsExactAlarm -> {
+                _uiState.update { it.copy(showPermissionDialog = true) }
+                return
+            }
+            is AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsFullScreenIntent -> {
+                _uiState.update { it.copy(showFullScreenIntentDialog = true) }
+                return
+            }
+            is AlarmEditPermissionOrchestrator.PermissionCheckResult.AllGranted -> {
+                // proceed
+            }
         }
 
         _uiState.update { it.copy(isSaving = true, errorMessageResId = null) }
@@ -286,17 +259,16 @@ class AlarmEditViewModel @Inject constructor(
                 alarmRepository.saveAlarm(alarm)
                     .onSuccess { savedId ->
                         Timber.i("Alarm saved successfully, id=%d", savedId)
-                        if (AutostartHelper.isChineseOem()) {
-                            when (val result = AutostartHelper.getAutostartResult(context)) {
-                                is AutostartResult.Resolved -> {
-                                    _uiState.update { it.copy(isSaving = false, showAutostartGuideDialog = true, autostartIntent = result.intent) }
-                                }
-                                is AutostartResult.NeedsManualGuide -> {
-                                    _uiState.update { it.copy(isSaving = false, showAutostartManualGuideDialog = true) }
-                                }
+                        when (val autostartResult = permissionOrchestrator.checkAutostartGuide()) {
+                            is AlarmEditPermissionOrchestrator.AutostartGuideResult.Resolved -> {
+                                _uiState.update { it.copy(isSaving = false, showAutostartGuideDialog = true, autostartIntent = autostartResult.intent) }
                             }
-                        } else {
-                            _uiState.update { it.copy(isSaving = false, saveCompleted = true) }
+                            is AlarmEditPermissionOrchestrator.AutostartGuideResult.NeedsManualGuide -> {
+                                _uiState.update { it.copy(isSaving = false, showAutostartManualGuideDialog = true) }
+                            }
+                            is AlarmEditPermissionOrchestrator.AutostartGuideResult.NotApplicable -> {
+                                _uiState.update { it.copy(isSaving = false, saveCompleted = true) }
+                            }
                         }
                     }
                     .onFailure { error ->
