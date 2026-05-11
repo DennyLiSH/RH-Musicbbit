@@ -172,6 +172,9 @@
     <string name="settings_about_description">Version info</string>
     <string name="about_screen_title">About</string>
     <string name="about_version_label">Version</string>
+    <string name="about_supported_formats_title">Supported Audio Formats</string>
+    <string name="about_supported_formats_list">MP3, AAC, OGG, FLAC, WAV, Opus</string>
+    <string name="about_flac_note">* FLAC playback requires Android 8.1 or later (API 27+)</string>
 
     <!-- Permission Diagnostics -->
     <string name="permission_diagnostics_title">Permission Diagnostics</string>
