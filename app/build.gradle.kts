@@ -97,7 +97,6 @@ dependencies {
     // Media3 (ExoPlayer)
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
-    implementation(libs.media3.decoder.flac)
 
     // Timber logging
     implementation(libs.timber)
