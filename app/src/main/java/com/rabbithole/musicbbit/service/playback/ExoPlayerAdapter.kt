@@ -5,6 +5,7 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -74,10 +75,16 @@ class ExoPlayerAdapter @Inject constructor(
         }
     }
 
-    private val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build().apply {
-        addListener(listener)
-        setWakeMode(C.WAKE_MODE_LOCAL)
-    }
+    private val renderersFactory = DefaultRenderersFactory(context)
+        .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+
+    private val exoPlayer: ExoPlayer = ExoPlayer.Builder(context)
+        .setRenderersFactory(renderersFactory)
+        .build()
+        .apply {
+            addListener(listener)
+            setWakeMode(C.WAKE_MODE_LOCAL)
+        }
 
     private var released: Boolean = false
 
