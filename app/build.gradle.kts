@@ -19,8 +19,8 @@ android {
         applicationId = "com.rabbithole.musicbbit"
         minSdk = 24
         targetSdk = 36
-        versionCode = 9
-        versionName = "26.05.4"
+        versionCode = 10
+        versionName = "26.05.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -34,12 +34,8 @@ android {
             )
         }
     }
-    applicationVariants.all {
-        outputs.all {
-            val output = this as com.android.build.gradle.internal.api.ApkVariantOutputImpl
-            output.outputFileName = "musicbbit-${versionName}-${name}.apk"
-        }
-    }
+
+
     compileOptions {
         //sourceCompatibility = JavaVersion.VERSION_17
         //targetCompatibility = JavaVersion.VERSION_17
