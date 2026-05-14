@@ -3,9 +3,8 @@ package com.rabbithole.musicbbit.data.repository
 import com.rabbithole.musicbbit.data.local.MusicScanner
 import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
-import com.rabbithole.musicbbit.data.mapper.ScanDirectoryMapper.Companion.toEntity
-import com.rabbithole.musicbbit.data.mapper.SongMapper.Companion.toDomain
-import com.rabbithole.musicbbit.data.mapper.SongMapper.Companion.toEntity
+import com.rabbithole.musicbbit.data.mapper.toDomain
+import com.rabbithole.musicbbit.data.mapper.toEntity
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.MusicRepository

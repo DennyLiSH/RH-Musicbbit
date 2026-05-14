@@ -2,10 +2,9 @@ package com.rabbithole.musicbbit.data.repository
 
 import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistSongDao
-import com.rabbithole.musicbbit.data.mapper.PlaylistMapper.Companion.toDomain
-import com.rabbithole.musicbbit.data.mapper.PlaylistMapper.Companion.toEntity
 import com.rabbithole.musicbbit.data.mapper.PlaylistSongMapper
-import com.rabbithole.musicbbit.data.mapper.SongMapper.Companion.toDomain
+import com.rabbithole.musicbbit.data.mapper.toDomain
+import com.rabbithole.musicbbit.data.mapper.toEntity
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.Playlist

@@ -1,8 +1,8 @@
 package com.rabbithole.musicbbit.data.mapper
 
 import com.rabbithole.musicbbit.data.local.model.ScanDirectoryEntity
-import com.rabbithole.musicbbit.data.mapper.ScanDirectoryMapper.Companion.toDomain
-import com.rabbithole.musicbbit.data.mapper.ScanDirectoryMapper.Companion.toEntity
+import com.rabbithole.musicbbit.data.mapper.toDomain
+import com.rabbithole.musicbbit.data.mapper.toEntity
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import org.junit.Assert.assertEquals
 import org.junit.Test

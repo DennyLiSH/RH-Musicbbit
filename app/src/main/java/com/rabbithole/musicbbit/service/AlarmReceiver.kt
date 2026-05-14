@@ -43,8 +43,8 @@ class AlarmReceiver : BroadcastReceiver() {
             null
         }
 
-        val wakeLockPort = EntryPointAccessors.getApplication(
-            context.applicationContext,
+        val wakeLockPort = EntryPointAccessors.fromApplication(
+            context.applicationContext as android.app.Application,
             AlarmReceiverEntryPoint::class.java
         ).wakeLockPort()
         wakeLockPort.acquire(WAKE_LOCK_TIMEOUT_MS)

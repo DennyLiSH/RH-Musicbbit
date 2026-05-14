@@ -1,8 +1,8 @@
 package com.rabbithole.musicbbit.data.mapper
 
 import com.rabbithole.musicbbit.data.local.model.PlaylistEntity
-import com.rabbithole.musicbbit.data.mapper.PlaylistMapper.Companion.toDomain
-import com.rabbithole.musicbbit.data.mapper.PlaylistMapper.Companion.toEntity
+import com.rabbithole.musicbbit.data.mapper.toDomain
+import com.rabbithole.musicbbit.data.mapper.toEntity
 import com.rabbithole.musicbbit.domain.model.Playlist
 import org.junit.Assert.assertEquals
 import org.junit.Test

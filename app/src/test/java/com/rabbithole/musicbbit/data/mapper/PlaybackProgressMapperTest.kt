@@ -1,8 +1,8 @@
 package com.rabbithole.musicbbit.data.mapper
 
 import com.rabbithole.musicbbit.data.local.model.PlaybackProgressEntity
-import com.rabbithole.musicbbit.data.mapper.PlaybackProgressMapper.Companion.toDomain
-import com.rabbithole.musicbbit.data.mapper.PlaybackProgressMapper.Companion.toEntity
+import com.rabbithole.musicbbit.data.mapper.toDomain
+import com.rabbithole.musicbbit.data.mapper.toEntity
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import org.junit.Assert.assertEquals
 import org.junit.Test
