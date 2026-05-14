@@ -3,10 +3,10 @@ package com.rabbithole.musicbbit.data.repository
 import app.cash.turbine.test
 import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistSongDao
+import com.rabbithole.musicbbit.data.local.model.PlaylistEntity
 import com.rabbithole.musicbbit.data.local.model.PlaylistWithSongsEntity
+import com.rabbithole.musicbbit.data.local.model.SongEntity
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
-import com.rabbithole.musicbbit.domain.model.Playlist
-import com.rabbithole.musicbbit.domain.model.Song
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -45,7 +45,7 @@ class PlaylistRepositoryImplTest {
         name: String = "Test Playlist",
         createdAt: Long = 1000L,
         updatedAt: Long = 2000L
-    ) = Playlist(id = id, name = name, createdAt = createdAt, updatedAt = updatedAt)
+    ) = PlaylistEntity(id = id, name = name, createdAt = createdAt, updatedAt = updatedAt)
 
     private fun songEntity(
         id: Long,
@@ -56,7 +56,7 @@ class PlaylistRepositoryImplTest {
         durationMs: Long = 180000L,
         dateAdded: Long = 3000L,
         coverUri: String? = null
-    ) = Song(
+    ) = SongEntity(
         id = id,
         path = path,
         title = title,

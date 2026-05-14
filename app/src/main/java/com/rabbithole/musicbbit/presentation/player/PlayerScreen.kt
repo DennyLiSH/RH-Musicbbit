@@ -52,6 +52,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.presentation.alarm.AlarmRingActivity
 import com.rabbithole.musicbbit.service.AlarmScheduler
+import com.rabbithole.musicbbit.presentation.util.formatDuration
 import com.rabbithole.musicbbit.service.PlayMode
 
 @Composable
@@ -288,11 +289,4 @@ private fun AlarmActiveBanner(
             }
         }
     }
-}
-
-private fun formatDuration(ms: Long): String {
-    val totalSeconds = ms / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%02d:%02d".format(minutes, seconds)
 }

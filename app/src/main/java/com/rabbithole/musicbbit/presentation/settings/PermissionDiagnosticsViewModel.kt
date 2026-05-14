@@ -1,17 +1,12 @@
 package com.rabbithole.musicbbit.presentation.settings
 
 import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
 import android.os.Build
 import androidx.compose.runtime.Immutable
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rabbithole.musicbbit.service.AlarmScheduler
-import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
+import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,8 +31,7 @@ data class PermissionDiagnosticsUiState(
 
 @HiltViewModel
 class PermissionDiagnosticsViewModel @Inject constructor(
-    @param:ApplicationContext private val context: Context,
-    private val alarmScheduler: AlarmScheduler
+    private val permissionPort: PermissionPort
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PermissionDiagnosticsUiState())
@@ -62,7 +56,7 @@ class PermissionDiagnosticsViewModel @Inject constructor(
 
         // 1. Schedule Exact Alarms (API 31+ only)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val canSchedule = alarmScheduler.canScheduleExactAlarms()
+            val canSchedule = permissionPort.canScheduleExactAlarms()
             list.add(
                 PermissionStatus(
                     name = PERMISSION_NAME_SCHEDULE_EXACT_ALARMS,
@@ -77,10 +71,7 @@ class PermissionDiagnosticsViewModel @Inject constructor(
 
         // 2. Post Notifications (API 33+ only)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val granted = ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
+            val granted = permissionPort.checkPermission(Manifest.permission.POST_NOTIFICATIONS)
             list.add(
                 PermissionStatus(
                     name = PERMISSION_NAME_POST_NOTIFICATIONS,
@@ -99,10 +90,7 @@ class PermissionDiagnosticsViewModel @Inject constructor(
         } else {
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
-        val readMediaGranted = ContextCompat.checkSelfPermission(
-            context,
-            readMediaPermission
-        ) == PackageManager.PERMISSION_GRANTED
+        val readMediaGranted = permissionPort.checkPermission(readMediaPermission)
         list.add(
             PermissionStatus(
                 name = PERMISSION_NAME_READ_MEDIA_AUDIO,
@@ -115,10 +103,9 @@ class PermissionDiagnosticsViewModel @Inject constructor(
         Timber.d("Read Media Audio: granted=$readMediaGranted")
 
         // 4. Foreground Service (informational)
-        val foregroundServiceGranted = ContextCompat.checkSelfPermission(
-            context,
+        val foregroundServiceGranted = permissionPort.checkPermission(
             Manifest.permission.FOREGROUND_SERVICE
-        ) == PackageManager.PERMISSION_GRANTED
+        )
         list.add(
             PermissionStatus(
                 name = PERMISSION_NAME_FOREGROUND_SERVICE,
@@ -131,7 +118,7 @@ class PermissionDiagnosticsViewModel @Inject constructor(
         Timber.d("Foreground Service: granted=$foregroundServiceGranted")
 
         // 5. Full Screen Intent (API 34+ runtime gate via NotificationManager)
-        val fullScreenIntentGranted = FullScreenIntentPermissionHelper.isGranted(context)
+        val fullScreenIntentGranted = permissionPort.isFullScreenIntentGranted()
         list.add(
             PermissionStatus(
                 name = PERMISSION_NAME_FULL_SCREEN_INTENT,
@@ -144,10 +131,9 @@ class PermissionDiagnosticsViewModel @Inject constructor(
         Timber.d("Full Screen Intent: granted=$fullScreenIntentGranted")
 
         // 6. Boot Completed (informational)
-        val bootCompletedGranted = ContextCompat.checkSelfPermission(
-            context,
+        val bootCompletedGranted = permissionPort.checkPermission(
             Manifest.permission.RECEIVE_BOOT_COMPLETED
-        ) == PackageManager.PERMISSION_GRANTED
+        )
         list.add(
             PermissionStatus(
                 name = PERMISSION_NAME_BOOT_COMPLETED,

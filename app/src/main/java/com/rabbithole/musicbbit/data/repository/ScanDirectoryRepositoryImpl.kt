@@ -2,6 +2,8 @@ package com.rabbithole.musicbbit.data.repository
 
 import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
+import com.rabbithole.musicbbit.data.mapper.ScanDirectoryMapper.Companion.toDomain
+import com.rabbithole.musicbbit.data.mapper.ScanDirectoryMapper.Companion.toEntity
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
@@ -9,6 +11,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
@@ -20,12 +23,14 @@ class ScanDirectoryRepositoryImpl @Inject constructor(
 ) : ScanDirectoryRepository {
 
     override fun getAll(): Flow<List<ScanDirectory>> {
-        return scanDirectoryDao.getAll().flowOn(ioDispatcher)
+        return scanDirectoryDao.getAll()
+            .map { entities -> entities.map { it.toDomain() } }
+            .flowOn(ioDispatcher)
     }
 
     override suspend fun add(directory: ScanDirectory): Result<Long> = withContext(ioDispatcher) {
         try {
-            val id = scanDirectoryDao.insert(directory)
+            val id = scanDirectoryDao.insert(directory.toEntity())
             Timber.i("Scan directory added: id=$id, path=${directory.path}")
             Result.success(id)
         } catch (e: Exception) {
@@ -36,18 +41,17 @@ class ScanDirectoryRepositoryImpl @Inject constructor(
 
     override suspend fun remove(id: Long): Result<Unit> = withContext(ioDispatcher) {
         try {
-            val directory = scanDirectoryDao.getById(id)
-            if (directory != null) {
-                // Delete all songs under this directory path
+            val entity = scanDirectoryDao.getById(id)
+            if (entity != null) {
                 val allSongs = songDao.getAll()
                 val songsToDelete = allSongs.firstOrNull()?.filter {
-                    it.path.startsWith(directory.path)
+                    it.path.startsWith(entity.path)
                 } ?: emptyList()
                 songsToDelete.forEach { songDao.delete(it) }
 
-                scanDirectoryDao.delete(directory)
+                scanDirectoryDao.delete(entity)
                 Timber.i(
-                    "Scan directory removed: id=$id, path=${directory.path}, " +
+                    "Scan directory removed: id=$id, path=${entity.path}, " +
                         "cascadedSongs=${songsToDelete.size}"
                 )
             } else {

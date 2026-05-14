@@ -3,12 +3,16 @@ package com.rabbithole.musicbbit.data.repository
 import com.rabbithole.musicbbit.data.local.MusicScanner
 import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
+import com.rabbithole.musicbbit.data.mapper.ScanDirectoryMapper.Companion.toEntity
+import com.rabbithole.musicbbit.data.mapper.SongMapper.Companion.toDomain
+import com.rabbithole.musicbbit.data.mapper.SongMapper.Companion.toEntity
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
@@ -22,10 +26,12 @@ class MusicRepositoryImpl @Inject constructor(
 
     override fun getAllSongs(): Flow<List<Song>> {
         return songDao.getAll()
+            .map { entities -> entities.map { it.toDomain() } }
     }
 
     override fun searchSongs(query: String): Flow<List<Song>> {
         return songDao.searchSongs(query)
+            .map { entities -> entities.map { it.toDomain() } }
     }
 
     override suspend fun refreshSongs(): Result<Unit> = withContext(ioDispatcher) {
@@ -60,10 +66,10 @@ class MusicRepositoryImpl @Inject constructor(
                 toDelete.forEach { songDao.delete(it) }
             }
             if (toInsert.isNotEmpty()) {
-                songDao.insertAll(toInsert)
+                songDao.insertAll(toInsert.map { it.toEntity() })
             }
             if (toUpdate.isNotEmpty()) {
-                toUpdate.forEach { songDao.update(it) }
+                toUpdate.forEach { songDao.update(it.toEntity()) }
             }
 
             Timber.i(
@@ -78,4 +84,3 @@ class MusicRepositoryImpl @Inject constructor(
     }
 
 }
-

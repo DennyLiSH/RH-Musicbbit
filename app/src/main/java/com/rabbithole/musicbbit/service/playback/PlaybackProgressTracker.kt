@@ -20,6 +20,7 @@ class PlaybackProgressTracker(
     private val playbackProgressRepository: PlaybackProgressRepository,
     private val playerPort: PlayerPort,
     private val getState: () -> PlaybackState,
+    private val currentTimeMs: () -> Long = { System.currentTimeMillis() },
 ) {
     private var progressSaveJob: Job? = null
     private var progressTickJob: Job? = null
@@ -65,7 +66,7 @@ class PlaybackProgressTracker(
             val progress = PlaybackProgress(
                 songId = song.id,
                 positionMs = position,
-                updatedAt = System.currentTimeMillis(),
+                updatedAt = currentTimeMs(),
                 playlistId = state.currentPlaylistId
             )
             val result = playbackProgressRepository.saveProgress(progress)

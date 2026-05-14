@@ -1,19 +1,14 @@
 package com.rabbithole.musicbbit.presentation.alarm
 
-import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.os.PowerManager
-import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.HolidayRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
-import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
+import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -62,7 +57,7 @@ class AlarmListViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val holidayRepository: HolidayRepository,
     private val playlistRepository: PlaylistRepository,
-    @param:ApplicationContext private val context: Context
+    private val permissionPort: PermissionPort
 ) : ViewModel() {
 
     private val _isIgnoringBatteryOptimizations = MutableStateFlow(checkBatteryOptimizationStatus())
@@ -173,8 +168,7 @@ class AlarmListViewModel @Inject constructor(
      * Check whether the app is ignoring battery optimizations.
      */
     private fun checkBatteryOptimizationStatus(): Boolean {
-        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-        return powerManager.isIgnoringBatteryOptimizations(context.packageName)
+        return permissionPort.isIgnoringBatteryOptimizations()
     }
 
     /**
@@ -188,7 +182,7 @@ class AlarmListViewModel @Inject constructor(
      * Check whether the app can use full-screen intents.
      */
     private fun checkFullScreenIntentStatus(): Boolean {
-        return FullScreenIntentPermissionHelper.isGranted(context)
+        return permissionPort.isFullScreenIntentGranted()
     }
 
     /**
@@ -202,9 +196,7 @@ class AlarmListViewModel @Inject constructor(
      * Create an intent to request the user to ignore battery optimizations for this app.
      */
     fun createBatteryOptimizationIntent(): Intent {
-        return Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-            data = Uri.parse("package:${context.packageName}")
-        }
+        return permissionPort.createBatteryOptimizationIntent()
     }
 
     /**

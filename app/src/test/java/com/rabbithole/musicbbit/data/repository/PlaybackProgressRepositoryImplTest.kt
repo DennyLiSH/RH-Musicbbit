@@ -1,6 +1,7 @@
 package com.rabbithole.musicbbit.data.repository
 
 import com.rabbithole.musicbbit.data.local.dao.PlaybackProgressDao
+import com.rabbithole.musicbbit.data.local.model.PlaybackProgressEntity
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -35,7 +36,7 @@ class PlaybackProgressRepositoryImplTest {
         positionMs: Long = 30000L,
         updatedAt: Long = 1000L,
         playlistId: Long = 10L
-    ) = PlaybackProgress(
+    ) = PlaybackProgressEntity(
         songId = songId,
         positionMs = positionMs,
         updatedAt = updatedAt,
@@ -111,5 +112,24 @@ class PlaybackProgressRepositoryImplTest {
 
         assertTrue(result.isSuccess)
         coVerify { playbackProgressDao.deleteByPlaylistId(20L) }
+    }
+
+    @Test
+    fun `getProgressForPlaylist returns mapped domain list`() = runTest(testDispatcher) {
+        val entities = listOf(
+            progressEntity(songId = 1L, positionMs = 10000L, playlistId = 5L),
+            progressEntity(songId = 2L, positionMs = 20000L, playlistId = 5L)
+        )
+        coEvery { playbackProgressDao.getByPlaylistId(5L) } returns entities
+
+        val result = repository.getProgressForPlaylist(5L)
+
+        assertTrue(result.isSuccess)
+        val list = result.getOrNull()!!
+        assertEquals(2, list.size)
+        assertEquals(1L, list[0].songId)
+        assertEquals(10000L, list[0].positionMs)
+        assertEquals(2L, list[1].songId)
+        assertEquals(20000L, list[1].positionMs)
     }
 }

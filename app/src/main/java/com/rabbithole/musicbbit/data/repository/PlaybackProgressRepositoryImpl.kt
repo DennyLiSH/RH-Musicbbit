@@ -1,6 +1,8 @@
 package com.rabbithole.musicbbit.data.repository
 
 import com.rabbithole.musicbbit.data.local.dao.PlaybackProgressDao
+import com.rabbithole.musicbbit.data.mapper.PlaybackProgressMapper.Companion.toDomain
+import com.rabbithole.musicbbit.data.mapper.PlaybackProgressMapper.Companion.toEntity
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
@@ -16,7 +18,7 @@ class PlaybackProgressRepositoryImpl @Inject constructor(
 
     override suspend fun saveProgress(progress: PlaybackProgress): Result<Unit> = withContext(ioDispatcher) {
         try {
-            playbackProgressDao.insert(progress)
+            playbackProgressDao.insert(progress.toEntity())
             Timber.d(
                 "Progress saved: songId=${progress.songId}, playlistId=${progress.playlistId}, " +
                     "position=${progress.positionMs}ms"
@@ -30,7 +32,7 @@ class PlaybackProgressRepositoryImpl @Inject constructor(
 
     override suspend fun getProgress(songId: Long, playlistId: Long): Result<PlaybackProgress?> = withContext(ioDispatcher) {
         try {
-            val progress = playbackProgressDao.getBySongIdAndPlaylistId(songId, playlistId)
+            val progress = playbackProgressDao.getBySongIdAndPlaylistId(songId, playlistId)?.toDomain()
             Timber.d("Progress loaded: songId=$songId, playlistId=$playlistId, found=${progress != null}")
             Result.success(progress)
         } catch (e: Exception) {
@@ -63,7 +65,7 @@ class PlaybackProgressRepositoryImpl @Inject constructor(
 
     override suspend fun getProgressForPlaylist(playlistId: Long): Result<List<PlaybackProgress>> = withContext(ioDispatcher) {
         try {
-            val progressList = playbackProgressDao.getByPlaylistId(playlistId)
+            val progressList = playbackProgressDao.getByPlaylistId(playlistId).map { it.toDomain() }
             Timber.d("Progress list loaded: playlistId=$playlistId, count=${progressList.size}")
             Result.success(progressList)
         } catch (e: Exception) {

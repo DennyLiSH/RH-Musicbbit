@@ -3,21 +3,21 @@ package com.rabbithole.musicbbit.data.model
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
-import com.rabbithole.musicbbit.domain.model.Playlist
-import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.data.local.model.PlaylistEntity
+import com.rabbithole.musicbbit.data.local.model.SongEntity
 
 @Entity(
     tableName = "playlist_songs",
     primaryKeys = ["playlistId", "songId"],
     foreignKeys = [
         ForeignKey(
-            entity = Playlist::class,
+            entity = PlaylistEntity::class,
             parentColumns = ["id"],
             childColumns = ["playlistId"],
             onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
-            entity = Song::class,
+            entity = SongEntity::class,
             parentColumns = ["id"],
             childColumns = ["songId"],
             onDelete = ForeignKey.CASCADE

@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.presentation.util.formatDuration
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -77,11 +78,4 @@ fun SongListItem(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
-}
-
-fun formatDuration(ms: Long): String {
-    val totalSeconds = ms / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%d:%02d".format(minutes, seconds)
 }

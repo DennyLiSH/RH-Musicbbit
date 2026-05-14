@@ -1,15 +1,6 @@
 package com.rabbithole.musicbbit.domain.model
 
-import androidx.room.Entity
-import androidx.room.Index
-import androidx.room.PrimaryKey
-
-@Entity(
-    tableName = "songs",
-    indices = [Index(value = ["path"], unique = true)]
-)
 data class Song(
-    @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val path: String,
     val title: String,

@@ -3,8 +3,12 @@ package com.rabbithole.musicbbit.service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.PowerManager
 import androidx.core.content.ContextCompat
+import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -15,7 +19,8 @@ import timber.log.Timber
  * Thin BroadcastReceiver that hands an alarm trigger off to [MusicPlaybackService].
  *
  * Holds a brief partial wake lock during the [goAsync] dispatch so the device stays awake
- * long enough to start the foreground service.
+ * long enough to start the foreground service. Uses [WakeLockPort] via Hilt entry point
+ * to stay consistent with the rest of the wake-lock management.
  *
  * All alarm bookkeeping (lastTriggeredAt write, one-time isEnabled flip, repeating-alarm
  * reschedule) lives in [com.rabbithole.musicbbit.service.alarm.AlarmFireSession.fire] and
@@ -23,18 +28,27 @@ import timber.log.Timber
  */
 class AlarmReceiver : BroadcastReceiver() {
 
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface AlarmReceiverEntryPoint {
+        fun wakeLockPort(): WakeLockPort
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         Timber.i("AlarmReceiver triggered")
 
         val pendingResult = try {
             goAsync()
         } catch (e: IllegalStateException) {
-            // Robolectric direct invocations do not set mPendingResult,
-            // causing goAsync() to throw. Fallback to null — the finally
-            // block uses pendingResult?.finish() so this is safe.
             null
         }
-        val wakeLock = acquireWakeLock(context)
+
+        val wakeLockPort = EntryPointAccessors.getApplication(
+            context.applicationContext,
+            AlarmReceiverEntryPoint::class.java
+        ).wakeLockPort()
+        wakeLockPort.acquire(WAKE_LOCK_TIMEOUT_MS)
+
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         scope.launch {
@@ -55,39 +69,13 @@ class AlarmReceiver : BroadcastReceiver() {
             } catch (e: Exception) {
                 Timber.e(e, "AlarmReceiver dispatch failed")
             } finally {
-                wakeLock?.let {
-                    if (it.isHeld) {
-                        it.release()
-                        Timber.d("WakeLock released")
-                    }
-                }
+                wakeLockPort.release()
                 pendingResult?.finish()
             }
         }
     }
 
-    /**
-     * Acquire a partial wake lock with a 60-second timeout.
-     *
-     * @param context The context to use.
-     * @return The acquired wake lock, or null if acquisition failed.
-     */
-    private fun acquireWakeLock(context: Context): PowerManager.WakeLock? {
-        return try {
-            val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-            powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG).apply {
-                setReferenceCounted(false)
-                acquire(WAKE_LOCK_TIMEOUT_MS)
-                Timber.d("WakeLock acquired")
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to acquire wake lock")
-            null
-        }
-    }
-
     companion object {
-        private const val WAKE_LOCK_TAG = "RH-Musicbbit::AlarmWakeLock"
         private const val WAKE_LOCK_TIMEOUT_MS = 60_000L
     }
 }

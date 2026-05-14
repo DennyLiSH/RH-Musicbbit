@@ -3,7 +3,8 @@ package com.rabbithole.musicbbit.data.repository
 import app.cash.turbine.test
 import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
-import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.data.local.model.ScanDirectoryEntity
+import com.rabbithole.musicbbit.data.local.model.SongEntity
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -35,12 +36,12 @@ class ScanDirectoryRepositoryImplTest {
     // Helpers
     // ------------------------------------------------------------------
 
-    private fun scanDirectoryEntity(
+    private fun scanDirEntity(
         id: Long = 1L,
         path: String = "/storage/Music",
         name: String = "Music",
         addedAt: Long = 1000L
-    ) = ScanDirectory(id = id, path = path, name = name, addedAt = addedAt)
+    ) = ScanDirectoryEntity(id = id, path = path, name = name, addedAt = addedAt)
 
     private fun songEntity(
         id: Long = 1L,
@@ -51,7 +52,7 @@ class ScanDirectoryRepositoryImplTest {
         durationMs: Long = 180000L,
         dateAdded: Long = 3000L,
         coverUri: String? = null
-    ) = Song(
+    ) = SongEntity(
         id = id, path = path, title = title, artist = artist,
         album = album, durationMs = durationMs, dateAdded = dateAdded, coverUri = coverUri
     )
@@ -63,8 +64,8 @@ class ScanDirectoryRepositoryImplTest {
     @Test
     fun `getAll maps entities to domain`() = runTest(testDispatcher) {
         val entities = listOf(
-            scanDirectoryEntity(id = 1L, path = "/storage/Music", name = "Music"),
-            scanDirectoryEntity(id = 2L, path = "/storage/Downloads", name = "Downloads")
+            scanDirEntity(id = 1L, path = "/storage/Music", name = "Music"),
+            scanDirEntity(id = 2L, path = "/storage/Downloads", name = "Downloads")
         )
         every { scanDirectoryDao.getAll() } returns flowOf(entities)
 
@@ -92,7 +93,7 @@ class ScanDirectoryRepositoryImplTest {
 
     @Test
     fun `remove cascades songs under directory path`() = runTest(testDispatcher) {
-        val dir = scanDirectoryEntity(id = 1L, path = "/storage/Music")
+        val dir = scanDirEntity(id = 1L, path = "/storage/Music")
         coEvery { scanDirectoryDao.getById(1L) } returns dir
         every { songDao.getAll() } returns flowOf(
             listOf(

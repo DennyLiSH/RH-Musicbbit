@@ -6,33 +6,33 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.data.local.model.SongEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SongDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(song: Song): Long
+    suspend fun insert(song: SongEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(songs: List<Song>): List<Long>
+    suspend fun insertAll(songs: List<SongEntity>): List<Long>
 
     @Update
-    suspend fun update(song: Song)
+    suspend fun update(song: SongEntity)
 
     @Delete
-    suspend fun delete(song: Song)
+    suspend fun delete(song: SongEntity)
 
     @Query("SELECT * FROM songs")
-    fun getAll(): Flow<List<Song>>
+    fun getAll(): Flow<List<SongEntity>>
 
     @Query("SELECT * FROM songs WHERE id = :id")
-    suspend fun getById(id: Long): Song?
+    suspend fun getById(id: Long): SongEntity?
 
     @Query("DELETE FROM songs")
     suspend fun deleteAll()
 
     @Query("SELECT * FROM songs WHERE title LIKE '%' || :query || '%' COLLATE NOCASE OR artist LIKE '%' || :query || '%' COLLATE NOCASE")
-    fun searchSongs(query: String): Flow<List<Song>>
+    fun searchSongs(query: String): Flow<List<SongEntity>>
 }

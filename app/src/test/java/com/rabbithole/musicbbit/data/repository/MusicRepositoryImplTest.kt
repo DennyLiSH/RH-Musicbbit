@@ -4,7 +4,8 @@ import app.cash.turbine.test
 import com.rabbithole.musicbbit.data.local.MusicScanner
 import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
-import com.rabbithole.musicbbit.domain.model.ScanDirectory
+import com.rabbithole.musicbbit.data.local.model.ScanDirectoryEntity
+import com.rabbithole.musicbbit.data.local.model.SongEntity
 import com.rabbithole.musicbbit.domain.model.Song
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -37,7 +38,8 @@ class MusicRepositoryImplTest {
     // Helpers
     // ------------------------------------------------------------------
 
-    private fun songEntity(
+    /** Domain Song — used as MusicScanner output and test expectations. */
+    private fun songDomain(
         id: Long = 1L,
         path: String = "/music/song.mp3",
         title: String = "Song",
@@ -51,10 +53,26 @@ class MusicRepositoryImplTest {
         album = album, durationMs = durationMs, dateAdded = dateAdded, coverUri = coverUri
     )
 
-    private fun scanDirectoryEntity(
+    /** Entity Song — returned by mocked SongDao. */
+    private fun songEntity(
+        id: Long = 1L,
+        path: String = "/music/song.mp3",
+        title: String = "Song",
+        artist: String? = "Artist",
+        album: String? = null,
+        durationMs: Long = 180000L,
+        dateAdded: Long = 3000L,
+        coverUri: String? = null
+    ) = SongEntity(
+        id = id, path = path, title = title, artist = artist,
+        album = album, durationMs = durationMs, dateAdded = dateAdded, coverUri = coverUri
+    )
+
+    /** Entity ScanDirectory — returned by mocked ScanDirectoryDao. */
+    private fun scanDirEntity(
         id: Long = 1L,
         path: String = "/storage/Music"
-    ) = ScanDirectory(id = id, path = path, name = "Music", addedAt = 1000L)
+    ) = ScanDirectoryEntity(id = id, path = path, name = "Music", addedAt = 1000L)
 
     // ------------------------------------------------------------------
     // Tests
@@ -74,10 +92,10 @@ class MusicRepositoryImplTest {
 
     @Test
     fun `refreshSongs inserts new songs`() = runTest(testDispatcher) {
-        val dir = scanDirectoryEntity(path = "/storage/Music")
+        val dir = scanDirEntity(path = "/storage/Music")
         every { scanDirectoryDao.getAll() } returns flowOf(listOf(dir))
         every { musicScanner.scanDirectories(listOf("/storage/Music")) } returns listOf(
-            songEntity(id = 0L, path = "/storage/Music/new.mp3", title = "New Song")
+            songDomain(id = 0L, path = "/storage/Music/new.mp3", title = "New Song")
         )
         every { songDao.getAll() } returns flowOf(emptyList())
         coEvery { songDao.insertAll(any()) } returns emptyList()
@@ -90,7 +108,7 @@ class MusicRepositoryImplTest {
 
     @Test
     fun `refreshSongs deletes removed songs`() = runTest(testDispatcher) {
-        val dir = scanDirectoryEntity(path = "/storage/Music")
+        val dir = scanDirEntity(path = "/storage/Music")
         val existingSong = songEntity(id = 10L, path = "/storage/Music/old.mp3", title = "Old Song")
 
         every { scanDirectoryDao.getAll() } returns flowOf(listOf(dir))

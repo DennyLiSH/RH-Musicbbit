@@ -2,7 +2,10 @@ package com.rabbithole.musicbbit.data.repository
 
 import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
 import com.rabbithole.musicbbit.data.local.dao.PlaylistSongDao
+import com.rabbithole.musicbbit.data.mapper.PlaylistMapper.Companion.toDomain
+import com.rabbithole.musicbbit.data.mapper.PlaylistMapper.Companion.toEntity
 import com.rabbithole.musicbbit.data.mapper.PlaylistSongMapper
+import com.rabbithole.musicbbit.data.mapper.SongMapper.Companion.toDomain
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.Playlist
@@ -13,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
@@ -25,11 +29,12 @@ class PlaylistRepositoryImpl @Inject constructor(
 
     override fun getAllPlaylists(): Flow<List<Playlist>> {
         return playlistDao.getAll()
+            .map { entities -> entities.map { it.toDomain() } }
             .flowOn(ioDispatcher)
     }
 
     override suspend fun getPlaylistById(id: Long): Playlist? = withContext(ioDispatcher) {
-        playlistDao.getById(id)
+        playlistDao.getById(id)?.toDomain()
     }
 
     override suspend fun createPlaylist(name: String): Result<Long> = runCatching {
@@ -40,7 +45,7 @@ class PlaylistRepositoryImpl @Inject constructor(
                 createdAt = now,
                 updatedAt = now
             )
-            val id = playlistDao.insert(playlist)
+            val id = playlistDao.insert(playlist.toEntity())
             Timber.i("Playlist created: id=$id, name=$name")
             id
         }
@@ -49,14 +54,14 @@ class PlaylistRepositoryImpl @Inject constructor(
     override suspend fun updatePlaylist(playlist: Playlist): Result<Unit> = runCatching {
         withContext(ioDispatcher) {
             val updated = playlist.copy(updatedAt = System.currentTimeMillis())
-            playlistDao.update(updated)
+            playlistDao.update(updated.toEntity())
             Timber.i("Playlist updated: id=${playlist.id}, name=${playlist.name}")
         }
     }
 
     override suspend fun deletePlaylist(playlist: Playlist): Result<Unit> = runCatching {
         withContext(ioDispatcher) {
-            playlistDao.delete(playlist)
+            playlistDao.delete(playlist.toEntity())
             Timber.i("Playlist deleted: id=${playlist.id}, name=${playlist.name}")
         }
     }
@@ -66,10 +71,13 @@ class PlaylistRepositoryImpl @Inject constructor(
             playlistDao.getAll(),
             playlistSongDao.getByPlaylistId(playlistId)
         ) { playlists, playlistSongs ->
-            playlists.find { it.id == playlistId }?.let { playlist ->
+            playlists.find { it.id == playlistId }?.let { playlistEntity ->
                 val withSongs = playlistDao.getPlaylistWithSongs(playlistId)
-                val songs = withSongs?.songs ?: emptyList()
-                PlaylistSongMapper.toPlaylistWithSongs(playlist, songs, playlistSongs)
+                PlaylistSongMapper.toPlaylistWithSongs(
+                    playlist = playlistEntity.toDomain(),
+                    songs = withSongs?.songs?.map { it.toDomain() } ?: emptyList(),
+                    sortOrders = playlistSongs
+                )
             }
         }.flowOn(ioDispatcher)
     }

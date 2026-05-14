@@ -11,22 +11,22 @@ import com.rabbithole.musicbbit.data.local.dao.PlaylistSongDao
 import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
 import com.rabbithole.musicbbit.data.local.model.HolidayEntity
+import com.rabbithole.musicbbit.data.local.model.PlaybackProgressEntity
+import com.rabbithole.musicbbit.data.local.model.PlaylistEntity
+import com.rabbithole.musicbbit.data.local.model.ScanDirectoryEntity
+import com.rabbithole.musicbbit.data.local.model.SongEntity
 import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.data.model.AutoStopConverter
-import com.rabbithole.musicbbit.domain.model.PlaybackProgress
-import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
-import com.rabbithole.musicbbit.domain.model.ScanDirectory
-import com.rabbithole.musicbbit.domain.model.Song
 
 @Database(
     entities = [
-        Song::class,
-        Playlist::class,
+        SongEntity::class,
+        PlaylistEntity::class,
         PlaylistSongEntity::class,
-        PlaybackProgress::class,
+        PlaybackProgressEntity::class,
         AlarmEntity::class,
-        ScanDirectory::class,
+        ScanDirectoryEntity::class,
         HolidayEntity::class
     ],
     version = 8,

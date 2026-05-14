@@ -7,27 +7,27 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import com.rabbithole.musicbbit.data.local.model.PlaylistEntity
 import com.rabbithole.musicbbit.data.local.model.PlaylistWithSongsEntity
-import com.rabbithole.musicbbit.domain.model.Playlist
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PlaylistDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(playlist: Playlist): Long
+    suspend fun insert(playlist: PlaylistEntity): Long
 
     @Update
-    suspend fun update(playlist: Playlist)
+    suspend fun update(playlist: PlaylistEntity)
 
     @Delete
-    suspend fun delete(playlist: Playlist)
+    suspend fun delete(playlist: PlaylistEntity)
 
     @Query("SELECT * FROM playlists")
-    fun getAll(): Flow<List<Playlist>>
+    fun getAll(): Flow<List<PlaylistEntity>>
 
     @Query("SELECT * FROM playlists WHERE id = :id")
-    suspend fun getById(id: Long): Playlist?
+    suspend fun getById(id: Long): PlaylistEntity?
 
     @Transaction
     @Query("SELECT * FROM playlists WHERE id = :playlistId")

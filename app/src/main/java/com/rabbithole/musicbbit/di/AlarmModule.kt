@@ -1,11 +1,13 @@
 package com.rabbithole.musicbbit.di
 
+import com.rabbithole.musicbbit.service.AlarmNotificationHelper
 import com.rabbithole.musicbbit.service.AlarmVolumeController
 import com.rabbithole.musicbbit.service.alarm.Clock
 import com.rabbithole.musicbbit.service.alarm.SystemClock
-import com.rabbithole.musicbbit.service.alarm.ports.AndroidNotificationAdapter
+import com.rabbithole.musicbbit.service.alarm.ports.AndroidPermissionAdapter
 import com.rabbithole.musicbbit.service.alarm.ports.AndroidWakeLockAdapter
 import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
+import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
 import dagger.Binds
@@ -32,9 +34,13 @@ abstract class AlarmModule {
 
     @Binds
     @Singleton
-    abstract fun bindNotificationPort(impl: AndroidNotificationAdapter): NotificationPort
+    abstract fun bindNotificationPort(impl: AlarmNotificationHelper): NotificationPort
 
     @Binds
     @Singleton
     abstract fun bindVolumeRampPort(impl: AlarmVolumeController): VolumeRampPort
+
+    @Binds
+    @Singleton
+    abstract fun bindPermissionPort(impl: AndroidPermissionAdapter): PermissionPort
 }

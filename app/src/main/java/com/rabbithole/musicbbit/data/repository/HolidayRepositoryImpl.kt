@@ -11,6 +11,7 @@ import com.rabbithole.musicbbit.data.mapper.HolidayMapper.toDomain
 import com.rabbithole.musicbbit.data.remote.api.HolidayApi
 import com.rabbithole.musicbbit.data.remote.dto.HolidayResponseDto
 import com.rabbithole.musicbbit.di.IoDispatcher
+import com.rabbithole.musicbbit.domain.helper.isWorkday
 import com.rabbithole.musicbbit.domain.model.Holiday
 import com.rabbithole.musicbbit.domain.repository.HolidayRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,7 +23,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import timber.log.Timber
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
@@ -87,38 +87,18 @@ class HolidayRepositoryImpl @Inject constructor(
         }
 
         val dayOfWeek = localDate.dayOfWeek
-        val isWeekend = dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY
 
-        // Check cached holiday data
-        val holiday = holidayDao.getHolidayByDate(date)
-
-        when {
-            holiday != null -> {
-                // If we have cached data, use it
-                // isHoliday=true means day off, isHoliday=false means adjusted workday
-                val result = !holiday.isHoliday
-                Timber.d("Date $date from cache: isWorkday=$result (isHoliday=${holiday.isHoliday})")
-                result
-            }
-            else -> {
-                // No cached data: try fallback assets
-                val fallback = loadFallbackHolidays()[date]
-                if (fallback != null) {
-                    val result = !fallback.isHoliday
-                    Timber.d("Date $date from fallback: isWorkday=$result (isHoliday=${fallback.isHoliday})")
-                    return@withContext result
-                }
-
-                // No fallback either: use weekend/weekday logic
-                if (isWeekend) {
-                    Timber.d("Date $date is weekend, no cache or fallback: isWorkday=false")
-                    false
-                } else {
-                    Timber.d("Date $date is weekday, no cache or fallback: isWorkday=true")
-                    true
-                }
-            }
+        // Check cached holiday data, then fallback assets
+        val cached = holidayDao.getHolidayByDate(date)
+        val holiday: Holiday? = if (cached != null) {
+            cached.toDomain()
+        } else {
+            loadFallbackHolidays()[date]?.toDomain()
         }
+
+        val result = isWorkday(date, dayOfWeek, holiday)
+        Timber.d("Date $date: isWorkday=$result (dayOfWeek=$dayOfWeek, holiday=${holiday?.name})")
+        result
     }
 
     override suspend fun maybeRefreshHolidays(year: Int) {
