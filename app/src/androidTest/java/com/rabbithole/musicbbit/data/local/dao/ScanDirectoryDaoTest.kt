@@ -1,6 +1,6 @@
 package com.rabbithole.musicbbit.data.local.dao
 
-import com.rabbithole.musicbbit.domain.model.ScanDirectory
+import com.rabbithole.musicbbit.data.local.model.ScanDirectoryEntity
 import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -14,7 +14,7 @@ class ScanDirectoryDaoTest : DatabaseTest() {
 
     @Test
     fun insert_returnsId() = dbTest {
-        val directory = ScanDirectory(
+        val directory = ScanDirectoryEntity(
             path = "/storage/emulated/0/Music",
             name = "Music"
         )
@@ -26,7 +26,7 @@ class ScanDirectoryDaoTest : DatabaseTest() {
 
     @Test
     fun getById_returnsEntity_whenExists() = dbTest {
-        val directory = ScanDirectory(
+        val directory = ScanDirectoryEntity(
             path = "/storage/emulated/0/Music",
             name = "Music"
         )
@@ -50,11 +50,11 @@ class ScanDirectoryDaoTest : DatabaseTest() {
 
     @Test
     fun getAll_emitsDirectories() = dbTest {
-        val directory1 = ScanDirectory(
+        val directory1 = ScanDirectoryEntity(
             path = "/storage/emulated/0/Music",
             name = "Music"
         )
-        val directory2 = ScanDirectory(
+        val directory2 = ScanDirectoryEntity(
             path = "/storage/emulated/0/Download",
             name = "Download"
         )
@@ -68,7 +68,7 @@ class ScanDirectoryDaoTest : DatabaseTest() {
 
     @Test
     fun delete_removesEntity() = dbTest {
-        val directory = ScanDirectory(
+        val directory = ScanDirectoryEntity(
             path = "/storage/emulated/0/Music",
             name = "Music"
         )

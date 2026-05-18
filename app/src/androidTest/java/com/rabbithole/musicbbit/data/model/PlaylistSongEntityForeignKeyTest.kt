@@ -5,8 +5,8 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.rabbithole.musicbbit.data.local.AppDatabase
-import com.rabbithole.musicbbit.domain.model.Playlist
-import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.data.local.model.PlaylistEntity
+import com.rabbithole.musicbbit.data.local.model.SongEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -42,7 +42,7 @@ class PlaylistSongEntityForeignKeyTest {
 
     private suspend fun createPlaylist(name: String): Long {
         return db.playlistDao().insert(
-            Playlist(
+            PlaylistEntity(
                 name = name,
                 createdAt = 1_700_000_000_000L,
                 updatedAt = 1_700_000_000_000L
@@ -52,7 +52,7 @@ class PlaylistSongEntityForeignKeyTest {
 
     private suspend fun createSong(title: String): Long {
         return db.songDao().insert(
-            Song(
+            SongEntity(
                 path = "/music/$title.mp3",
                 title = title,
                 artist = "Artist",
