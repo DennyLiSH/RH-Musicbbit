@@ -9,7 +9,6 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
-import com.rabbithole.musicbbit.service.AlarmScheduler
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -59,7 +58,6 @@ class AlarmEditViewModelTest {
     private lateinit var context: Context
     private lateinit var alarmRepository: AlarmRepository
     private lateinit var playlistRepository: PlaylistRepository
-    private lateinit var alarmScheduler: AlarmScheduler
     private lateinit var alarmRingSettingsRepository: AlarmRingSettingsRepository
     private lateinit var permissionOrchestrator: AlarmEditPermissionOrchestrator
 
@@ -68,7 +66,6 @@ class AlarmEditViewModelTest {
         context = RuntimeEnvironment.getApplication()
         alarmRepository = mockk(relaxed = true)
         playlistRepository = mockk(relaxed = true)
-        alarmScheduler = mockk(relaxed = true)
         alarmRingSettingsRepository = mockk(relaxed = true)
         permissionOrchestrator = mockk(relaxed = true)
         every { permissionOrchestrator.checkPermissions() } returns
@@ -354,7 +351,6 @@ class AlarmEditViewModelTest {
             savedStateHandle = savedStateHandle,
             alarmRepository = alarmRepository,
             playlistRepository = playlistRepository,
-            alarmScheduler = alarmScheduler,
             alarmRingSettingsRepository = alarmRingSettingsRepository,
             permissionOrchestrator = permissionOrchestrator
         )

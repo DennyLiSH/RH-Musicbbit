@@ -209,19 +209,13 @@ class PlaybackSession @Inject constructor(
         )
         playerPort.play()
 
-        _playbackState.update {
-            it.copy(
-                currentSong = song,
-                currentPlaylistId = playlistId,
-                queue = listOf(song),
-                queueIndex = 0,
-                positionMs = 0,
-                durationMs = song.durationMs,
-                source = PlaybackSource.USER,
-                alarmId = null,
-                alarmLabel = null,
-            )
-        }
+        applyPlaybackState(
+            song = song,
+            playlistId = playlistId,
+            queue = listOf(song),
+            queueIndex = 0,
+            source = PlaybackSource.USER,
+        )
     }
 
     fun playQueue(songs: List<Song>, startIndex: Int, playlistId: Long) {
@@ -257,19 +251,13 @@ class PlaybackSession @Inject constructor(
             playerPort.play()
         }
 
-        _playbackState.update {
-            it.copy(
-                currentSong = startSong,
-                currentPlaylistId = playlistId,
-                queue = songs,
-                queueIndex = safeIndex,
-                positionMs = 0,
-                durationMs = startSong.durationMs,
-                source = PlaybackSource.USER,
-                alarmId = null,
-                alarmLabel = null,
-            )
-        }
+        applyPlaybackState(
+            song = startSong,
+            playlistId = playlistId,
+            queue = songs,
+            queueIndex = safeIndex,
+            source = PlaybackSource.USER,
+        )
     }
 
     fun pause() {
@@ -364,6 +352,48 @@ class PlaybackSession @Inject constructor(
                 alarmId = alarmId,
                 alarmLabel = alarmLabel,
                 source = PlaybackSource.ALARM
+            )
+        }
+    }
+
+    /**
+     * Gracefully shuts down the session.
+     *
+     * Cancels internal coroutines, stops progress tracking, and releases resources.
+     * Safe to call multiple times; subsequent calls are no-ops.
+     */
+    fun close() {
+        Timber.i("PlaybackSession closing")
+        sessionJob.cancel()
+        playerEventsJob?.cancel()
+        progressTracker.stopSaveLoop()
+        progressTracker.stopTickLoop()
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    private fun applyPlaybackState(
+        song: Song,
+        playlistId: Long,
+        queue: List<Song>,
+        queueIndex: Int,
+        source: PlaybackSource,
+        alarmId: Long? = null,
+        alarmLabel: String? = null,
+    ) {
+        _playbackState.update {
+            it.copy(
+                currentSong = song,
+                currentPlaylistId = playlistId,
+                queue = queue,
+                queueIndex = queueIndex,
+                positionMs = 0,
+                durationMs = song.durationMs,
+                source = source,
+                alarmId = alarmId,
+                alarmLabel = alarmLabel,
             )
         }
     }

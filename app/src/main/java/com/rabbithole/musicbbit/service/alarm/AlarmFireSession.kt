@@ -60,33 +60,16 @@ class AlarmFireSession @Inject constructor(
     val state: StateFlow<AlarmFireState> = _state.asStateFlow()
 
     private val autoStopController = AutoStopController(sessionScope)
+    private val transitionRouter = AlarmFireTransitionRouter(autoStopController)
 
     init {
         // Subscribe to playback transitions for auto-stop, extend-to-end, and external stop
         sessionScope.launch {
             playbackController.playbackTransitions.collect { transition ->
-                when (transition) {
-                    is PlaybackTransition.SongCompleted -> {
-                        if (_state.value is AlarmFireState.Playing) {
-                            val shouldStop = autoStopController.onSongCompleted() ||
-                                    autoStopController.isExtendToEnd()
-                            if (shouldStop) {
-                                playbackController.stop()
-                            }
-                        }
-                    }
-                    is PlaybackTransition.QueueEnded -> {
-                        if (_state.value is AlarmFireState.Playing) {
-                            if (autoStopController.onQueueEnded()) {
-                                playbackController.stop()
-                            }
-                        }
-                    }
-                    is PlaybackTransition.PlaybackStopped -> {
-                        if (_state.value is AlarmFireState.Playing) {
-                            onPlaybackStopped()
-                        }
-                    }
+                when (val action = transitionRouter.route(_state.value, transition)) {
+                    is AlarmFireTransitionRouter.Action.StopPlayback -> playbackController.stop()
+                    is AlarmFireTransitionRouter.Action.PlaybackFullyStopped -> onPlaybackStopped()
+                    is AlarmFireTransitionRouter.Action.Ignore -> { /* no-op */ }
                 }
             }
         }

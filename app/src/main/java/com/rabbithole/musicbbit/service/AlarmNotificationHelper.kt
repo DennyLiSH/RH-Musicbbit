@@ -30,9 +30,12 @@ class AlarmNotificationHelper @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : NotificationPort {
 
+    private val contentBuilder = AlarmNotificationContentBuilder()
+
     override fun showAlarmPlaying(alarm: Alarm, song: Song) {
         createChannel()
-        val notification = buildNotification(alarm, song, isPaused = false)
+        val content = contentBuilder.buildPlaying(alarm.label, song.title, song.artist)
+        val notification = renderNotification(content, alarm.id)
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
             as NotificationManager
         notificationManager.notify(alarm.id.toInt(), notification)
@@ -40,40 +43,10 @@ class AlarmNotificationHelper @Inject constructor(
     }
 
     override fun showAlarmPaused(alarmId: Long) {
+        val content = contentBuilder.buildPaused()
+        val notification = renderNotification(content, alarmId)
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
             as NotificationManager
-
-        val contentIntent = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification_small)
-            .setContentTitle("⏰ Alarm Paused")
-            .setContentText("Playback has been paused")
-            .setContentIntent(contentIntent)
-            .setOngoing(true)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setAutoCancel(false)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .addAction(
-                R.drawable.ic_notification_play,
-                "Resume",
-                createActionPendingIntent(alarmId, AlarmActionReceiver.ACTION_RESUME)
-            )
-            .addAction(
-                R.drawable.ic_notification_stop,
-                "Stop",
-                createActionPendingIntent(alarmId, AlarmActionReceiver.ACTION_STOP)
-            )
-            .build()
-
         notificationManager.notify(alarmId.toInt(), notification)
         Timber.d("Alarm notification updated to paused state for alarmId=$alarmId")
     }
@@ -87,28 +60,8 @@ class AlarmNotificationHelper @Inject constructor(
 
     override fun showError(notificationId: Int, title: String, message: String) {
         createChannel()
-
-        val contentIntent = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification_small)
-            .setContentTitle("⏰ $title")
-            .setContentText(message)
-            .setContentIntent(contentIntent)
-            .setOngoing(false)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .build()
-
+        val content = contentBuilder.buildError(title, message)
+        val notification = renderNotification(content, alarmId = notificationId.toLong())
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
             as NotificationManager
         notificationManager.notify(notificationId, notification)
@@ -137,11 +90,7 @@ class AlarmNotificationHelper @Inject constructor(
         }
     }
 
-    private fun buildNotification(
-        alarm: Alarm,
-        song: Song,
-        isPaused: Boolean
-    ): Notification {
+    private fun renderNotification(content: AlarmNotificationContent, alarmId: Long): Notification {
         val contentIntent = PendingIntent.getActivity(
             context,
             0,
@@ -151,74 +100,62 @@ class AlarmNotificationHelper @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val fullScreenIntent = PendingIntent.getActivity(
-            context,
-            alarm.id.toInt(),
-            Intent(context, AlarmRingActivity::class.java).apply {
-                putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarm.id)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_small)
-            .setContentTitle("⏰ ${alarm.label ?: "Music Alarm"}")
-            .setContentText("Playing: ${song.title} - ${song.artist ?: "Unknown artist"}")
+            .setContentTitle(content.title)
+            .setContentText(content.text)
             .setContentIntent(contentIntent)
-            .setFullScreenIntent(fullScreenIntent, true)
-            .setOngoing(true)
+            .setOngoing(content.isOngoing)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setAutoCancel(false)
+            .setAutoCancel(content.autoCancel)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setStyle(
-                NotificationCompat.BigTextStyle()
-                    .bigText("Playing: ${song.title} - ${song.artist ?: "Unknown artist"}")
+
+        content.bigText?.let {
+            builder.setStyle(NotificationCompat.BigTextStyle().bigText(it))
+        }
+
+        if (content.showFullScreenIntent) {
+            val fullScreenIntent = PendingIntent.getActivity(
+                context,
+                alarmId.toInt(),
+                Intent(context, AlarmRingActivity::class.java).apply {
+                    putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
+            builder.setFullScreenIntent(fullScreenIntent, true)
+        }
 
-        builder.addAction(
-            R.drawable.ic_notification_stop,
-            "Stop",
-            createActionPendingIntent(alarm.id, AlarmActionReceiver.ACTION_STOP)
-        )
-        builder.addAction(
-            if (isPaused) R.drawable.ic_notification_play else R.drawable.ic_notification_pause,
-            if (isPaused) "Resume" else "Pause",
-            createActionPendingIntent(
-                alarm.id,
-                if (isPaused) AlarmActionReceiver.ACTION_RESUME else AlarmActionReceiver.ACTION_PAUSE
+        content.actions.forEach { action ->
+            builder.addAction(
+                action.iconResId,
+                action.label,
+                createActionPendingIntentForType(alarmId, action.type)
             )
-        )
-
-        builder.addAction(
-            R.drawable.ic_notification_expand_more,
-            "Extend ▼",
-            createActionPendingIntent(alarm.id, AlarmActionReceiver.ACTION_EXTEND_MINUTES, 5)
-        )
-
-        builder.addAction(
-            R.drawable.ic_notification_snooze,
-            "Extend 5 min",
-            createActionPendingIntent(alarm.id, AlarmActionReceiver.ACTION_EXTEND_MINUTES, 5)
-        )
-        builder.addAction(
-            R.drawable.ic_notification_snooze,
-            "Extend 10 min",
-            createActionPendingIntent(alarm.id, AlarmActionReceiver.ACTION_EXTEND_MINUTES, 10)
-        )
-        builder.addAction(
-            R.drawable.ic_notification_snooze,
-            "Extend 15 min",
-            createActionPendingIntent(alarm.id, AlarmActionReceiver.ACTION_EXTEND_MINUTES, 15)
-        )
-        builder.addAction(
-            R.drawable.ic_notification_skip_next,
-            "To song end",
-            createActionPendingIntent(alarm.id, AlarmActionReceiver.ACTION_EXTEND_TO_END)
-        )
+        }
 
         return builder.build()
+    }
+
+    private fun createActionPendingIntentForType(
+        alarmId: Long,
+        type: AlarmNotificationContent.ActionType
+    ): PendingIntent {
+        val (action, minutes) = when (type) {
+            is AlarmNotificationContent.ActionType.Stop ->
+                AlarmActionReceiver.ACTION_STOP to null
+            is AlarmNotificationContent.ActionType.Pause ->
+                AlarmActionReceiver.ACTION_PAUSE to null
+            is AlarmNotificationContent.ActionType.Resume ->
+                AlarmActionReceiver.ACTION_RESUME to null
+            is AlarmNotificationContent.ActionType.ExtendMinutes ->
+                AlarmActionReceiver.ACTION_EXTEND_MINUTES to type.minutes
+            is AlarmNotificationContent.ActionType.ExtendToEnd ->
+                AlarmActionReceiver.ACTION_EXTEND_TO_END to null
+        }
+        return createActionPendingIntent(alarmId, action, minutes)
     }
 
     private fun createActionPendingIntent(

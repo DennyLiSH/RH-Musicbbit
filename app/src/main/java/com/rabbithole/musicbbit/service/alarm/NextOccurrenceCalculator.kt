@@ -38,61 +38,26 @@ class NextOccurrenceCalculator @Inject constructor(
             candidate.add(Calendar.DAY_OF_MONTH, 1)
         }
 
+        val shouldRing = ringPolicy(repeatDays, excludeHolidays)
+
         Timber.d("nextOccurrence start: now=${now.time}, candidate=${candidate.time}, repeatDays=$repeatDays, excludeHolidays=$excludeHolidays")
 
         while (true) {
-            val dateStr = String.format(
-                "%04d-%02d-%02d",
-                candidate.get(Calendar.YEAR),
-                candidate.get(Calendar.MONTH) + 1,
-                candidate.get(Calendar.DAY_OF_MONTH),
+            val dateStr = formatDate(candidate)
+            val dayOfWeek = candidate.toDayOfWeek()
+            val dayInfo = DayCandidate(
+                dayOfWeek = dayOfWeek,
+                isSelectedDay = dayOfWeek in repeatDays,
+                isWorkday = holidayRepository.isWorkday(dateStr),
+                isWeekend = candidate.get(Calendar.DAY_OF_WEEK) in WEEKEND_DAYS,
             )
-            val isWorkday = holidayRepository.isWorkday(dateStr)
-            val dayMatches = candidate.toDayOfWeek() in repeatDays || repeatDays.isEmpty()
-            val dayOfWeekName = candidate.toDayOfWeek().name
             val isBeforeNow = candidate.before(now)
 
-            Timber.v("Checking $dateStr ($dayOfWeekName): beforeNow=$isBeforeNow, dayMatches=$dayMatches, isWorkday=$isWorkday")
+            Timber.v("Checking $dateStr (${dayOfWeek.name}): beforeNow=$isBeforeNow, dayInfo=$dayInfo")
 
-            if (isBeforeNow) {
-                candidate.add(Calendar.DAY_OF_MONTH, 1)
-                continue
-            }
-
-            if (excludeHolidays) {
-                // Excluding holidays: ring only on workdays
-                if (repeatDays.isEmpty()) {
-                    // One-time alarm with holiday exclusion: ring only on workdays
-                    if (isWorkday) {
-                        Timber.i("nextOccurrence result (one-time workday): $dateStr $hour:$minute")
-                        return candidate.timeInMillis
-                    }
-                } else {
-                    // Repeat alarm with holiday exclusion: ring on selected workdays,
-                    // or on adjusted workdays (weekend make-up shifts)
-                    if (dayMatches && isWorkday) {
-                        Timber.i("nextOccurrence result (weekday match): $dateStr $hour:$minute")
-                        return candidate.timeInMillis
-                    }
-                    if (!dayMatches && isWorkday) {
-                        val dayOfWeek = candidate.get(Calendar.DAY_OF_WEEK)
-                        if (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY) {
-                            Timber.i("nextOccurrence result (adjusted workday): $dateStr $hour:$minute")
-                            return candidate.timeInMillis
-                        }
-                    }
-                }
-            } else {
-                // Normal mode (cron-style): ring on the scheduled date regardless of holidays
-                if (repeatDays.isEmpty()) {
-                    Timber.i("nextOccurrence result (one-time): $dateStr $hour:$minute")
-                    return candidate.timeInMillis
-                } else {
-                    if (dayMatches) {
-                        Timber.i("nextOccurrence result (day match): $dateStr $hour:$minute")
-                        return candidate.timeInMillis
-                    }
-                }
+            if (!isBeforeNow && shouldRing(dayInfo)) {
+                Timber.i("nextOccurrence result: $dateStr $hour:$minute")
+                return candidate.timeInMillis
             }
 
             candidate.add(Calendar.DAY_OF_MONTH, 1)
@@ -137,6 +102,61 @@ class NextOccurrenceCalculator @Inject constructor(
         }
     }
 }
+
+// -------------------------------------------------------------------------
+// Ring policy — pure functions that decide whether a candidate day should ring.
+// -------------------------------------------------------------------------
+
+private val WEEKEND_DAYS = setOf(Calendar.SATURDAY, Calendar.SUNDAY)
+
+private data class DayCandidate(
+    val dayOfWeek: DayOfWeek,
+    val isSelectedDay: Boolean,
+    val isWorkday: Boolean,
+    val isWeekend: Boolean,
+)
+
+/**
+ * Returns a policy function for the given alarm configuration.
+ *
+ * The policy is a pure function: given a [DayCandidate], it returns `true` if the
+ * alarm should ring on that day. Separating the decision from the date iteration
+ * keeps the search loop shallow and makes each rule independently testable.
+ */
+private fun ringPolicy(
+    repeatDays: Set<DayOfWeek>,
+    excludeHolidays: Boolean,
+): (DayCandidate) -> Boolean = when {
+    // One-time alarm, normal mode: ring on the scheduled date
+    repeatDays.isEmpty() && !excludeHolidays -> {
+        { _ -> true }
+    }
+    // One-time alarm, exclude holidays: ring only on workdays
+    repeatDays.isEmpty() && excludeHolidays -> {
+        { it.isWorkday }
+    }
+    // Repeat alarm, normal mode: ring on selected days
+    repeatDays.isNotEmpty() && !excludeHolidays -> {
+        { it.isSelectedDay }
+    }
+    // Repeat alarm, exclude holidays: ring on selected workdays OR adjusted workdays
+    repeatDays.isNotEmpty() && excludeHolidays -> {
+        { candidate ->
+            (candidate.isSelectedDay && candidate.isWorkday) ||
+            (candidate.isWorkday && candidate.isWeekend)
+        }
+    }
+    else -> {
+        { _ -> false }
+    }
+}
+
+private fun formatDate(calendar: Calendar): String = String.format(
+    "%04d-%02d-%02d",
+    calendar.get(Calendar.YEAR),
+    calendar.get(Calendar.MONTH) + 1,
+    calendar.get(Calendar.DAY_OF_MONTH),
+)
 
 private fun Calendar.toDayOfWeek(): DayOfWeek = when (get(Calendar.DAY_OF_WEEK)) {
     Calendar.MONDAY -> DayOfWeek.MONDAY

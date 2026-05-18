@@ -15,7 +15,6 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
-import com.rabbithole.musicbbit.service.AlarmScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
@@ -88,10 +87,11 @@ class AlarmEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val alarmRepository: AlarmRepository,
     private val playlistRepository: PlaylistRepository,
-    private val alarmScheduler: AlarmScheduler,
     private val alarmRingSettingsRepository: AlarmRingSettingsRepository,
     private val permissionOrchestrator: AlarmEditPermissionOrchestrator,
 ) : ViewModel() {
+
+    private val alarmSaveOrchestrator = AlarmSaveOrchestrator(alarmRepository, permissionOrchestrator)
 
     private val alarmId: Long = savedStateHandle.toRoute<AlarmEdit>().alarmId
 
@@ -228,30 +228,7 @@ class AlarmEditViewModel @Inject constructor(
     }
 
     private fun saveAlarm() {
-        val currentState = _uiState.value
-        val form = currentState.form
-
-        if (form.playlistId <= 0) {
-            Timber.w("Save failed: no playlist selected")
-            _uiState.update { it.copy(errorMessageResId = R.string.alarm_edit_error_select_playlist) }
-            return
-        }
-
-        when (val permissionResult = permissionOrchestrator.checkPermissions()) {
-            is AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsExactAlarm -> {
-                viewModelScope.launch { _events.send(AlarmEditEvent.ShowPermissionDialog) }
-                return
-            }
-            is AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsFullScreenIntent -> {
-                viewModelScope.launch { _events.send(AlarmEditEvent.ShowFullScreenIntentDialog) }
-                return
-            }
-            is AlarmEditPermissionOrchestrator.PermissionCheckResult.AllGranted -> {
-                // proceed
-            }
-        }
-
-        _uiState.update { it.copy(isSaving = true, errorMessageResId = null) }
+        val form = _uiState.value.form
 
         val alarm = Alarm(
             id = alarmId,
@@ -266,33 +243,38 @@ class AlarmEditViewModel @Inject constructor(
             lastTriggeredAt = null
         )
 
+        _uiState.update { it.copy(isSaving = true, errorMessageResId = null) }
+
         viewModelScope.launch {
-            try {
-                Timber.i("Saving alarm: id=%d, hour=%d, minute=%d, playlistId=%d", alarm.id, alarm.hour, alarm.minute, alarm.playlistId)
-                alarmRepository.saveAlarm(alarm)
-                    .onSuccess { savedId ->
-                        Timber.i("Alarm saved successfully, id=%d", savedId)
-                        when (val autostartResult = permissionOrchestrator.checkAutostartGuide()) {
-                            is AlarmEditPermissionOrchestrator.AutostartGuideResult.Resolved -> {
-                                _uiState.update { it.copy(isSaving = false) }
-                                _events.send(AlarmEditEvent.ShowAutostartGuideDialog(autostartResult.intent))
-                            }
-                            is AlarmEditPermissionOrchestrator.AutostartGuideResult.NeedsManualGuide -> {
-                                _uiState.update { it.copy(isSaving = false) }
-                                _events.send(AlarmEditEvent.ShowAutostartManualGuideDialog)
-                            }
-                            is AlarmEditPermissionOrchestrator.AutostartGuideResult.NotApplicable -> {
-                                _uiState.update { it.copy(isSaving = false, saveCompleted = true) }
-                            }
+            when (val outcome = alarmSaveOrchestrator.save(alarm, form.playlistId)) {
+                is AlarmSaveOrchestrator.SaveOutcome.MissingPlaylist -> {
+                    _uiState.update { it.copy(isSaving = false, errorMessageResId = R.string.alarm_edit_error_select_playlist) }
+                }
+                is AlarmSaveOrchestrator.SaveOutcome.NeedsExactAlarmPermission -> {
+                    _uiState.update { it.copy(isSaving = false) }
+                    _events.send(AlarmEditEvent.ShowPermissionDialog)
+                }
+                is AlarmSaveOrchestrator.SaveOutcome.NeedsFullScreenIntentPermission -> {
+                    _uiState.update { it.copy(isSaving = false) }
+                    _events.send(AlarmEditEvent.ShowFullScreenIntentDialog)
+                }
+                is AlarmSaveOrchestrator.SaveOutcome.Success -> {
+                    _uiState.update { it.copy(isSaving = false) }
+                    when (val autostart = outcome.autostart) {
+                        is AlarmSaveOrchestrator.AutostartOutcome.Resolved -> {
+                            _events.send(AlarmEditEvent.ShowAutostartGuideDialog(autostart.intent))
+                        }
+                        is AlarmSaveOrchestrator.AutostartOutcome.NeedsManualGuide -> {
+                            _events.send(AlarmEditEvent.ShowAutostartManualGuideDialog)
+                        }
+                        is AlarmSaveOrchestrator.AutostartOutcome.NotApplicable -> {
+                            _uiState.update { it.copy(saveCompleted = true) }
                         }
                     }
-                    .onFailure { error ->
-                        Timber.e(error, "Failed to save alarm")
-                        _uiState.update { it.copy(isSaving = false, errorMessageResId = R.string.alarm_edit_error_save_failed) }
-                    }
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to save alarm")
-                _uiState.update { it.copy(isSaving = false, errorMessageResId = R.string.alarm_edit_error_save_failed) }
+                }
+                is AlarmSaveOrchestrator.SaveOutcome.Failure -> {
+                    _uiState.update { it.copy(isSaving = false, errorMessageResId = outcome.errorResId) }
+                }
             }
         }
     }

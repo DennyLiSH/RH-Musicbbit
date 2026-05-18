@@ -12,9 +12,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
@@ -104,10 +102,7 @@ class PlaybackSessionTest {
 
     @After
     fun tearDown() {
-        // Cancel session's internal scope to stop tickLoop / saveLoop / eventCollector
-        val scopeField = PlaybackSession::class.java.getDeclaredField("sessionScope")
-        scopeField.isAccessible = true
-        (scopeField.get(session) as CoroutineScope).cancel()
+        session.close()
     }
 
     // -------- initial state ---------------------------------------------------
