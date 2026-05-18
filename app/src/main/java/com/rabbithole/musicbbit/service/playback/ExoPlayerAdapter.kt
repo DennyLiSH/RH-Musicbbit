@@ -78,15 +78,17 @@ class ExoPlayerAdapter @Inject constructor(
     private val renderersFactory = DefaultRenderersFactory(context)
         .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
 
-    private val exoPlayer: ExoPlayer = ExoPlayer.Builder(context)
+    private var exoPlayer: ExoPlayer = createPlayer()
+
+    private var released: Boolean = false
+
+    private fun createPlayer(): ExoPlayer = ExoPlayer.Builder(context)
         .setRenderersFactory(renderersFactory)
         .build()
         .apply {
             addListener(listener)
             setWakeMode(C.WAKE_MODE_LOCAL)
         }
-
-    private var released: Boolean = false
 
     override fun setQueue(items: List<PlayItem>, startIndex: Int, startPositionMs: Long) {
         ensureAlive()
@@ -183,6 +185,9 @@ class ExoPlayerAdapter @Inject constructor(
         released = true
         exoPlayer.removeListener(listener)
         exoPlayer.release()
+        // Singleton survives release — recreate so playback can resume
+        exoPlayer = createPlayer()
+        released = false
     }
 
     private fun ensureAlive() {

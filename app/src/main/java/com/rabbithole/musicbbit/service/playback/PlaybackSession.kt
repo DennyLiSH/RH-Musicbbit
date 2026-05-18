@@ -1,9 +1,7 @@
 package com.rabbithole.musicbbit.service.playback
 
-import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.di.MainDispatcher
 import com.rabbithole.musicbbit.domain.model.Song
-import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.service.PlayMode
 import com.rabbithole.musicbbit.service.PlaybackSource
@@ -47,9 +45,7 @@ class PlaybackSession @Inject constructor(
     private val musicNotificationPort: MusicNotificationPort,
     private val serviceStarter: ServiceStarter,
     private val audioFocusPort: AudioFocusPort,
-    private val alarmRepository: AlarmRepository,
     @MainDispatcher private val mainDispatcher: CoroutineDispatcher,
-    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
 
     private val sessionJob = SupervisorJob()
@@ -107,10 +103,6 @@ class PlaybackSession @Inject constructor(
             }
         )
 
-        progressTracker.startTickLoop(PROGRESS_TICK_INTERVAL_MS) { pos ->
-            _playbackState.update { it.copy(positionMs = pos) }
-        }
-
         observePlayerEvents()
     }
 
@@ -145,9 +137,13 @@ class PlaybackSession @Inject constructor(
                     positionMs = playerPort.currentPositionMs()
                 )
             }
+            progressTracker.startTickLoop(PROGRESS_TICK_INTERVAL_MS) { pos ->
+                _playbackState.update { it.copy(positionMs = pos) }
+            }
             progressTracker.startSaveLoop(PROGRESS_SAVE_INTERVAL_MS)
         } else {
             _playbackState.update { it.copy(isPlaying = false) }
+            progressTracker.stopTickLoop()
             progressTracker.stopSaveLoop()
             progressTracker.saveProgress()
         }
@@ -233,9 +229,9 @@ class PlaybackSession @Inject constructor(
             Timber.w("playQueue called with empty list")
             return
         }
-        val focusGranted = audioFocusPort.requestFocus()
-        if (!focusGranted) {
-            Timber.w("Failed to gain audio focus, continuing playback anyway")
+        if (!audioFocusPort.requestFocus()) {
+            Timber.w("Failed to gain audio focus")
+            return
         }
         val safeIndex = startIndex.coerceIn(0, songs.lastIndex)
         val startSong = songs[safeIndex]
@@ -358,22 +354,17 @@ class PlaybackSession @Inject constructor(
         songs: List<Song>,
         startIndex: Int,
         playlistId: Long,
-        alarmId: Long
+        alarmId: Long,
+        alarmLabel: String? = null,
     ) {
         playerPort.configureForAlarmPlayback(true)
         playQueue(songs, startIndex, playlistId)
         _playbackState.update {
             it.copy(
                 alarmId = alarmId,
+                alarmLabel = alarmLabel,
                 source = PlaybackSource.ALARM
             )
-        }
-        sessionScope.launch(ioDispatcher) {
-            runCatching {
-                alarmRepository.getAlarmById(alarmId)?.label
-            }.getOrNull()?.let { label ->
-                _playbackState.update { it.copy(alarmLabel = label) }
-            }
         }
     }
 

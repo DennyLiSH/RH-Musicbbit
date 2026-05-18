@@ -125,8 +125,8 @@ class AlarmFireSessionTest {
         every { playbackSession.playbackState } returns fakeControls.playbackState
         every { playbackSession.playbackTransitions } returns fakeControls.playbackTransitions
         every { playbackSession.stop() } answers { fakeControls.stop() }
-        every { playbackSession.playAlarmQueue(any(), any(), any(), any()) } answers {
-            fakeControls.playAlarmQueue(arg(0), arg(1), arg(2), arg(3))
+        every { playbackSession.playAlarmQueue(any(), any(), any(), any(), any()) } answers {
+            fakeControls.playAlarmQueue(arg(0), arg(1), arg(2), arg(3), arg(4))
         }
         every { playbackSession.preloadFirstSong(any()) } answers {
             fakeControls.preloadFirstSong(arg(0))
@@ -718,7 +718,8 @@ class AlarmFireSessionTest {
             songs: List<Song>,
             startIndex: Int,
             playlistId: Long,
-            alarmId: Long
+            alarmId: Long,
+            alarmLabel: String?,
         ) {
             lastStartIndex = startIndex
             lastQueueAlarmId = alarmId

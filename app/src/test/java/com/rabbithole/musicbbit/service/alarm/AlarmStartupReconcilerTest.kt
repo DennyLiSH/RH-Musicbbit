@@ -183,8 +183,9 @@ class AlarmStartupReconcilerTest {
             return Result.success(Unit)
         }
 
-        override suspend fun recordTriggered(alarmId: Long) {
+        override suspend fun recordTriggered(alarmId: Long): Result<Unit> {
             // Not used in these tests
+            return Result.success(Unit)
         }
     }
 

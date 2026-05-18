@@ -6,6 +6,7 @@ import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.service.AlarmScheduler
+import com.rabbithole.musicbbit.service.alarm.AlarmSchedulerCoordinator
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -31,7 +32,9 @@ class AlarmRepositoryImplTest {
 
     @Before
     fun setup() {
-        repository = AlarmRepositoryImpl(alarmDao, alarmScheduler, testDispatcher)
+        val persistence = AlarmPersistenceRepositoryImpl(alarmDao, testDispatcher)
+        val coordinator = AlarmSchedulerCoordinator(alarmScheduler)
+        repository = AlarmRepositoryImpl(persistence, coordinator, testDispatcher)
     }
 
     // ------------------------------------------------------------------

@@ -52,7 +52,6 @@ class PlaybackSessionTest {
     private lateinit var musicNotificationPort: MusicNotificationPort
     private lateinit var serviceStarter: ServiceStarter
     private lateinit var audioFocusPort: AudioFocusPort
-    private lateinit var alarmRepository: AlarmRepository
 
     private val playerEvents = MutableSharedFlow<PlayerEvent>(extraBufferCapacity = 10)
     private val _playbackState = MutableStateFlow(PlaybackState())
@@ -89,8 +88,6 @@ class PlaybackSessionTest {
         musicNotificationPort = mockk(relaxed = true)
         serviceStarter = mockk(relaxed = true)
         audioFocusPort = mockk(relaxed = true)
-        alarmRepository = mockk(relaxed = true)
-
         every { playerPort.events } returns playerEvents
 
         coEvery { playbackProgressRepository.saveProgress(any()) } returns Result.success(Unit)
@@ -101,9 +98,7 @@ class PlaybackSessionTest {
             musicNotificationPort = musicNotificationPort,
             serviceStarter = serviceStarter,
             audioFocusPort = audioFocusPort,
-            alarmRepository = alarmRepository,
             mainDispatcher = sessionDispatcher,
-            ioDispatcher = sessionDispatcher,
         )
     }
 
@@ -454,19 +449,19 @@ class PlaybackSessionTest {
     }
 
     @Test
-    fun `playQueue continues playback even when focus request fails`() = runBlocking {
+    fun `playQueue returns early when focus request fails`() = runBlocking {
         every { audioFocusPort.requestFocus() } returns false
         coEvery { playbackProgressRepository.getProgress(SONG_1.id, 10L) } returns Result.success(null)
 
         session.playQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
 
         verify { audioFocusPort.requestFocus() }
-        verify { serviceStarter.startService() }
-        verify { playerPort.setQueue(any(), 0, 0L) }
-        verify { playerPort.play() }
+        verify(exactly = 0) { serviceStarter.startService() }
+        verify(exactly = 0) { playerPort.setQueue(any(), 0, 0L) }
+        verify(exactly = 0) { playerPort.play() }
 
         val state = session.playbackState.value
-        assertEquals(SONG_1, state.currentSong)
+        assertNull(state.currentSong)
     }
 
     @Test

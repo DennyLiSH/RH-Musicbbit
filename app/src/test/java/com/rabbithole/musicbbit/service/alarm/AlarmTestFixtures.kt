@@ -52,13 +52,14 @@ class FakeAlarmRepository : AlarmRepository {
         return Result.success(Unit)
     }
 
-    override suspend fun recordTriggered(alarmId: Long) {
-        val alarm = rows[alarmId] ?: return
+    override suspend fun recordTriggered(alarmId: Long): Result<Unit> {
+        val alarm = rows[alarmId] ?: return Result.success(Unit)
         val isOneTime = alarm.repeatDays.isEmpty()
         rows[alarmId] = alarm.copy(
             lastTriggeredAt = FakeClock.DEFAULT_NOW_MS,
             isEnabled = if (isOneTime) false else alarm.isEnabled,
         )
+        return Result.success(Unit)
     }
 }
 

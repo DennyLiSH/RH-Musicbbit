@@ -1,5 +1,6 @@
 package com.rabbithole.musicbbit.di
 
+import com.rabbithole.musicbbit.data.repository.AlarmPersistenceRepositoryImpl
 import com.rabbithole.musicbbit.data.repository.AlarmRepositoryImpl
 import com.rabbithole.musicbbit.data.repository.AlarmRingSettingsRepositoryImpl
 import com.rabbithole.musicbbit.data.repository.HolidayRepositoryImpl
@@ -8,6 +9,7 @@ import com.rabbithole.musicbbit.data.repository.PlaybackProgressRepositoryImpl
 import com.rabbithole.musicbbit.data.repository.PlaylistRepositoryImpl
 import com.rabbithole.musicbbit.data.repository.ScanDirectoryRepositoryImpl
 import com.rabbithole.musicbbit.data.repository.ThemeRepositoryImpl
+import com.rabbithole.musicbbit.domain.repository.AlarmPersistenceRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.HolidayRepository
@@ -54,6 +56,11 @@ abstract class RepositoryModule {
     abstract fun bindAlarmRepository(
         impl: AlarmRepositoryImpl
     ): AlarmRepository
+
+    @Binds
+    abstract fun bindAlarmPersistenceRepository(
+        impl: AlarmPersistenceRepositoryImpl
+    ): AlarmPersistenceRepository
 
     @Binds
     abstract fun bindHolidayRepository(

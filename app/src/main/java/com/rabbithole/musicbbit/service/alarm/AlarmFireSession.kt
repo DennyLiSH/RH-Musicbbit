@@ -68,10 +68,9 @@ class AlarmFireSession @Inject constructor(
                 when (transition) {
                     is PlaybackTransition.SongCompleted -> {
                         if (_state.value is AlarmFireState.Playing) {
-                            if (autoStopController.onSongCompleted()) {
-                                playbackController.stop()
-                            }
-                            if (autoStopController.isExtendToEnd()) {
+                            val shouldStop = autoStopController.onSongCompleted() ||
+                                    autoStopController.isExtendToEnd()
+                            if (shouldStop) {
                                 playbackController.stop()
                             }
                         }
@@ -200,7 +199,7 @@ class AlarmFireSession @Inject constructor(
             playbackController.preloadFirstSong(songs.first().path)
         }
 
-        playbackController.playAlarmQueue(songs, startIndex, alarm.playlistId, alarm.id)
+        playbackController.playAlarmQueue(songs, startIndex, alarm.playlistId, alarm.id, alarm.label)
 
         if (isAlarmTrigger) {
             volumeRampPort.startVolumeRamp(sessionScope)
@@ -227,6 +226,7 @@ class AlarmFireSession @Inject constructor(
      */
     private suspend fun bookkeepAlarmTrigger(alarmId: Long) {
         alarmRepository.recordTriggered(alarmId)
+            .onFailure { Timber.e(it, "Failed to record trigger for alarm id=$alarmId") }
     }
 
     /**
@@ -256,6 +256,7 @@ class AlarmFireSession @Inject constructor(
      * to release wake lock, cancel the auto-stop job, dismiss the notification, and reset state.
      */
     fun onPlaybackStopped() {
+        volumeRampPort.restoreVolume()
         autoStopController.reset()
         if (wakeLockPort.isHeld) {
             Timber.i("AlarmFireSession: releasing wake lock in onPlaybackStopped")
