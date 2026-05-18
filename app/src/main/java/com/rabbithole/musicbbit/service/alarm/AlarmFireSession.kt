@@ -6,9 +6,8 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
-import com.rabbithole.musicbbit.service.playback.PlayerEvent
 import com.rabbithole.musicbbit.service.playback.PlaybackSession
-import com.rabbithole.musicbbit.service.playback.TransitionReason
+import com.rabbithole.musicbbit.service.playback.PlaybackTransition
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
@@ -63,12 +62,12 @@ class AlarmFireSession @Inject constructor(
     private val autoStopController = AutoStopController(sessionScope)
 
     init {
-        // Subscribe to playerEvents to handle song completion and extend-to-end
+        // Subscribe to playback transitions for auto-stop, extend-to-end, and external stop
         sessionScope.launch {
-            playbackController.playerEvents.collect { event ->
-                when (event) {
-                    is PlayerEvent.MediaItemTransition -> {
-                        if (event.reason == TransitionReason.AUTO && _state.value is AlarmFireState.Playing) {
+            playbackController.playbackTransitions.collect { transition ->
+                when (transition) {
+                    is PlaybackTransition.SongCompleted -> {
+                        if (_state.value is AlarmFireState.Playing) {
                             if (autoStopController.onSongCompleted()) {
                                 playbackController.stop()
                             }
@@ -77,23 +76,18 @@ class AlarmFireSession @Inject constructor(
                             }
                         }
                     }
-                    is PlayerEvent.QueueEnded -> {
+                    is PlaybackTransition.QueueEnded -> {
                         if (_state.value is AlarmFireState.Playing) {
                             if (autoStopController.onQueueEnded()) {
                                 playbackController.stop()
                             }
                         }
                     }
-                    else -> {}
-                }
-            }
-        }
-
-        // Subscribe to playbackState to detect external stop
-        sessionScope.launch {
-            playbackController.playbackState.collect { state ->
-                if (!state.isPlaying && state.alarmId == null && _state.value is AlarmFireState.Playing) {
-                    onPlaybackStopped()
+                    is PlaybackTransition.PlaybackStopped -> {
+                        if (_state.value is AlarmFireState.Playing) {
+                            onPlaybackStopped()
+                        }
+                    }
                 }
             }
         }
@@ -118,6 +112,7 @@ class AlarmFireSession @Inject constructor(
             return
         }
         Timber.i("AlarmFireSession.pause: alarmId=${current.alarmId}")
+        volumeRampPort.restoreVolume()
         playbackController.pause()
         notificationPort.showAlarmPaused(current.alarmId)
         _state.value = AlarmFireState.Paused(
@@ -153,6 +148,7 @@ class AlarmFireSession @Inject constructor(
     fun stop() {
         val alarmId = _state.value.alarmIdOrNull
         Timber.i("AlarmFireSession.stop: alarmId=$alarmId")
+        volumeRampPort.restoreVolume()
         playbackController.stop()
     }
 

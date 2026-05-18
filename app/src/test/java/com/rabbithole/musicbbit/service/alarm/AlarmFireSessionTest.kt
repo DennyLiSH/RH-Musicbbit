@@ -15,9 +15,8 @@ import com.rabbithole.musicbbit.service.PlaybackState
 import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
-import com.rabbithole.musicbbit.service.playback.PlayerEvent
 import com.rabbithole.musicbbit.service.playback.PlaybackSession
-import com.rabbithole.musicbbit.service.playback.TransitionReason
+import com.rabbithole.musicbbit.service.playback.PlaybackTransition
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -124,7 +123,7 @@ class AlarmFireSessionTest {
         playbackSession = mockk(relaxed = true)
         fakeControls = FakePlaybackControls()
         every { playbackSession.playbackState } returns fakeControls.playbackState
-        every { playbackSession.playerEvents } returns fakeControls.playerEvents
+        every { playbackSession.playbackTransitions } returns fakeControls.playbackTransitions
         every { playbackSession.stop() } answers { fakeControls.stop() }
         every { playbackSession.playAlarmQueue(any(), any(), any(), any()) } answers {
             fakeControls.playAlarmQueue(arg(0), arg(1), arg(2), arg(3))
@@ -416,10 +415,8 @@ class AlarmFireSessionTest {
 
         session.setExtendToEnd(true)
 
-        // Emit AUTO MediaItemTransition — should trigger onSongCompleted + stop because extendToEnd
-        fakeControls.emitPlayerEvent(
-            PlayerEvent.MediaItemTransition(itemTag = null, itemIndex = 1, reason = TransitionReason.AUTO)
-        )
+        // Emit SongCompleted — should trigger onSongCompleted + stop because extendToEnd
+        fakeControls.emitPlaybackTransition(PlaybackTransition.SongCompleted(songId = 101L))
         runCurrent()
 
         verify { playbackSession.stop() }
@@ -437,10 +434,8 @@ class AlarmFireSessionTest {
         session.fire(alarmId = 31L, isAlarmTrigger = true)
         runCurrent()
 
-        // Emit SEEK MediaItemTransition — should NOT trigger onSongCompleted
-        fakeControls.emitPlayerEvent(
-            PlayerEvent.MediaItemTransition(itemTag = null, itemIndex = 2, reason = TransitionReason.SEEK)
-        )
+        // PlaybackTransition only carries SongCompleted (from AUTO transitions), not SEEK.
+        // No equivalent event for SEEK — nothing to emit, nothing should happen.
         runCurrent()
 
         verify(exactly = 0) { playbackSession.stop() }
@@ -458,21 +453,20 @@ class AlarmFireSessionTest {
         session.fire(alarmId = 32L, isAlarmTrigger = true)
         runCurrent()
 
-        fakeControls.emitPlayerEvent(PlayerEvent.QueueEnded)
+        fakeControls.emitPlaybackTransition(PlaybackTransition.QueueEnded)
         runCurrent()
 
         verify { playbackSession.stop() }
     }
 
-    // -------- playbackState subscription ------------------------------------
+    // -------- playbackTransitions subscription ------------------------------------
 
     @Test
-    fun `playbackState with alarmId null and not playing triggers onPlaybackStopped`() = scope.runTest {
+    fun `PlaybackStopped transition triggers onPlaybackStopped`() = scope.runTest {
         firePlaying(alarmId = 33L, playlistId = 330L)
         assertTrue(wakeLockPort.isHeld)
 
-        // Simulate controller stopping: alarmId=null, isPlaying=false
-        fakeControls.setPlaybackState(PlaybackState(alarmId = null, isPlaying = false))
+        fakeControls.emitPlaybackTransition(PlaybackTransition.PlaybackStopped)
         runCurrent()
 
         assertFalse(wakeLockPort.isHeld)
@@ -481,15 +475,14 @@ class AlarmFireSessionTest {
     }
 
     @Test
-    fun `playbackState with alarmId set does not trigger onPlaybackStopped`() = scope.runTest {
+    fun `SongCompleted transition does not trigger onPlaybackStopped`() = scope.runTest {
         firePlaying(alarmId = 34L, playlistId = 340L)
         assertTrue(wakeLockPort.isHeld)
 
-        // Simulate pause while alarm is active: alarmId still set, isPlaying=false
-        fakeControls.setPlaybackState(PlaybackState(alarmId = 34L, isPlaying = false))
+        fakeControls.emitPlaybackTransition(PlaybackTransition.SongCompleted(songId = 101L))
         runCurrent()
 
-        // Should NOT trigger onPlaybackStopped because alarmId is not null
+        // Should NOT trigger onPlaybackStopped — SongCompleted is handled by autoStop logic
         assertTrue(wakeLockPort.isHeld)
         assertEquals(0, notificationPort.cancelCount)
     }
@@ -519,8 +512,8 @@ class AlarmFireSessionTest {
         advanceTimeBy(70_000L)
         verify { playbackSession.stop() }
 
-        // Controller responds to stop by resetting playbackState, which triggers onPlaybackStopped
-        fakeControls.setPlaybackState(PlaybackState(alarmId = null, isPlaying = false))
+        // Controller responds to stop by emitting PlaybackStopped, which triggers onPlaybackStopped
+        fakeControls.emitPlaybackTransition(PlaybackTransition.PlaybackStopped)
         runCurrent()
 
         // No additional stop call from session-side.
@@ -641,7 +634,7 @@ class AlarmFireSessionTest {
 
     /**
      * Test double that records playback control method calls and allows emitting
-     * player events and playback state changes for testing the event subscriptions.
+     * playback transitions and state changes for testing the transition subscriptions.
      */
     private class FakePlaybackControls {
         var lastPreloadUri: String? = null
@@ -672,15 +665,15 @@ class AlarmFireSessionTest {
         private val _playbackState = MutableStateFlow(PlaybackState())
         val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
-        private val _playerEvents = MutableSharedFlow<PlayerEvent>(extraBufferCapacity = 64)
-        val playerEvents: SharedFlow<PlayerEvent> = _playerEvents.asSharedFlow()
+        private val _playbackTransitions = MutableSharedFlow<PlaybackTransition>(extraBufferCapacity = 64)
+        val playbackTransitions: Flow<PlaybackTransition> = _playbackTransitions.asSharedFlow()
 
         fun setPlaybackState(state: PlaybackState) {
             _playbackState.value = state
         }
 
-        fun emitPlayerEvent(event: PlayerEvent) {
-            _playerEvents.tryEmit(event)
+        fun emitPlaybackTransition(transition: PlaybackTransition) {
+            _playbackTransitions.tryEmit(transition)
         }
 
         fun play(song: Song, playlistId: Long) {

@@ -2,11 +2,11 @@ package com.rabbithole.musicbbit.service.playback
 
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.service.PlayMode
 import com.rabbithole.musicbbit.service.PlaybackSource
 import com.rabbithole.musicbbit.service.PlaybackState
-import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -52,7 +52,7 @@ class PlaybackSessionTest {
     private lateinit var musicNotificationPort: MusicNotificationPort
     private lateinit var serviceStarter: ServiceStarter
     private lateinit var audioFocusPort: AudioFocusPort
-    private lateinit var volumeRampPort: VolumeRampPort
+    private lateinit var alarmRepository: AlarmRepository
 
     private val playerEvents = MutableSharedFlow<PlayerEvent>(extraBufferCapacity = 10)
     private val _playbackState = MutableStateFlow(PlaybackState())
@@ -89,7 +89,7 @@ class PlaybackSessionTest {
         musicNotificationPort = mockk(relaxed = true)
         serviceStarter = mockk(relaxed = true)
         audioFocusPort = mockk(relaxed = true)
-        volumeRampPort = mockk(relaxed = true)
+        alarmRepository = mockk(relaxed = true)
 
         every { playerPort.events } returns playerEvents
 
@@ -101,8 +101,9 @@ class PlaybackSessionTest {
             musicNotificationPort = musicNotificationPort,
             serviceStarter = serviceStarter,
             audioFocusPort = audioFocusPort,
-            volumeRampPort = volumeRampPort,
+            alarmRepository = alarmRepository,
             mainDispatcher = sessionDispatcher,
+            ioDispatcher = sessionDispatcher,
         )
     }
 
@@ -174,7 +175,6 @@ class PlaybackSessionTest {
         session.pause()
 
         verify { playerPort.pause() }
-        verify { volumeRampPort.restoreVolume() }
     }
 
     // -------- resume() --------------------------------------------------------
@@ -210,7 +210,6 @@ class PlaybackSessionTest {
         session.stop()
 
         verify { audioFocusPort.abandonFocus() }
-        verify { volumeRampPort.restoreVolume() }
         verify { playerPort.stop() }
         verify { playerPort.clearQueue() }
         verify { serviceStarter.stopService() }

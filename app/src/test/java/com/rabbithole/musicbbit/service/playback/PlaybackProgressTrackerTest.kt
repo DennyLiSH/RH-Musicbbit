@@ -13,6 +13,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -143,12 +144,15 @@ class PlaybackProgressTrackerTest {
             coVerify(exactly = 0) { repository.saveProgress(any()) }
 
             advanceTimeBy(intervalMs)
+            runCurrent()
             coVerify(exactly = 1) { repository.saveProgress(any()) }
 
             advanceTimeBy(intervalMs)
+            runCurrent()
             coVerify(exactly = 2) { repository.saveProgress(any()) }
 
             advanceTimeBy(intervalMs)
+            runCurrent()
             coVerify(exactly = 3) { repository.saveProgress(any()) }
 
             tracker.stopSaveLoop()
@@ -167,11 +171,13 @@ class PlaybackProgressTrackerTest {
         tracker.startSaveLoop(intervalMs)
 
         advanceTimeBy(intervalMs)
+        runCurrent()
         coVerify(exactly = 1) { repository.saveProgress(any()) }
 
         tracker.stopSaveLoop()
 
         advanceTimeBy(intervalMs * 3)
+        runCurrent()
         // Still only 1 call — loop was cancelled
         coVerify(exactly = 1) { repository.saveProgress(any()) }
     }

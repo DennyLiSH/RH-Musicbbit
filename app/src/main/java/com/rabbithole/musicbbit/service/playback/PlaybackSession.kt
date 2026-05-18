@@ -1,12 +1,13 @@
 package com.rabbithole.musicbbit.service.playback
 
+import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.di.MainDispatcher
 import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.service.PlayMode
 import com.rabbithole.musicbbit.service.PlaybackSource
 import com.rabbithole.musicbbit.service.PlaybackState
-import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
@@ -16,7 +17,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -43,8 +47,9 @@ class PlaybackSession @Inject constructor(
     private val musicNotificationPort: MusicNotificationPort,
     private val serviceStarter: ServiceStarter,
     private val audioFocusPort: AudioFocusPort,
-    private val volumeRampPort: VolumeRampPort,
+    private val alarmRepository: AlarmRepository,
     @MainDispatcher private val mainDispatcher: CoroutineDispatcher,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
 
     private val sessionJob = SupervisorJob()
@@ -54,6 +59,9 @@ class PlaybackSession @Inject constructor(
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
     val playerEvents: SharedFlow<PlayerEvent> = playerPort.events
+
+    private val _playbackTransitions = MutableSharedFlow<PlaybackTransition>(extraBufferCapacity = 1)
+    val playbackTransitions: Flow<PlaybackTransition> = _playbackTransitions.asSharedFlow()
 
     private lateinit var progressTracker: PlaybackProgressTracker
     private var playerEventsJob: Job? = null
@@ -157,6 +165,9 @@ class PlaybackSession @Inject constructor(
                 queueIndex = event.itemIndex
             )
         }
+        if (event.reason == TransitionReason.AUTO) {
+            _playbackTransitions.tryEmit(PlaybackTransition.SongCompleted(song?.id ?: -1))
+        }
         updateNotification()
     }
 
@@ -175,7 +186,8 @@ class PlaybackSession @Inject constructor(
             Timber.i("Queue ended for USER source, stopping playback")
             stop()
         } else {
-            Timber.i("Queue ended for ALARM source, leaving stop to AlarmFireSession")
+            Timber.i("Queue ended for ALARM source, emitting QueueEnded")
+            _playbackTransitions.tryEmit(PlaybackTransition.QueueEnded)
         }
     }
 
@@ -211,6 +223,7 @@ class PlaybackSession @Inject constructor(
                 durationMs = song.durationMs,
                 source = PlaybackSource.USER,
                 alarmId = null,
+                alarmLabel = null,
             )
         }
     }
@@ -258,6 +271,7 @@ class PlaybackSession @Inject constructor(
                 durationMs = startSong.durationMs,
                 source = PlaybackSource.USER,
                 alarmId = null,
+                alarmLabel = null,
             )
         }
     }
@@ -265,7 +279,6 @@ class PlaybackSession @Inject constructor(
     fun pause() {
         Timber.i("Pausing playback")
         wasPausedByFocusLoss = false
-        volumeRampPort.restoreVolume()
         playerPort.pause()
         progressTracker.saveProgress()
     }
@@ -310,11 +323,11 @@ class PlaybackSession @Inject constructor(
     fun stop() {
         Timber.i("Stopping playback")
         audioFocusPort.abandonFocus()
-        volumeRampPort.restoreVolume()
         progressTracker.saveProgress()
         playerPort.stop()
         playerPort.clearQueue()
         _playbackState.update { PlaybackState() }
+        _playbackTransitions.tryEmit(PlaybackTransition.PlaybackStopped)
         progressTracker.stopSaveLoop()
         progressTracker.stopTickLoop()
         serviceStarter.stopService()
@@ -354,6 +367,13 @@ class PlaybackSession @Inject constructor(
                 alarmId = alarmId,
                 source = PlaybackSource.ALARM
             )
+        }
+        sessionScope.launch(ioDispatcher) {
+            runCatching {
+                alarmRepository.getAlarmById(alarmId)?.label
+            }.getOrNull()?.let { label ->
+                _playbackState.update { it.copy(alarmLabel = label) }
+            }
         }
     }
 

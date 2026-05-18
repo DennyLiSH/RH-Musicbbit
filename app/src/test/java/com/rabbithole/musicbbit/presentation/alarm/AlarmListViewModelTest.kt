@@ -13,11 +13,14 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import io.mockk.verify
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -47,6 +50,7 @@ class AlarmListViewModelTest {
 
     @Before
     fun setUp() {
+        Dispatchers.setMain(testDispatcher)
         permissionPort = mockk {
             every { isFullScreenIntentGranted() } returns true
             every { isIgnoringBatteryOptimizations() } returns true
@@ -60,6 +64,7 @@ class AlarmListViewModelTest {
 
     @After
     fun tearDown() {
+        Dispatchers.resetMain()
         unmockkAll()
     }
 
@@ -109,7 +114,7 @@ class AlarmListViewModelTest {
     // -------- Alarm list loading tests ---------------------------------------
 
     @Test
-    fun `alarm list loading emits Success with correct AlarmItems`() {
+    fun `alarm list loading emits Success with correct AlarmItems`() = runTest {
         val alarm1 = Alarm(
             id = 1L,
             hour = 7,
@@ -141,6 +146,7 @@ class AlarmListViewModelTest {
         every { permissionPort.isFullScreenIntentGranted() } returns true
 
         val viewModel = createViewModel()
+        advanceUntilIdle()
 
         val uiState = viewModel.uiState.value
         assertTrue("Expected Success state", uiState is AlarmListUiState.Success)
@@ -157,11 +163,12 @@ class AlarmListViewModelTest {
     }
 
     @Test
-    fun `empty alarm list emits Success with empty list`() {
+    fun `empty alarm list emits Success with empty list`() = runTest {
         every { alarmRepository.getAllAlarms() } returns flowOf(emptyList())
         every { permissionPort.isFullScreenIntentGranted() } returns true
 
         val viewModel = createViewModel()
+        advanceUntilIdle()
 
         val uiState = viewModel.uiState.value
         assertTrue("Expected Success state", uiState is AlarmListUiState.Success)

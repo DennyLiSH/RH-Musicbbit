@@ -8,6 +8,7 @@ import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
+import com.rabbithole.musicbbit.domain.validation.ScanDirectoryValidator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +21,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import java.io.File
 import javax.inject.Inject
 
 @Immutable
@@ -172,12 +172,23 @@ class ScanDirectorySettingsViewModel @Inject constructor(
 
     private fun addDirectory(path: String, name: String) {
         viewModelScope.launch {
-            val file = File(path)
-            if (!file.exists() || !file.isDirectory) {
-                updateSuccess {
-                    it.copy(errorMessageResId = R.string.settings_error_invalid_path, pendingDirectory = null)
+            val existingPaths = (_uiState.value as? ScanDirectorySettingsUiState.Success)
+                ?.directories?.map { it.path } ?: emptyList()
+
+            when (val validation = ScanDirectoryValidator.validate(path, existingPaths)) {
+                is ScanDirectoryValidator.ValidationResult.Failure -> {
+                    val errorResId = when (validation.error) {
+                        is ScanDirectoryValidator.Error.InvalidPath -> R.string.settings_error_invalid_path
+                        is ScanDirectoryValidator.Error.AlreadyExists -> R.string.settings_error_add_failed
+                    }
+                    updateSuccess {
+                        it.copy(errorMessageResId = errorResId, pendingDirectory = null)
+                    }
+                    return@launch
                 }
-                return@launch
+                is ScanDirectoryValidator.ValidationResult.Success -> {
+                    // proceed
+                }
             }
 
             val directory = ScanDirectory(

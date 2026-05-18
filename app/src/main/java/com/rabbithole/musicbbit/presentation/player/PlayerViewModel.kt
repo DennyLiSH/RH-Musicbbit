@@ -3,49 +3,43 @@ package com.rabbithole.musicbbit.presentation.player
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.domain.model.Song
-import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.service.PlayMode
 import com.rabbithole.musicbbit.service.PlaybackState
 import com.rabbithole.musicbbit.service.playback.PlaybackSession
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import timber.log.Timber
 import javax.inject.Inject
 
-@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+/**
+ * Thin UI facade over [PlaybackSession].
+ *
+ * All playback control methods are pass-throughs. The only value this ViewModel adds
+ * is lifecycle-scoped state collection via [stateIn] so that Composables get an
+ * eager, replayed [StateFlow] without extra boilerplate.
+ *
+ * TODO: Consider eliminating this module entirely and letting Screens inject
+ *       [PlaybackSession] directly once a clean Compose injection pattern is in place.
+ */
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     private val playbackController: PlaybackSession,
-    private val alarmRepository: AlarmRepository,
 ) : ViewModel() {
-
-    data class PlayerUiState(
-        val errorMessageResId: Int? = null
-    )
-
-    private val _uiState = MutableStateFlow(PlayerUiState())
-    val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
     val playbackState: StateFlow<PlaybackState> = playbackController.playbackState
         .stateIn(viewModelScope, SharingStarted.Eagerly, PlaybackState())
 
+    val alarmLabel: StateFlow<String?> = playbackState
+        .map { it.alarmLabel }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
     init {
-        playbackController.playerEvents
-            .onEach { event ->
-                Timber.d("PlayerEvent: $event")
-            }
-            .launchIn(viewModelScope)
+        Timber.d("PlayerViewModel created")
     }
 
     fun play(song: Song, playlistId: Long = -1) {
@@ -83,28 +77,4 @@ class PlayerViewModel @Inject constructor(
     fun stop() {
         playbackController.stop()
     }
-
-    val alarmLabel: StateFlow<String?> = playbackState
-        .map { it.alarmId }
-        .distinctUntilChanged()
-        .flatMapLatest { alarmId ->
-            flow {
-                val label = if (alarmId != null) {
-                    runCatching {
-                        alarmRepository.getAlarmById(alarmId)?.label
-                    }.getOrElse { e ->
-                        Timber.e(e, "Failed to load alarm label for id=$alarmId")
-                        null
-                    }
-                } else {
-                    null
-                }
-                emit(label)
-            }
-        }
-        .catch { e ->
-            Timber.e(e, "Alarm label flow failed")
-            emit(null)
-        }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 }

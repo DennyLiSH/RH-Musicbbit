@@ -1,5 +1,9 @@
 package com.rabbithole.musicbbit.presentation.alarm
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,20 +17,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,7 +41,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.annotation.StringRes
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -46,16 +49,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.AutoStop
-import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import com.rabbithole.musicbbit.presentation.alarm.components.DayOfWeekSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.PlaylistSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.TimePickerDialog
+import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import timber.log.Timber
 
 private sealed interface AutoStopOption {
@@ -120,7 +120,13 @@ fun AlarmEditScreen(
     viewModel: AlarmEditViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val form = uiState.form
     var showTimePicker by remember { mutableStateOf(false) }
+    var showPermissionDialog by remember { mutableStateOf(false) }
+    var showFullScreenIntentDialog by remember { mutableStateOf(false) }
+    var showAutostartGuideDialog by remember { mutableStateOf(false) }
+    var showAutostartManualGuideDialog by remember { mutableStateOf(false) }
+    var autostartIntent by remember { mutableStateOf<Intent?>(null) }
     val context = LocalContext.current
 
     // Navigate up when save is completed
@@ -128,6 +134,21 @@ fun AlarmEditScreen(
         if (uiState.saveCompleted) {
             Timber.i("Alarm saved, navigating up")
             navController.navigateUp()
+        }
+    }
+
+    // Collect one-time events from ViewModel
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is AlarmEditEvent.ShowPermissionDialog -> showPermissionDialog = true
+                is AlarmEditEvent.ShowFullScreenIntentDialog -> showFullScreenIntentDialog = true
+                is AlarmEditEvent.ShowAutostartGuideDialog -> {
+                    autostartIntent = event.intent
+                    showAutostartGuideDialog = true
+                }
+                is AlarmEditEvent.ShowAutostartManualGuideDialog -> showAutostartManualGuideDialog = true
+            }
         }
     }
 
@@ -196,8 +217,8 @@ fun AlarmEditScreen(
 
     if (showTimePicker) {
         TimePickerDialog(
-            initialHour = uiState.hour,
-            initialMinute = uiState.minute,
+            initialHour = form.hour,
+            initialMinute = form.minute,
             onDismiss = { showTimePicker = false },
             onConfirm = { hour, minute ->
                 viewModel.onAction(AlarmEditAction.OnTimeChanged(hour, minute))
@@ -206,11 +227,9 @@ fun AlarmEditScreen(
         )
     }
 
-    if (uiState.showPermissionDialog) {
+    if (showPermissionDialog) {
         AlertDialog(
-            onDismissRequest = {
-                viewModel.onAction(AlarmEditAction.OnPermissionDialogDismissed)
-            },
+            onDismissRequest = { showPermissionDialog = false },
             title = { Text(stringResource(R.string.exact_alarm_permission_title)) },
             text = { Text(stringResource(R.string.exact_alarm_permission_message)) },
             confirmButton = {
@@ -220,71 +239,61 @@ fun AlarmEditScreen(
                             data = Uri.parse("package:${context.packageName}")
                         }
                         context.startActivity(intent)
-                        viewModel.onAction(AlarmEditAction.OnPermissionDialogDismissed)
+                        showPermissionDialog = false
                     }
                 ) {
                     Text(stringResource(R.string.go_to_settings))
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.onAction(AlarmEditAction.OnPermissionDialogDismissed)
-                    }
-                ) {
+                TextButton(onClick = { showPermissionDialog = false }) {
                     Text(stringResource(R.string.action_cancel))
                 }
             }
         )
     }
 
-    if (uiState.showFullScreenIntentDialog) {
+    if (showFullScreenIntentDialog) {
         AlertDialog(
-            onDismissRequest = {
-                viewModel.onAction(AlarmEditAction.OnFullScreenIntentDialogDismissed)
-            },
+            onDismissRequest = { showFullScreenIntentDialog = false },
             title = { Text(stringResource(R.string.fsi_permission_title)) },
             text = { Text(stringResource(R.string.fsi_permission_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
                         FullScreenIntentPermissionHelper.openSettings(context)
-                        viewModel.onAction(AlarmEditAction.OnFullScreenIntentDialogDismissed)
+                        showFullScreenIntentDialog = false
                     }
                 ) {
                     Text(stringResource(R.string.fsi_permission_grant))
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.onAction(AlarmEditAction.OnFullScreenIntentDialogDismissed)
-                    }
-                ) {
+                TextButton(onClick = { showFullScreenIntentDialog = false }) {
                     Text(stringResource(R.string.action_cancel))
                 }
             }
         )
     }
 
-    if (uiState.showAutostartGuideDialog) {
+    if (showAutostartGuideDialog) {
         AutostartGuideDialog(
             isManualGuide = false,
-            onDismiss = { viewModel.onAction(AlarmEditAction.OnAutostartGuideDialogDismissed) },
+            onDismiss = { showAutostartGuideDialog = false },
             onOpenSettings = {
-                uiState.autostartIntent?.let { context.startActivity(it) }
-                viewModel.onAction(AlarmEditAction.OnAutostartGuideDialogDismissed)
+                autostartIntent?.let { context.startActivity(it) }
+                showAutostartGuideDialog = false
             }
         )
     }
 
-    if (uiState.showAutostartManualGuideDialog) {
+    if (showAutostartManualGuideDialog) {
         AutostartGuideDialog(
             isManualGuide = true,
-            onDismiss = { viewModel.onAction(AlarmEditAction.OnAutostartManualGuideDialogDismissed) },
+            onDismiss = { showAutostartManualGuideDialog = false },
             onOpenSettings = {
                 context.startActivity(AutostartHelper.getManualGuideSettingsIntent())
-                viewModel.onAction(AlarmEditAction.OnAutostartManualGuideDialogDismissed)
+                showAutostartManualGuideDialog = false
             }
         )
     }
@@ -297,6 +306,7 @@ private fun AlarmEditContent(
     onAction: (AlarmEditAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val form = uiState.form
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -307,8 +317,8 @@ private fun AlarmEditContent(
 
         // Time picker area
         TimeDisplay(
-            hour = uiState.hour,
-            minute = uiState.minute,
+            hour = form.hour,
+            minute = form.minute,
             onClick = onTimeClick
         )
 
@@ -318,8 +328,8 @@ private fun AlarmEditContent(
         SectionTitle(title = stringResource(R.string.alarm_edit_section_repeat))
         Spacer(modifier = Modifier.height(8.dp))
         DayOfWeekSelector(
-            selectedDays = uiState.repeatDays,
-            excludeHolidays = uiState.excludeHolidays,
+            selectedDays = form.repeatDays,
+            excludeHolidays = form.excludeHolidays,
             onDaysChanged = { days ->
                 onAction(AlarmEditAction.OnRepeatDaysChanged(days))
             },
@@ -335,7 +345,7 @@ private fun AlarmEditContent(
         Spacer(modifier = Modifier.height(8.dp))
         PlaylistSelector(
             playlists = uiState.playlists,
-            selectedPlaylistId = uiState.playlistId,
+            selectedPlaylistId = form.playlistId,
             onPlaylistSelected = { playlistId ->
                 onAction(AlarmEditAction.OnPlaylistSelected(playlistId))
             }
@@ -347,7 +357,7 @@ private fun AlarmEditContent(
         SectionTitle(title = stringResource(R.string.alarm_edit_section_label))
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
-            value = uiState.label,
+            value = form.label,
             onValueChange = { onAction(AlarmEditAction.OnLabelChanged(it)) },
             placeholder = { Text(stringResource(R.string.alarm_edit_label_placeholder)) },
             singleLine = true,
@@ -360,7 +370,7 @@ private fun AlarmEditContent(
         SectionTitle(title = stringResource(R.string.alarm_edit_section_auto_stop))
         Spacer(modifier = Modifier.height(8.dp))
         AutoStopDropdown(
-            selectedAutoStop = uiState.autoStop,
+            selectedAutoStop = form.autoStop,
             onSelectionChange = { autoStop ->
                 onAction(AlarmEditAction.OnAutoStopChanged(autoStop))
             }

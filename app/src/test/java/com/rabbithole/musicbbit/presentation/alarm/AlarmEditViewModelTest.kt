@@ -10,16 +10,20 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.service.AlarmScheduler
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -43,6 +47,7 @@ import java.time.DayOfWeek
  *   - Load non-existent alarm (error state)
  *   - Save validation fail (no playlist selected)
  *   - Save success
+ *   - One-time events (permission dialogs, autostart guide)
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -85,14 +90,15 @@ class AlarmEditViewModelTest {
         val viewModel = createViewModel(savedStateHandle)
 
         val state = viewModel.uiState.value
-        assertEquals("Default hour should be 7", 7, state.hour)
-        assertEquals("Default minute should be 30", 30, state.minute)
-        assertTrue("Repeat days should be empty", state.repeatDays.isEmpty())
-        assertFalse("Exclude holidays should be false", state.excludeHolidays)
-        assertEquals("PlaylistId should be 0 (none selected)", 0L, state.playlistId)
-        assertEquals("Label should be empty", "", state.label)
-        assertNull("AutoStop should be null", state.autoStop)
-        assertTrue("isEnabled should be true", state.isEnabled)
+        val form = state.form
+        assertEquals("Default hour should be 7", 7, form.hour)
+        assertEquals("Default minute should be 30", 30, form.minute)
+        assertTrue("Repeat days should be empty", form.repeatDays.isEmpty())
+        assertFalse("Exclude holidays should be false", form.excludeHolidays)
+        assertEquals("PlaylistId should be 0 (none selected)", 0L, form.playlistId)
+        assertEquals("Label should be empty", "", form.label)
+        assertNull("AutoStop should be null", form.autoStop)
+        assertTrue("isEnabled should be true", form.isEnabled)
         assertTrue("isNewAlarm should be true", state.isNewAlarm)
         assertFalse("isLoading should be false", state.isLoading)
         assertFalse("isSaving should be false", state.isSaving)
@@ -126,17 +132,18 @@ class AlarmEditViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
+        val form = state.form
         assertFalse("isNewAlarm should be false", state.isNewAlarm)
         assertFalse("isLoading should be false after load", state.isLoading)
-        assertEquals("Hour should match alarm", 8, state.hour)
-        assertEquals("Minute should match alarm", 15, state.minute)
+        assertEquals("Hour should match alarm", 8, form.hour)
+        assertEquals("Minute should match alarm", 15, form.minute)
         assertEquals("Repeat days should match alarm",
-            setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY), state.repeatDays)
-        assertTrue("Exclude holidays should match alarm", state.excludeHolidays)
-        assertEquals("PlaylistId should match alarm", 10L, state.playlistId)
-        assertEquals("Label should match alarm", "Work Alarm", state.label)
-        assertEquals("AutoStop should match alarm", AutoStop.ByMinutes(20), state.autoStop)
-        assertTrue("isEnabled should match alarm", state.isEnabled)
+            setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY), form.repeatDays)
+        assertTrue("Exclude holidays should match alarm", form.excludeHolidays)
+        assertEquals("PlaylistId should match alarm", 10L, form.playlistId)
+        assertEquals("Label should match alarm", "Work Alarm", form.label)
+        assertEquals("AutoStop should match alarm", AutoStop.ByMinutes(20), form.autoStop)
+        assertTrue("isEnabled should match alarm", form.isEnabled)
     }
 
     @Test
@@ -164,7 +171,7 @@ class AlarmEditViewModelTest {
 
         // Ensure playlistId is 0 (no playlist selected)
         val beforeState = viewModel.uiState.value
-        assertEquals("PlaylistId should be 0", 0L, beforeState.playlistId)
+        assertEquals("PlaylistId should be 0", 0L, beforeState.form.playlistId)
 
         viewModel.onAction(AlarmEditAction.OnSave)
 
@@ -201,7 +208,7 @@ class AlarmEditViewModelTest {
     }
 
     @Test
-    fun `save shows permission dialog when exact alarm permission needed`() = runTest {
+    fun `save emits permission event when exact alarm permission needed`() = runTest {
         every { playlistRepository.getAllPlaylists() } returns flowOf(
             listOf(Playlist(10L, "Morning Mix", 0L, 0L))
         )
@@ -214,13 +221,13 @@ class AlarmEditViewModelTest {
         viewModel.onAction(AlarmEditAction.OnPlaylistSelected(10L))
         viewModel.onAction(AlarmEditAction.OnSave)
 
-        val state = viewModel.uiState.value
-        assertTrue("showPermissionDialog should be true", state.showPermissionDialog)
-        assertFalse("saveCompleted should be false", state.saveCompleted)
+        val event = viewModel.events.firstInScope(this)
+        assertTrue("ShowPermissionDialog event should be emitted", event is AlarmEditEvent.ShowPermissionDialog)
+        assertFalse("saveCompleted should be false", viewModel.uiState.value.saveCompleted)
     }
 
     @Test
-    fun `save shows full screen intent dialog when fsi permission needed`() = runTest {
+    fun `save emits fsi event when fsi permission needed`() = runTest {
         every { playlistRepository.getAllPlaylists() } returns flowOf(
             listOf(Playlist(10L, "Morning Mix", 0L, 0L))
         )
@@ -233,13 +240,13 @@ class AlarmEditViewModelTest {
         viewModel.onAction(AlarmEditAction.OnPlaylistSelected(10L))
         viewModel.onAction(AlarmEditAction.OnSave)
 
-        val state = viewModel.uiState.value
-        assertTrue("showFullScreenIntentDialog should be true", state.showFullScreenIntentDialog)
-        assertFalse("saveCompleted should be false", state.saveCompleted)
+        val event = viewModel.events.firstInScope(this)
+        assertTrue("ShowFullScreenIntentDialog event should be emitted", event is AlarmEditEvent.ShowFullScreenIntentDialog)
+        assertFalse("saveCompleted should be false", viewModel.uiState.value.saveCompleted)
     }
 
     @Test
-    fun `save success shows autostart guide dialog when resolved`() = runTest {
+    fun `save success emits autostart guide event when resolved`() = runTest {
         val mockIntent = mockk<android.content.Intent>(relaxed = true)
         every { playlistRepository.getAllPlaylists() } returns flowOf(
             listOf(Playlist(10L, "Morning Mix", 0L, 0L))
@@ -256,14 +263,14 @@ class AlarmEditViewModelTest {
 
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertTrue("showAutostartGuideDialog should be true", state.showAutostartGuideDialog)
-        assertEquals(mockIntent, state.autostartIntent)
-        assertFalse("saveCompleted should be false when guide shown", state.saveCompleted)
+        val event = viewModel.events.firstInScope(this)
+        assertTrue("ShowAutostartGuideDialog event should be emitted", event is AlarmEditEvent.ShowAutostartGuideDialog)
+        assertEquals(mockIntent, (event as AlarmEditEvent.ShowAutostartGuideDialog).intent)
+        assertFalse("saveCompleted should be false when guide shown", viewModel.uiState.value.saveCompleted)
     }
 
     @Test
-    fun `save success shows manual guide dialog when needed`() = runTest {
+    fun `save success emits manual guide event when needed`() = runTest {
         every { playlistRepository.getAllPlaylists() } returns flowOf(
             listOf(Playlist(10L, "Morning Mix", 0L, 0L))
         )
@@ -279,9 +286,9 @@ class AlarmEditViewModelTest {
 
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertTrue("showAutostartManualGuideDialog should be true", state.showAutostartManualGuideDialog)
-        assertFalse("saveCompleted should be false when guide shown", state.saveCompleted)
+        val event = viewModel.events.firstInScope(this)
+        assertTrue("ShowAutostartManualGuideDialog event should be emitted", event is AlarmEditEvent.ShowAutostartManualGuideDialog)
+        assertFalse("saveCompleted should be false when guide shown", viewModel.uiState.value.saveCompleted)
     }
 
     @Test
@@ -307,7 +314,7 @@ class AlarmEditViewModelTest {
         val state = viewModel.uiState.value
         assertTrue("saveCompleted should be true", state.saveCompleted)
         assertEquals("Repeat days should be preserved",
-            setOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY), state.repeatDays)
+            setOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY), state.form.repeatDays)
     }
 
     @Test
@@ -352,4 +359,14 @@ class AlarmEditViewModelTest {
             permissionOrchestrator = permissionOrchestrator
         )
     }
+}
+
+/**
+ * Helper to collect the first event from a [kotlinx.coroutines.flow.Flow].
+ * Uses [withTimeout] so the caller's test scope does not leak an uncompleted collector.
+ */
+private suspend fun <T> kotlinx.coroutines.flow.Flow<T>.firstInScope(
+    @Suppress("UNUSED_PARAMETER") scope: kotlinx.coroutines.CoroutineScope
+): T {
+    return withTimeout(1000) { first() }
 }

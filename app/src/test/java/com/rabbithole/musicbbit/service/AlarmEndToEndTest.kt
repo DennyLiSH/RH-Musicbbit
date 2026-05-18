@@ -1,9 +1,13 @@
 package com.rabbithole.musicbbit.service
 
 import android.content.Intent
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -19,9 +23,18 @@ import org.robolectric.annotation.Config
  * Pre-step-5 this file covered alarm bookkeeping; that lives in AlarmFireSession now and
  * is verified by JVM unit tests on the session directly.
  */
+@HiltAndroidTest
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
+@Config(sdk = [33], application = dagger.hilt.android.testing.HiltTestApplication::class)
 class AlarmEndToEndTest {
+
+    @get:Rule
+    var hiltRule = HiltAndroidRule(this)
+
+    @Before
+    fun setUp() {
+        hiltRule.inject()
+    }
 
     @Test
     fun `alarm trigger dispatches MusicPlaybackService with PLAY_ALARM action and alarmId`() {

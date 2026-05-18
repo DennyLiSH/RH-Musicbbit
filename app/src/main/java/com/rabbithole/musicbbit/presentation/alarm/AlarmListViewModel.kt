@@ -79,16 +79,10 @@ class AlarmListViewModel @Inject constructor(
     init {
         loadData()
 
-        // Refresh holiday data in the background
+        // Refresh holiday data in the background (throttled to once per month)
         viewModelScope.launch {
             val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
-            runCatching { holidayRepository.refreshHolidays(currentYear) }
-                .onSuccess {
-                    Timber.i("Holiday data refreshed for year $currentYear")
-                }
-                .onFailure { error ->
-                    Timber.w(error, "Failed to refresh holiday data for year $currentYear")
-                }
+            holidayRepository.maybeRefreshHolidays(currentYear)
         }
     }
 

@@ -12,6 +12,7 @@ data class PlaybackState(
     val queue: List<Song> = emptyList(),
     val queueIndex: Int = 0,
     val alarmId: Long? = null,
+    val alarmLabel: String? = null,
     val source: PlaybackSource = PlaybackSource.USER,
 )
 

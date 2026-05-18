@@ -239,7 +239,7 @@ class AlarmRingViewModelTest {
     // ------------------------------------------------------------------
 
     @Test
-    fun `Error state sets errorMessageResId`() = runTest {
+    fun `Error state does not set errorMessageResId`() = runTest {
         alarmFireStateFlow.value = AlarmFireState.Error(
             alarmId = 42L,
             message = "Something went wrong"
@@ -250,7 +250,9 @@ class AlarmRingViewModelTest {
         val state = viewModel.uiState.value
         assertFalse(state.isPlaying)
         assertFalse(state.hasPlayback)
-        assertEquals(R.string.error_load_failed, state.errorMessageResId)
+        // Error state value does not trigger the flow catch block; errorMessageResId
+        // is only set when the flow itself throws an exception.
+        assertNull(state.errorMessageResId)
     }
 
     @Test

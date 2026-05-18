@@ -5,15 +5,20 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.service.alarm.AlarmIntegrityWorker
 import com.rabbithole.musicbbit.service.alarm.NextOccurrenceCalculator
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import timber.log.Timber
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
-import timber.log.Timber
 
 /**
  * Singleton wrapper around [AlarmManager] for scheduling, cancelling, and rescheduling alarms.
@@ -139,6 +144,33 @@ class AlarmScheduler @Inject constructor(
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+    }
+
+    /**
+     * Schedule a periodic integrity check via WorkManager.
+     *
+     * Uses [ExistingPeriodicWorkPolicy.KEEP] so the 15-minute interval is not reset
+     * if a previous request is still active.
+     */
+    fun scheduleIntegrityCheck() {
+        val request = PeriodicWorkRequestBuilder<AlarmIntegrityWorker>(
+            15, TimeUnit.MINUTES
+        ).build()
+
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            AlarmIntegrityWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            request
+        )
+        Timber.i("AlarmScheduler: scheduled periodic integrity check (15min)")
+    }
+
+    /**
+     * Cancel the periodic integrity check.
+     */
+    fun cancelIntegrityCheck() {
+        WorkManager.getInstance(context).cancelUniqueWork(AlarmIntegrityWorker.WORK_NAME)
+        Timber.i("AlarmScheduler: cancelled periodic integrity check")
     }
 
     companion object {

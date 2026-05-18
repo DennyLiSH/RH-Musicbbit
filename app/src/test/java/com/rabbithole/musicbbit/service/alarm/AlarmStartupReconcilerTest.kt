@@ -51,18 +51,15 @@ class AlarmStartupReconcilerTest {
 
     private lateinit var fakeRepository: FakeAlarmRepository
     private lateinit var alarmScheduler: AlarmScheduler
-    private lateinit var alarmIntegrityScheduler: AlarmIntegrityScheduler
     private lateinit var reconciler: AlarmStartupReconciler
 
     @Before
     fun setUp() {
         fakeRepository = FakeAlarmRepository()
         alarmScheduler = mockk(relaxed = true)
-        alarmIntegrityScheduler = mockk(relaxed = true)
         reconciler = AlarmStartupReconciler(
             alarmRepository = fakeRepository,
             alarmScheduler = alarmScheduler,
-            alarmIntegrityScheduler = alarmIntegrityScheduler,
             ioDispatcher = testDispatcher,
         )
     }
@@ -139,12 +136,12 @@ class AlarmStartupReconcilerTest {
     }
 
     @Test
-    fun `reconcile calls alarmIntegrityScheduler schedule`() = runTest(testDispatcher) {
-        // No alarms needed — just verify schedule() is called after reconcileInternal
+    fun `reconcile calls scheduleIntegrityCheck`() = runTest(testDispatcher) {
+        // No alarms needed — just verify scheduleIntegrityCheck() is called after reconcileInternal
         reconciler.reconcile()
 
         // With UnconfinedTestDispatcher the launched coroutine executes eagerly
-        verify { alarmIntegrityScheduler.schedule() }
+        verify { alarmScheduler.scheduleIntegrityCheck() }
     }
 
     // -------------------------------------------------------------------------

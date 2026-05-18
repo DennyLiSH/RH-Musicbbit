@@ -1,19 +1,14 @@
 package com.rabbithole.musicbbit.presentation.player
 
-import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.Song
-import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.service.PlayMode
 import com.rabbithole.musicbbit.service.PlaybackState
 import com.rabbithole.musicbbit.service.playback.PlaybackSession
-import com.rabbithole.musicbbit.service.playback.PlayerEvent
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -27,24 +22,27 @@ import org.junit.Before
 import org.junit.Test
 import timber.log.Timber
 
+/**
+ * JVM unit tests for [PlayerViewModel].
+ *
+ * PlayerViewModel is a thin facade over [PlaybackSession]. These tests verify
+ * that playback control methods forward correctly and that [alarmLabel] is
+ * derived from [PlaybackState.alarmLabel].
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlayerViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
     private lateinit var playbackController: PlaybackSession
-    private lateinit var alarmRepository: AlarmRepository
     private val playbackStateFlow = MutableStateFlow(PlaybackState())
-    private val playerEventsFlow = MutableSharedFlow<PlayerEvent>()
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         playbackController = mockk(relaxed = true)
-        alarmRepository = mockk()
 
         every { playbackController.playbackState } returns playbackStateFlow
-        every { playbackController.playerEvents } returns playerEventsFlow
 
         if (Timber.treeCount == 0) {
             Timber.plant(Timber.DebugTree())
@@ -57,7 +55,7 @@ class PlayerViewModelTest {
     }
 
     private fun createViewModel(): PlayerViewModel {
-        return PlayerViewModel(playbackController, alarmRepository)
+        return PlayerViewModel(playbackController)
     }
 
     // ------------------------------------------------------------------
@@ -65,67 +63,29 @@ class PlayerViewModelTest {
     // ------------------------------------------------------------------
 
     @Test
-    fun `alarmLabel is null when alarmId is null`() = runTest(testDispatcher) {
-        playbackStateFlow.value = PlaybackState(alarmId = null)
+    fun `alarmLabel is null when alarmLabel in state is null`() = runTest(testDispatcher) {
+        playbackStateFlow.value = PlaybackState(alarmId = null, alarmLabel = null)
         val viewModel = createViewModel()
         assertNull(viewModel.alarmLabel.value)
     }
 
     @Test
-    fun `alarmLabel loaded from repository when alarmId present`() = runTest(testDispatcher) {
-        val alarm = Alarm(
-            id = 1L,
-            hour = 7,
-            minute = 30,
-            repeatDays = emptySet(),
-            playlistId = 10L,
-            isEnabled = true,
-            label = "Morning Jog",
-            autoStop = null,
-            lastTriggeredAt = null
-        )
-        coEvery { alarmRepository.getAlarmById(1L) } returns alarm
-
-        playbackStateFlow.value = PlaybackState(alarmId = 1L)
+    fun `alarmLabel loaded from playbackState`() = runTest(testDispatcher) {
+        playbackStateFlow.value = PlaybackState(alarmId = 1L, alarmLabel = "Morning Jog")
         val viewModel = createViewModel()
         advanceUntilIdle()
-
         assertEquals("Morning Jog", viewModel.alarmLabel.value)
     }
 
     @Test
-    fun `alarmLabel cleared when alarmId becomes null`() = runTest(testDispatcher) {
-        val alarm = Alarm(
-            id = 1L,
-            hour = 7,
-            minute = 30,
-            repeatDays = emptySet(),
-            playlistId = 10L,
-            isEnabled = true,
-            label = "Morning Jog",
-            autoStop = null,
-            lastTriggeredAt = null
-        )
-        coEvery { alarmRepository.getAlarmById(1L) } returns alarm
-
-        playbackStateFlow.value = PlaybackState(alarmId = 1L)
+    fun `alarmLabel cleared when alarmLabel becomes null`() = runTest(testDispatcher) {
+        playbackStateFlow.value = PlaybackState(alarmId = 1L, alarmLabel = "Morning Jog")
         val viewModel = createViewModel()
         advanceUntilIdle()
         assertEquals("Morning Jog", viewModel.alarmLabel.value)
 
-        playbackStateFlow.value = PlaybackState(alarmId = null)
+        playbackStateFlow.value = PlaybackState(alarmId = null, alarmLabel = null)
         advanceUntilIdle()
-
-        assertNull(viewModel.alarmLabel.value)
-    }
-
-    @Test
-    fun `alarmLabel is null when repository returns null`() = runTest(testDispatcher) {
-        coEvery { alarmRepository.getAlarmById(1L) } returns null
-
-        playbackStateFlow.value = PlaybackState(alarmId = 1L)
-        val viewModel = createViewModel()
-
         assertNull(viewModel.alarmLabel.value)
     }
 
