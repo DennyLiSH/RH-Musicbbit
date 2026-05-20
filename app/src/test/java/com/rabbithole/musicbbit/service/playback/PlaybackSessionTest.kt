@@ -11,6 +11,7 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.coVerify
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -312,6 +313,19 @@ class PlaybackSessionTest {
 
         // stop should NOT be called for ALARM source
         verify(exactly = 0) { playerPort.stop() }
+    }
+
+    @Test
+    fun `QueueEnded with ALARM source clears playlist progress`() = runBlocking {
+        every { audioFocusPort.requestFocus() } returns true
+        coEvery { playbackProgressRepository.getProgress(any(), any()) } returns Result.success(null)
+        coEvery { playbackProgressRepository.deleteAllProgressForPlaylist(any()) } returns Result.success(Unit)
+
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, alarmId = 42L)
+
+        playerEvents.tryEmit(PlayerEvent.QueueEnded)
+
+        coVerify { playbackProgressRepository.deleteAllProgressForPlaylist(10L) }
     }
 
     // -------- setPlayMode() ---------------------------------------------------

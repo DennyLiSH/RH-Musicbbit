@@ -182,8 +182,17 @@ class PlaybackSession @Inject constructor(
             Timber.i("Queue ended for USER source, stopping playback")
             stop()
         } else {
-            Timber.i("Queue ended for ALARM source, emitting QueueEnded")
+            Timber.i("Queue ended for ALARM source, clearing progress and emitting QueueEnded")
+            clearPlaylistProgress(state.currentPlaylistId)
             _playbackTransitions.tryEmit(PlaybackTransition.QueueEnded)
+        }
+    }
+
+    private fun clearPlaylistProgress(playlistId: Long) {
+        sessionScope.launch {
+            playbackProgressRepository.deleteAllProgressForPlaylist(playlistId)
+                .onSuccess { Timber.d("Cleared progress for playlistId=$playlistId after queue ended") }
+                .onFailure { Timber.e(it, "Failed to clear progress for playlistId=$playlistId") }
         }
     }
 

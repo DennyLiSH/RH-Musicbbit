@@ -111,6 +111,30 @@ class AlarmPlaybackResolverTest {
         assertEquals(song2, success.startSong)
     }
 
+    @Test
+    fun `resolve returns index 0 when progress cleared after queue ended`() = runTest {
+        val song3 = Song(
+            id = 3L, path = "/tmp/3.mp3", title = "Three",
+            artist = "A", album = "B", durationMs = 180_000L, dateAdded = 0L, coverUri = null
+        )
+        val alarmRepo = FakeAlarmRepository().apply {
+            insert(alarm(id = 1L, playlistId = 10L))
+        }
+        val playlistRepo = FakePlaylistRepository().apply {
+            set(10L, PlaylistWithSongs(Playlist(10L, "Test", 0L, 0L), listOf(song1, song2, song3)))
+        }
+        // Simulate: queue ended → progress cleared by handleQueueEnded()
+        val progressRepo = FakeProgressRepository()
+
+        val resolver = AlarmPlaybackResolver(alarmRepo, playlistRepo, progressRepo, clock)
+        val result = resolver.resolve(1L)
+
+        assertTrue(result is AlarmPlaybackResolver.Result.Success)
+        val success = result as AlarmPlaybackResolver.Result.Success
+        assertEquals(0, success.startIndex)
+        assertEquals(song1, success.startSong)
+    }
+
     private fun alarm(id: Long, playlistId: Long) = Alarm(
         id = id, hour = 7, minute = 0,
         repeatDays = emptySet(), playlistId = playlistId,
