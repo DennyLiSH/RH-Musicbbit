@@ -45,6 +45,7 @@ internal class AlarmFireTransitionRouter(
     }
 
     private fun handleQueueEnded(): Action {
-        return if (autoStopController.onQueueEnded()) Action.StopPlayback else Action.Ignore
+        autoStopController.onQueueEnded()
+        return Action.StopPlayback
     }
 }
