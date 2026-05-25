@@ -24,6 +24,7 @@ class PlaybackProgressTracker(
 ) {
     private var progressSaveJob: Job? = null
     private var progressTickJob: Job? = null
+    private var pendingSaveJob: Job? = null
 
     fun startSaveLoop(intervalMs: Long) {
         progressSaveJob?.cancel()
@@ -62,7 +63,7 @@ class PlaybackProgressTracker(
         val song = state.currentSong ?: return
         val position = playerPort.currentPositionMs()
 
-        scope.launch {
+        pendingSaveJob = scope.launch {
             val progress = PlaybackProgress(
                 songId = song.id,
                 positionMs = position,
@@ -76,5 +77,10 @@ class PlaybackProgressTracker(
                 Timber.e(error, "Failed to save playback progress")
             }
         }
+    }
+
+    fun cancelPendingSave() {
+        pendingSaveJob?.cancel()
+        pendingSaveJob = null
     }
 }

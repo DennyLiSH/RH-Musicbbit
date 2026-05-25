@@ -176,23 +176,22 @@ class PlaybackSession @Inject constructor(
         }
     }
 
-    private fun handleQueueEnded() {
+    private suspend fun handleQueueEnded() {
         val state = _playbackState.value
         if (state.source == PlaybackSource.USER) {
             Timber.i("Queue ended for USER source, stopping playback")
             stop()
         } else {
             Timber.i("Queue ended for ALARM source, clearing progress and emitting QueueEnded")
-            clearPlaylistProgress(state.currentPlaylistId)
-            _playbackTransitions.tryEmit(PlaybackTransition.QueueEnded)
-        }
-    }
-
-    private fun clearPlaylistProgress(playlistId: Long) {
-        sessionScope.launch {
+            val playlistId = state.currentPlaylistId
+            progressTracker.stopSaveLoop()
+            progressTracker.stopTickLoop()
+            progressTracker.cancelPendingSave()
+            _playbackState.update { PlaybackState() }
             playbackProgressRepository.deleteAllProgressForPlaylist(playlistId)
                 .onSuccess { Timber.d("Cleared progress for playlistId=$playlistId after queue ended") }
                 .onFailure { Timber.e(it, "Failed to clear progress for playlistId=$playlistId") }
+            _playbackTransitions.tryEmit(PlaybackTransition.QueueEnded)
         }
     }
 
@@ -316,7 +315,9 @@ class PlaybackSession @Inject constructor(
     fun stop() {
         Timber.i("Stopping playback")
         audioFocusPort.abandonFocus()
-        progressTracker.saveProgress()
+        if (_playbackState.value.currentSong != null) {
+            progressTracker.saveProgress()
+        }
         playerPort.stop()
         playerPort.clearQueue()
         _playbackState.update { PlaybackState() }
