@@ -238,7 +238,11 @@ fun AlarmEditScreen(
                         val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
                             data = Uri.parse("package:${context.packageName}")
                         }
-                        context.startActivity(intent)
+                        try {
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to launch exact alarm settings")
+                        }
                         showPermissionDialog = false
                     }
                 ) {
@@ -279,10 +283,20 @@ fun AlarmEditScreen(
     if (showAutostartGuideDialog) {
         AutostartGuideDialog(
             isManualGuide = false,
-            onDismiss = { showAutostartGuideDialog = false },
-            onOpenSettings = {
-                autostartIntent?.let { context.startActivity(it) }
+            onDismiss = {
                 showAutostartGuideDialog = false
+                viewModel.onAutostartGuideDismissed()
+            },
+            onOpenSettings = {
+                autostartIntent?.let {
+                    try {
+                        context.startActivity(it)
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to launch OEM autostart settings")
+                    }
+                }
+                showAutostartGuideDialog = false
+                viewModel.onAutostartGuideDismissed()
             }
         )
     }
@@ -290,10 +304,18 @@ fun AlarmEditScreen(
     if (showAutostartManualGuideDialog) {
         AutostartGuideDialog(
             isManualGuide = true,
-            onDismiss = { showAutostartManualGuideDialog = false },
-            onOpenSettings = {
-                context.startActivity(AutostartHelper.getManualGuideSettingsIntent())
+            onDismiss = {
                 showAutostartManualGuideDialog = false
+                viewModel.onAutostartGuideDismissed()
+            },
+            onOpenSettings = {
+                try {
+                    context.startActivity(AutostartHelper.getManualGuideSettingsIntent())
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to launch manual guide settings")
+                }
+                showAutostartManualGuideDialog = false
+                viewModel.onAutostartGuideDismissed()
             }
         )
     }

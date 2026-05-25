@@ -227,6 +227,10 @@ class AlarmEditViewModel @Inject constructor(
         }
     }
 
+    fun onAutostartGuideDismissed() {
+        _uiState.update { it.copy(saveCompleted = true) }
+    }
+
     private fun saveAlarm() {
         val form = _uiState.value.form
 
