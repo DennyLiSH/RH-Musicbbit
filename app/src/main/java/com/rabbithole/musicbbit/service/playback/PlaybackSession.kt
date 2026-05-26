@@ -186,7 +186,7 @@ class PlaybackSession @Inject constructor(
             val playlistId = state.currentPlaylistId
             progressTracker.stopSaveLoop()
             progressTracker.stopTickLoop()
-            progressTracker.cancelPendingSave()
+            progressTracker.cancelAndAwaitPendingSave()
             _playbackState.update { PlaybackState() }
             playbackProgressRepository.deleteAllProgressForPlaylist(playlistId)
                 .onSuccess { Timber.d("Cleared progress for playlistId=$playlistId after queue ended") }

@@ -5,6 +5,7 @@ import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.service.PlaybackState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -79,8 +80,12 @@ class PlaybackProgressTracker(
         }
     }
 
-    fun cancelPendingSave() {
-        pendingSaveJob?.cancel()
+    /**
+     * Cancels the pending save job and waits for any in-flight IO write to complete.
+     * Must be called before deleting progress to prevent the save from racing past the delete.
+     */
+    suspend fun cancelAndAwaitPendingSave() {
+        pendingSaveJob?.cancelAndJoin()
         pendingSaveJob = null
     }
 }
