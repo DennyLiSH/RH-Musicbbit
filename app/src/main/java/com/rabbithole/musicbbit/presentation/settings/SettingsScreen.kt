@@ -1,5 +1,6 @@
 package com.rabbithole.musicbbit.presentation.settings
 
+import android.app.Activity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,11 +32,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.rabbithole.musicbbit.LocaleHelper
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ThemeMode
 import com.rabbithole.musicbbit.navigation.About
@@ -71,6 +74,11 @@ fun SettingsScreen(
                 themeMode = themeUiState.themeMode,
                 onThemeModeChange = { themeViewModel.setThemeMode(it) }
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Language section
+            LanguageSettingsSection()
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -149,6 +157,92 @@ private fun ThemeSettingsSection(
 }
 
 private val VolumeRampPresets = listOf(0, 5, 10, 15, 30, 60)
+
+@Composable
+private fun LanguageSettingsSection(
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val currentLanguage = remember { LocaleHelper.getCurrentLanguage(context) }
+    var selectedLanguage by remember { mutableStateOf(currentLanguage) }
+
+    Column(modifier = modifier) {
+        Text(
+            text = stringResource(R.string.settings_language),
+            style = MaterialTheme.typography.titleMedium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            LanguageButton(
+                label = stringResource(R.string.settings_language_system),
+                selected = selectedLanguage == AppLanguage.SYSTEM,
+                onClick = {
+                    selectedLanguage = AppLanguage.SYSTEM
+                    LocaleHelper.setLanguage(context as Activity, AppLanguage.SYSTEM)
+                },
+                modifier = Modifier.weight(1f)
+            )
+            LanguageButton(
+                label = stringResource(R.string.settings_language_zh),
+                selected = selectedLanguage == AppLanguage.CHINESE,
+                onClick = {
+                    selectedLanguage = AppLanguage.CHINESE
+                    LocaleHelper.setLanguage(context as Activity, AppLanguage.CHINESE)
+                },
+                modifier = Modifier.weight(1f)
+            )
+            LanguageButton(
+                label = stringResource(R.string.settings_language_en),
+                selected = selectedLanguage == AppLanguage.ENGLISH,
+                onClick = {
+                    selectedLanguage = AppLanguage.ENGLISH
+                    LocaleHelper.setLanguage(context as Activity, AppLanguage.ENGLISH)
+                },
+                modifier = Modifier.weight(1f)
+            )
+            LanguageButton(
+                label = stringResource(R.string.settings_language_ja),
+                selected = selectedLanguage == AppLanguage.JAPANESE,
+                onClick = {
+                    selectedLanguage = AppLanguage.JAPANESE
+                    LocaleHelper.setLanguage(context as Activity, AppLanguage.JAPANESE)
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun LanguageButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (selected) {
+        FilledTonalButton(
+            onClick = onClick,
+            modifier = modifier,
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        ) {
+            Text(label, maxLines = 1)
+        }
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = modifier
+        ) {
+            Text(label, maxLines = 1)
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
