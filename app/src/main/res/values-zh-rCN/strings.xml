@@ -1,0 +1,216 @@
+<resources>
+    <string name="app_name">音乐兔</string>
+    <string name="alarm_select_time">选择时间</string>
+    <string name="action_confirm">确认</string>
+    <string name="action_cancel">取消</string>
+    <string name="tab_music">音乐</string>
+    <string name="tab_playlist">播放列表</string>
+    <string name="tab_alarm">闹钟</string>
+    <string name="tab_settings">设置</string>
+    <string name="alarm_title">闹钟</string>
+    <string name="alarm_default_label">闹钟</string>
+    <string name="alarm_empty_title">暂无闹钟</string>
+    <string name="alarm_empty_subtitle">点击 + 创建一个</string>
+    <string name="alarm_list_create_alarm">创建闹钟</string>
+    <string name="alarm_one_time">单次</string>
+    <string name="alarm_daily">每天</string>
+    <string name="alarm_weekdays">工作日</string>
+    <string name="alarm_excluding_holidays">除法定节假日外</string>
+    <string name="alarm_excluding_holidays_short">除节假日外</string>
+    <string name="alarm_monday">周一</string>
+    <string name="alarm_tuesday">周二</string>
+    <string name="alarm_wednesday">周三</string>
+    <string name="alarm_thursday">周四</string>
+    <string name="alarm_friday">周五</string>
+    <string name="alarm_saturday">周六</string>
+    <string name="alarm_sunday">周日</string>
+    <string name="battery_optimization_title">电池优化</string>
+    <string name="battery_optimization_message">为确保闹钟在息屏时正常工作，请允许音乐兔忽略电池优化。</string>
+    <string name="full_screen_intent_banner_title">全屏提醒已禁用</string>
+    <string name="full_screen_intent_banner_message">请允许全屏提醒，以便闹钟可以唤醒屏幕</string>
+    <string name="go_to_settings">前往设置</string>
+    <string name="exact_alarm_permission_title">需要精确闹钟权限</string>
+    <string name="exact_alarm_permission_message">为确保闹钟准时响起，请允许本应用使用精确闹钟。</string>
+    <string name="fsi_permission_title">需要全屏闹钟权限</string>
+    <string name="fsi_permission_message">在 Android 14 及以上版本，应用需要权限才能在锁屏界面显示闹钟。否则闹钟仍会播放音乐，但无法显示全屏响铃界面。</string>
+    <string name="fsi_permission_grant">授予权限</string>
+    <string name="now_playing">正在播放…</string>
+    <string name="alarm_active_banner_title">闹钟播放中</string>
+    <string name="alarm_active_banner_stop">停止闹钟</string>
+    <string name="pause">暂停</string>
+    <string name="resume">继续</string>
+    <string name="stop">停止</string>
+    <string name="notification_channel_name">音乐闹钟</string>
+    <string name="notification_alarm_channel_desc">音乐闹钟通知</string>
+    <string name="notification_music_channel_desc">音乐播放通知</string>
+    <string name="notification_default_alarm_label">音乐闹钟</string>
+    <string name="notification_unknown_artist">未知艺术家</string>
+    <string name="notification_playing_format">正在播放：%1$s - %2$s</string>
+    <string name="notification_extend">延长 ▼</string>
+    <string name="notification_extend_minutes">延长 %d 分钟</string>
+    <string name="notification_to_song_end">播放到歌曲结束</string>
+    <string name="notification_alarm_paused">闹钟已暂停</string>
+    <string name="notification_playback_paused">播放已暂停</string>
+    <string name="notification_play">播放</string>
+    <string name="notification_playlist_empty">播放列表为空</string>
+    <string name="add_songs_title">添加歌曲</string>
+    <string name="add_songs_search_placeholder">搜索歌曲…</string>
+    <string name="add_songs_no_results">未找到歌曲</string>
+    <string name="all_songs_already_in_playlist">所有歌曲已在此播放列表中</string>
+    <string name="select_all">全选</string>
+    <string name="clear">清除</string>
+    <string name="add_count">添加 (%d)</string>
+    <string name="play_all">全部播放</string>
+
+    <!-- Common -->
+    <string name="common_back">返回</string>
+    <string name="common_save">保存</string>
+    <string name="common_create">创建</string>
+
+    <!-- Alarm Edit -->
+    <string name="alarm_edit_title_new">新建闹钟</string>
+    <string name="alarm_edit_title_edit">编辑闹钟</string>
+    <string name="alarm_edit_title_loading">闹钟</string>
+    <string name="alarm_edit_section_repeat">重复</string>
+    <string name="alarm_edit_section_playlist">播放列表</string>
+    <string name="alarm_edit_section_label">标签</string>
+    <string name="alarm_edit_section_auto_stop">自动停止</string>
+    <string name="alarm_edit_label_placeholder">可选标签</string>
+    <string name="alarm_edit_save_button">保存闹钟</string>
+    <string name="alarm_edit_tap_to_change_time">点击更改时间</string>
+    <string name="alarm_edit_auto_stop_label">自动停止于</string>
+    <string name="alarm_edit_auto_stop_none">不自动停止</string>
+    <string name="alarm_edit_auto_stop_5min">5 分钟</string>
+    <string name="alarm_edit_auto_stop_10min">10 分钟</string>
+    <string name="alarm_edit_auto_stop_15min">15 分钟</string>
+    <string name="alarm_edit_auto_stop_30min">30 分钟</string>
+    <string name="alarm_edit_auto_stop_60min">60 分钟</string>
+    <string name="alarm_edit_auto_stop_1song">1 首歌</string>
+    <string name="alarm_edit_auto_stop_2songs">2 首歌</string>
+    <string name="alarm_edit_auto_stop_3songs">3 首歌</string>
+    <string name="alarm_edit_auto_stop_4songs">4 首歌</string>
+    <string name="alarm_edit_auto_stop_5songs">5 首歌</string>
+    <string name="alarm_edit_auto_stop_10songs">10 首歌</string>
+    <string name="alarm_edit_volume_ramp_hint">闹钟响起时，音量将在 %d 秒内从 30%% 渐强至最大。</string>
+    <string name="alarm_edit_volume_ramp_disabled_hint">闹钟响起时，音量将立即设为最大。</string>
+    <string name="alarm_edit_error_not_found">闹钟未找到</string>
+    <string name="alarm_edit_error_select_playlist">请选择播放列表</string>
+    <string name="alarm_edit_error_save_failed">保存闹钟失败</string>
+    <string name="playlist_selector_empty">暂无可用播放列表</string>
+    <string name="playlist_selector_placeholder">选择播放列表</string>
+    <string name="playlist_selector_create_first">请先创建播放列表</string>
+    <string name="playlist_selector_label">播放列表</string>
+    <string name="alarm_error_save_failed">保存闹钟失败</string>
+    <string name="alarm_error_enable_failed">更新闹钟失败</string>
+    <string name="alarm_error_delete_failed">删除闹钟失败</string>
+
+    <!-- Playlist Detail -->
+    <string name="playlist_detail_title_loading">播放列表</string>
+    <string name="playlist_detail_empty">"%1$s" 为空</string>
+    <string name="playlist_detail_drag_to_reorder">拖动排序</string>
+    <string name="playlist_detail_remove_from_playlist">从播放列表中移除</string>
+
+    <!-- Playlist List -->
+    <string name="playlist_list_title">播放列表</string>
+    <string name="playlist_list_create_button">创建播放列表</string>
+    <string name="playlist_list_empty_title">暂无播放列表</string>
+    <string name="playlist_list_empty_subtitle">点击 + 按钮创建一个</string>
+    <string name="playlist_list_dialog_title">新建播放列表</string>
+    <string name="playlist_list_dialog_name_label">播放列表名称</string>
+    <string name="playlist_list_delete">删除播放列表</string>
+    <string name="playlist_error_delete_failed">删除播放列表失败</string>
+    <string name="playlist_error_remove_song_failed">移除歌曲失败</string>
+    <string name="playlist_error_reorder_failed">排序失败</string>
+    <string name="playlist_error_add_song_failed">添加歌曲失败</string>
+
+    <!-- Music Browse -->
+    <string name="music_browse_title">音乐</string>
+    <string name="music_browse_settings">设置</string>
+    <string name="music_browse_permission_required">需要存储权限以读取音乐文件</string>
+    <string name="music_browse_grant_access">授权访问</string>
+    <string name="music_browse_no_directory">请先添加音乐目录</string>
+    <string name="music_browse_go_to_settings">前往设置</string>
+    <string name="music_browse_empty">目录中未找到音乐文件</string>
+    <string name="music_browse_search_placeholder">搜索歌曲…</string>
+    <string name="music_browse_search">搜索</string>
+    <string name="music_browse_add_to_playlist">添加到播放列表</string>
+
+    <!-- Player -->
+    <string name="player_dismiss">关闭</string>
+    <string name="player_unknown_title">未知标题</string>
+    <string name="player_unknown_artist">未知艺术家</string>
+    <string name="player_play_mode">播放模式：%1$s</string>
+    <string name="player_previous">上一首</string>
+    <string name="player_pause">暂停</string>
+    <string name="player_play">播放</string>
+    <string name="player_next">下一首</string>
+
+    <!-- Mini Player -->
+    <string name="mini_player_pause">暂停</string>
+    <string name="mini_player_play">播放</string>
+    <string name="mini_player_next">下一首</string>
+    <string name="mini_player_close">关闭</string>
+
+    <!-- Settings -->
+    <string name="settings_title">设置</string>
+    <string name="settings_scan_directories">扫描目录</string>
+    <string name="settings_add_scan_directory">添加扫描目录</string>
+    <string name="settings_theme">主题</string>
+    <string name="settings_theme_system">跟随系统</string>
+    <string name="settings_theme_light">浅色</string>
+    <string name="settings_theme_dark">深色</string>
+    <string name="settings_add_directory_dialog_title">添加目录</string>
+    <string name="settings_add_directory_confirm">添加</string>
+    <string name="settings_alarm_ring">闹钟响铃</string>
+    <string name="settings_breathing_light">呼吸灯效果</string>
+    <string name="settings_breathing_period">呼吸周期：%1$.1f 秒</string>
+    <string name="settings_alarm_playback">闹钟播放</string>
+    <string name="settings_language">语言</string>
+    <string name="settings_language_system">跟随系统</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_language_zh">中文</string>
+    <string name="settings_language_ja">日本語</string>
+    <string name="settings_volume_ramp_duration">音量渐强时长</string>
+    <string name="settings_volume_ramp_disabled">关闭</string>
+    <string name="settings_volume_ramp_seconds">%d 秒</string>
+    <string name="settings_last_scan">上次扫描：%1$s</string>
+    <string name="settings_directory_count">%1$d 个目录</string>
+    <string name="settings_permission_diagnostics">权限诊断</string>
+    <string name="settings_check_permissions">检查闹钟相关权限</string>
+    <string name="settings_toast_external_storage">不支持外部存储设备，请选择内部存储中的文件夹。</string>
+    <string name="settings_toast_parse_failed">解析文件夹路径失败，请重试。</string>
+    <string name="settings_error_no_directory">未选择目录</string>
+    <string name="settings_error_invalid_path">无效的目录路径</string>
+    <string name="settings_error_add_failed">添加目录失败</string>
+    <string name="scan_directory_remove">移除目录</string>
+    <string name="theme_error_set_failed">更新主题失败</string>
+    <string name="alarm_ring_error_breathing_settings_failed">更新呼吸灯设置失败</string>
+    <string name="error_load_failed">加载数据失败</string>
+    <string name="retry">重试</string>
+
+    <!-- About -->
+    <string name="settings_about_title">关于</string>
+    <string name="settings_about_description">版本信息</string>
+    <string name="about_screen_title">关于</string>
+    <string name="about_version_label">版本</string>
+    <string name="about_supported_formats_title">支持的音频格式</string>
+    <string name="about_supported_formats_list">MP3, AAC, OGG, FLAC, WAV, Opus</string>
+    <string name="about_flac_note">* FLAC 播放需要 Android 8.1 或更高版本 (API 27+)</string>
+
+    <!-- Permission Diagnostics -->
+    <string name="permission_diagnostics_title">权限诊断</string>
+    <string name="permission_diagnostics_all_granted">所有权限已授予</string>
+    <string name="permission_diagnostics_need_attention">部分权限需要关注</string>
+    <string name="permission_diagnostics_granted">已授予</string>
+    <string name="permission_diagnostics_not_granted">未授予</string>
+    <string name="permission_diagnostics_fix">修复</string>
+    <string name="permission_diagnostics_settings">设置</string>
+
+    <!-- Autostart Guide (Chinese OEM ROMs) -->
+    <string name="autostart_guide_title">闹钟已保存</string>
+    <string name="autostart_guide_message">为确保闹钟准时响起，建议在系统设置中开启本应用的自启动权限。否则系统可能会在后台清除应用，导致闹钟失效。</string>
+    <string name="autostart_guide_open_settings">去设置</string>
+    <string name="autostart_guide_skip">以后再说</string>
+    <string name="autostart_manual_guide_message">为确保闹钟准时响起，请手动开启自启动权限：\n\n1. 打开系统「设置」\n2. 进入「应用」\n3. 点击「自启动管理」\n4. 找到「音乐兔」并开启\n\n否则系统可能会在后台清除应用，导致闹钟失效。</string>
+    <string name="autostart_manual_guide_open_settings">打开系统设置</string>
+</resources>
