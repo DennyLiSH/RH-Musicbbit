@@ -18,7 +18,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Playlist
 
 /**
@@ -42,15 +44,15 @@ fun PlaylistSelector(
 
     val selectedPlaylist = playlists.find { it.id == selectedPlaylistId }
     val displayText = selectedPlaylist?.name ?: if (playlists.isEmpty()) {
-        "No playlists available"
+        stringResource(R.string.playlist_selector_empty)
     } else {
-        "Select a playlist"
+        stringResource(R.string.playlist_selector_placeholder)
     }
 
     Box(modifier = modifier.fillMaxWidth()) {
         if (playlists.isEmpty()) {
             Text(
-                text = "Please create a playlist first",
+                text = stringResource(R.string.playlist_selector_create_first),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 12.dp)
@@ -64,7 +66,7 @@ fun PlaylistSelector(
                     value = displayText,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Playlist") },
+                    label = { Text(stringResource(R.string.playlist_selector_label)) },
                     trailingIcon = {
                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                     },
