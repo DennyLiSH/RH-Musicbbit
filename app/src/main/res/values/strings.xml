@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">音乐兔</string>
+    <string name="app_name">Music Rabbit</string>
     <string name="alarm_select_time">Select Time</string>
     <string name="action_confirm">Confirm</string>
     <string name="action_cancel">Cancel</string>
@@ -96,6 +96,10 @@
     <string name="alarm_edit_error_not_found">Alarm not found</string>
     <string name="alarm_edit_error_select_playlist">Please select a playlist</string>
     <string name="alarm_edit_error_save_failed">Failed to save alarm</string>
+    <string name="playlist_selector_empty">No playlists available</string>
+    <string name="playlist_selector_placeholder">Select a playlist</string>
+    <string name="playlist_selector_create_first">Please create a playlist first</string>
+    <string name="playlist_selector_label">Playlist</string>
     <string name="alarm_error_save_failed">Failed to save alarm</string>
     <string name="alarm_error_enable_failed">Failed to update alarm</string>
     <string name="alarm_error_delete_failed">Failed to delete alarm</string>
@@ -161,6 +165,11 @@
     <string name="settings_breathing_light">Breathing light effect</string>
     <string name="settings_breathing_period">Breathing period: %1$.1fs</string>
     <string name="settings_alarm_playback">Alarm Playback</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">System</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_language_zh">中文</string>
+    <string name="settings_language_ja">日本語</string>
     <string name="settings_volume_ramp_duration">Volume fade-in duration</string>
     <string name="settings_volume_ramp_disabled">Off</string>
     <string name="settings_volume_ramp_seconds">%d seconds</string>
@@ -198,10 +207,10 @@
     <string name="permission_diagnostics_settings">Settings</string>
 
     <!-- Autostart Guide (Chinese OEM ROMs) -->
-    <string name="autostart_guide_title">闹钟已保存</string>
-    <string name="autostart_guide_message">为确保闹钟准时响起，建议在系统设置中开启本应用的自启动权限。否则系统可能会在后台清除应用，导致闹钟失效。</string>
-    <string name="autostart_guide_open_settings">去设置</string>
-    <string name="autostart_guide_skip">以后再说</string>
-    <string name="autostart_manual_guide_message">为确保闹钟准时响起，请手动开启自启动权限：\n\n1. 打开系统「设置」\n2. 进入「应用」\n3. 点击「自启动管理」\n4. 找到「音乐兔」并开启\n\n否则系统可能会在后台清除应用，导致闹钟失效。</string>
-    <string name="autostart_manual_guide_open_settings">打开系统设置</string>
+    <string name="autostart_guide_title">Alarm Saved</string>
+    <string name="autostart_guide_message">To ensure alarms ring on time, it is recommended to enable auto-start permission in system settings. Otherwise, the system may kill the app in the background, causing alarms to fail.</string>
+    <string name="autostart_guide_open_settings">Go to Settings</string>
+    <string name="autostart_guide_skip">Later</string>
+    <string name="autostart_manual_guide_message">To ensure alarms ring on time, please manually enable auto-start permission:\n\n1. Open system \"Settings\"\n2. Go to \"Apps\"\n3. Tap \"Auto-start management\"\n4. Find \"Music Rabbit\" and enable it\n\nOtherwise, the system may kill the app in the background, causing alarms to fail.</string>
+    <string name="autostart_manual_guide_open_settings">Open System Settings</string>
 </resources>
