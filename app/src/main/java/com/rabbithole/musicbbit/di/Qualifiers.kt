@@ -15,5 +15,5 @@ annotation class MainDispatcher
 annotation class DefaultDispatcher
 
 @Qualifier
-@Retention(AnnotationRetention.RUNTIME)
+@Retention(AnnotationRetention.BINARY)
 annotation class ApplicationScope

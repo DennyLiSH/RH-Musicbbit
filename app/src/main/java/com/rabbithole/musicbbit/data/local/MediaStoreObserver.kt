@@ -5,10 +5,11 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -19,10 +20,11 @@ import android.content.Context
 @Singleton
 class MediaStoreObserver @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val musicRepository: MusicRepository
+    private val musicRepository: MusicRepository,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : ContentObserver(Handler(Looper.getMainLooper())) {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + ioDispatcher)
 
     init {
         register()

@@ -7,11 +7,12 @@ import android.os.Binder
 import android.os.IBinder
 import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
+import com.rabbithole.musicbbit.di.MainDispatcher
 import com.rabbithole.musicbbit.service.playback.PlaybackSession
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -42,8 +43,12 @@ class MusicPlaybackService : Service() {
     @Inject
     lateinit var alarmFireSession: AlarmFireSession
 
+    @MainDispatcher
+    @Inject
+    lateinit var mainDispatcher: CoroutineDispatcher
+
     private val serviceJob = SupervisorJob()
-    private val serviceScope = CoroutineScope(serviceJob + Dispatchers.Main)
+    private val serviceScope by lazy { CoroutineScope(serviceJob + mainDispatcher) }
     private var stateJob: Job? = null
 
     inner class MusicBinder : Binder() {

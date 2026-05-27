@@ -22,52 +22,62 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
 
     @Binds
+    @Singleton
     abstract fun bindMusicRepository(
         impl: MusicRepositoryImpl
     ): MusicRepository
 
     @Binds
+    @Singleton
     abstract fun bindScanDirectoryRepository(
         impl: ScanDirectoryRepositoryImpl
     ): ScanDirectoryRepository
 
     @Binds
+    @Singleton
     abstract fun bindPlaylistRepository(
         impl: PlaylistRepositoryImpl
     ): PlaylistRepository
 
     @Binds
+    @Singleton
     abstract fun bindPlaybackProgressRepository(
         impl: PlaybackProgressRepositoryImpl
     ): PlaybackProgressRepository
 
     @Binds
+    @Singleton
     abstract fun bindThemeRepository(
         impl: ThemeRepositoryImpl
     ): ThemeRepository
 
     @Binds
+    @Singleton
     abstract fun bindAlarmRepository(
         impl: AlarmRepositoryImpl
     ): AlarmRepository
 
     @Binds
+    @Singleton
     abstract fun bindAlarmPersistenceRepository(
         impl: AlarmPersistenceRepositoryImpl
     ): AlarmPersistenceRepository
 
     @Binds
+    @Singleton
     abstract fun bindHolidayRepository(
         impl: HolidayRepositoryImpl
     ): HolidayRepository
 
     @Binds
+    @Singleton
     abstract fun bindAlarmRingSettingsRepository(
         impl: AlarmRingSettingsRepositoryImpl
     ): AlarmRingSettingsRepository

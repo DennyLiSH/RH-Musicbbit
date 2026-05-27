@@ -16,7 +16,7 @@ class HolidayMapperTest {
             fetchedAt = 1_700_000_000_000L
         )
 
-        val domain = with(HolidayMapper) { entity.toDomain() }
+        val domain = entity.toDomain()
 
         assertEquals("2026-01-01", domain.date)
         assertEquals(2026, domain.year)
@@ -34,7 +34,7 @@ class HolidayMapperTest {
             fetchedAt = 999L
         )
 
-        val domain = with(HolidayMapper) { entity.toDomain() }
+        val domain = entity.toDomain()
 
         // Verify fetchedAt is not part of domain model
         assertEquals(false, domain.isHoliday)

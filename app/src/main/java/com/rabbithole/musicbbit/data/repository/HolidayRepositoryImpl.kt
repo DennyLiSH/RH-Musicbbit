@@ -7,7 +7,7 @@ import androidx.datastore.preferences.core.edit
 import com.rabbithole.musicbbit.data.local.dao.HolidayDao
 import com.rabbithole.musicbbit.data.local.datastore.SettingsKeys
 import com.rabbithole.musicbbit.data.local.model.HolidayEntity
-import com.rabbithole.musicbbit.data.mapper.HolidayMapper.toDomain
+import com.rabbithole.musicbbit.data.mapper.toDomain
 import com.rabbithole.musicbbit.data.remote.api.HolidayApi
 import com.rabbithole.musicbbit.data.remote.dto.HolidayResponseDto
 import com.rabbithole.musicbbit.di.IoDispatcher

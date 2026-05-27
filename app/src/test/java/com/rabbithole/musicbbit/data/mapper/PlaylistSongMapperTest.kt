@@ -23,7 +23,7 @@ class PlaylistSongMapperTest {
             PlaylistSongEntity(playlistId = 1L, songId = 30L, sortOrder = 2)
         )
 
-        val result = PlaylistSongMapper.toPlaylistWithSongs(playlist, songs, sortOrders)
+        val result = toPlaylistWithSongs(playlist, songs, sortOrders)
 
         assertEquals(listOf(song2, song1, song3), result.songs)
         assertEquals(playlist, result.playlist)
@@ -36,7 +36,7 @@ class PlaylistSongMapperTest {
             PlaylistSongEntity(playlistId = 1L, songId = 20L, sortOrder = 0)
         )
 
-        val result = PlaylistSongMapper.toPlaylistWithSongs(playlist, songs, sortOrders)
+        val result = toPlaylistWithSongs(playlist, songs, sortOrders)
 
         assertEquals(song2, result.songs.first())
         // song1 and song3 have no sortOrder, they go at the end (order stable among themselves)
@@ -45,7 +45,7 @@ class PlaylistSongMapperTest {
 
     @Test
     fun `toPlaylistWithSongs handles empty songs`() {
-        val result = PlaylistSongMapper.toPlaylistWithSongs(playlist, emptyList(), emptyList())
+        val result = toPlaylistWithSongs(playlist, emptyList(), emptyList())
 
         assertEquals(emptyList<Song>(), result.songs)
         assertEquals(playlist, result.playlist)
@@ -55,7 +55,7 @@ class PlaylistSongMapperTest {
     fun `toPlaylistWithSongs handles empty sortOrders`() {
         val songs = listOf(song1, song2)
 
-        val result = PlaylistSongMapper.toPlaylistWithSongs(playlist, songs, emptyList())
+        val result = toPlaylistWithSongs(playlist, songs, emptyList())
 
         // All songs have no sortOrder, all get Int.MAX_VALUE, preserve input order
         assertEquals(listOf(song1, song2), result.songs)

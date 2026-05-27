@@ -25,7 +25,7 @@ class AlarmMapperTest {
             lastTriggeredAt = 1_700_000_000_000L
         )
 
-        val domain = with(AlarmMapper) { entity.toDomain() }
+        val domain = entity.toDomain()
 
         assertEquals(1L, domain.id)
         assertEquals(8, domain.hour)
@@ -54,7 +54,7 @@ class AlarmMapperTest {
             lastTriggeredAt = null
         )
 
-        val domain = with(AlarmMapper) { entity.toDomain() }
+        val domain = entity.toDomain()
 
         assertNull(domain.label)
         assertNull(domain.autoStop)
@@ -77,7 +77,7 @@ class AlarmMapperTest {
             lastTriggeredAt = 1_700_000_000_000L
         )
 
-        val entity = with(AlarmMapper) { domain.toEntity() }
+        val entity = domain.toEntity()
 
         assertEquals(1L, entity.id)
         assertEquals(8, entity.hour)
@@ -106,8 +106,8 @@ class AlarmMapperTest {
             lastTriggeredAt = null
         )
 
-        val entity = with(AlarmMapper) { original.toEntity() }
-        val roundtrip = with(AlarmMapper) { entity.toDomain() }
+        val entity = original.toEntity()
+        val roundtrip = entity.toDomain()
 
         assertEquals(original, roundtrip)
     }
