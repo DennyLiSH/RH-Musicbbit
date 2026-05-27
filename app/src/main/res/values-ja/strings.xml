@@ -1,0 +1,216 @@
+<resources>
+    <string name="app_name">音乐兔</string>
+    <string name="alarm_select_time">時刻を選択</string>
+    <string name="action_confirm">確認</string>
+    <string name="action_cancel">キャンセル</string>
+    <string name="tab_music">音楽</string>
+    <string name="tab_playlist">プレイリスト</string>
+    <string name="tab_alarm">アラーム</string>
+    <string name="tab_settings">設定</string>
+    <string name="alarm_title">アラーム</string>
+    <string name="alarm_default_label">アラーム</string>
+    <string name="alarm_empty_title">アラームなし</string>
+    <string name="alarm_empty_subtitle">+ をタップして作成</string>
+    <string name="alarm_list_create_alarm">アラームを作成</string>
+    <string name="alarm_one_time">一回のみ</string>
+    <string name="alarm_daily">毎日</string>
+    <string name="alarm_weekdays">平日</string>
+    <string name="alarm_excluding_holidays">祝祭日を除く</string>
+    <string name="alarm_excluding_holidays_short">祝日除く</string>
+    <string name="alarm_monday">月</string>
+    <string name="alarm_tuesday">火</string>
+    <string name="alarm_wednesday">水</string>
+    <string name="alarm_thursday">木</string>
+    <string name="alarm_friday">金</string>
+    <string name="alarm_saturday">土</string>
+    <string name="alarm_sunday">日</string>
+    <string name="battery_optimization_title">バッテリー最適化</string>
+    <string name="battery_optimization_message">画面オフ時にアラームが確実に鳴るよう、音楽兔のバッテリー最適化を無効にしてください。</string>
+    <string name="full_screen_intent_banner_title">全画面通知が無効です</string>
+    <string name="full_screen_intent_banner_message">画面を起こすため、全画面通知を許可してください</string>
+    <string name="go_to_settings">設定へ</string>
+    <string name="exact_alarm_permission_title">正確なアラーム権限が必要です</string>
+    <string name="exact_alarm_permission_message">アラームが正確な時刻に鳴るよう、正確なアラームの使用を許可してください。</string>
+    <string name="fsi_permission_title">全画面アラーム権限が必要です</string>
+    <string name="fsi_permission_message">Android 14 以上では、ロック画面にアラームを表示するために権限が必要です。権限がない場合、音楽は再生されますが全画面画面は表示されません。</string>
+    <string name="fsi_permission_grant">権限を付与</string>
+    <string name="now_playing">再生中…</string>
+    <string name="alarm_active_banner_title">アラーム再生中</string>
+    <string name="alarm_active_banner_stop">アラーム停止</string>
+    <string name="pause">一時停止</string>
+    <string name="resume">再開</string>
+    <string name="stop">停止</string>
+    <string name="notification_channel_name">音楽アラーム</string>
+    <string name="notification_alarm_channel_desc">音楽アラーム通知</string>
+    <string name="notification_music_channel_desc">音楽再生通知</string>
+    <string name="notification_default_alarm_label">音楽アラーム</string>
+    <string name="notification_unknown_artist">不明なアーティスト</string>
+    <string name="notification_playing_format">再生中：%1$s - %2$s</string>
+    <string name="notification_extend">延長 ▼</string>
+    <string name="notification_extend_minutes">%d 分延長</string>
+    <string name="notification_to_song_end">曲の終わりまで</string>
+    <string name="notification_alarm_paused">アラーム一時停止中</string>
+    <string name="notification_playback_paused">再生が一時停止されました</string>
+    <string name="notification_play">再生</string>
+    <string name="notification_playlist_empty">プレイリストが空です</string>
+    <string name="add_songs_title">曲を追加</string>
+    <string name="add_songs_search_placeholder">曲を検索…</string>
+    <string name="add_songs_no_results">曲が見つかりません</string>
+    <string name="all_songs_already_in_playlist">すべての曲は既にプレイリストにあります</string>
+    <string name="select_all">すべて選択</string>
+    <string name="clear">クリア</string>
+    <string name="add_count">追加 (%d)</string>
+    <string name="play_all">すべて再生</string>
+
+    <!-- Common -->
+    <string name="common_back">戻る</string>
+    <string name="common_save">保存</string>
+    <string name="common_create">作成</string>
+
+    <!-- Alarm Edit -->
+    <string name="alarm_edit_title_new">新しいアラーム</string>
+    <string name="alarm_edit_title_edit">アラームを編集</string>
+    <string name="alarm_edit_title_loading">アラーム</string>
+    <string name="alarm_edit_section_repeat">繰り返し</string>
+    <string name="alarm_edit_section_playlist">プレイリスト</string>
+    <string name="alarm_edit_section_label">ラベル</string>
+    <string name="alarm_edit_section_auto_stop">自動停止</string>
+    <string name="alarm_edit_label_placeholder">任意のラベル</string>
+    <string name="alarm_edit_save_button">アラームを保存</string>
+    <string name="alarm_edit_tap_to_change_time">タップして時刻を変更</string>
+    <string name="alarm_edit_auto_stop_label">自動停止</string>
+    <string name="alarm_edit_auto_stop_none">自動停止しない</string>
+    <string name="alarm_edit_auto_stop_5min">5 分</string>
+    <string name="alarm_edit_auto_stop_10min">10 分</string>
+    <string name="alarm_edit_auto_stop_15min">15 分</string>
+    <string name="alarm_edit_auto_stop_30min">30 分</string>
+    <string name="alarm_edit_auto_stop_60min">60 分</string>
+    <string name="alarm_edit_auto_stop_1song">1 曲</string>
+    <string name="alarm_edit_auto_stop_2songs">2 曲</string>
+    <string name="alarm_edit_auto_stop_3songs">3 曲</string>
+    <string name="alarm_edit_auto_stop_4songs">4 曲</string>
+    <string name="alarm_edit_auto_stop_5songs">5 曲</string>
+    <string name="alarm_edit_auto_stop_10songs">10 曲</string>
+    <string name="alarm_edit_volume_ramp_hint">アラームが鳴ると、音量が %d 秒かけて 30%% から最大まで徐々に上がります。</string>
+    <string name="alarm_edit_volume_ramp_disabled_hint">アラームが鳴ると、音量が即座に最大になります。</string>
+    <string name="alarm_edit_error_not_found">アラームが見つかりません</string>
+    <string name="alarm_edit_error_select_playlist">プレイリストを選択してください</string>
+    <string name="alarm_edit_error_save_failed">アラームの保存に失敗しました</string>
+    <string name="playlist_selector_empty">プレイリストがありません</string>
+    <string name="playlist_selector_placeholder">プレイリストを選択</string>
+    <string name="playlist_selector_create_first">先にプレイリストを作成してください</string>
+    <string name="playlist_selector_label">プレイリスト</string>
+    <string name="alarm_error_save_failed">アラームの保存に失敗しました</string>
+    <string name="alarm_error_enable_failed">アラームの更新に失敗しました</string>
+    <string name="alarm_error_delete_failed">アラームの削除に失敗しました</string>
+
+    <!-- Playlist Detail -->
+    <string name="playlist_detail_title_loading">プレイリスト</string>
+    <string name="playlist_detail_empty">"%1$s" は空です</string>
+    <string name="playlist_detail_drag_to_reorder">ドラッグで並び替え</string>
+    <string name="playlist_detail_remove_from_playlist">プレイリストから削除</string>
+
+    <!-- Playlist List -->
+    <string name="playlist_list_title">プレイリスト</string>
+    <string name="playlist_list_create_button">プレイリストを作成</string>
+    <string name="playlist_list_empty_title">プレイリストなし</string>
+    <string name="playlist_list_empty_subtitle">+ ボタンをタップして作成</string>
+    <string name="playlist_list_dialog_title">新しいプレイリスト</string>
+    <string name="playlist_list_dialog_name_label">プレイリスト名</string>
+    <string name="playlist_list_delete">プレイリストを削除</string>
+    <string name="playlist_error_delete_failed">プレイリストの削除に失敗しました</string>
+    <string name="playlist_error_remove_song_failed">曲の削除に失敗しました</string>
+    <string name="playlist_error_reorder_failed">並び替えに失敗しました</string>
+    <string name="playlist_error_add_song_failed">曲の追加に失敗しました</string>
+
+    <!-- Music Browse -->
+    <string name="music_browse_title">音楽</string>
+    <string name="music_browse_settings">設定</string>
+    <string name="music_browse_permission_required">音楽ファイルを読み込むにはストレージ権限が必要です</string>
+    <string name="music_browse_grant_access">アクセスを許可</string>
+    <string name="music_browse_no_directory">先に音楽ディレクトリを追加してください</string>
+    <string name="music_browse_go_to_settings">設定へ</string>
+    <string name="music_browse_empty">ディレクトリに音楽ファイルが見つかりません</string>
+    <string name="music_browse_search_placeholder">曲を検索…</string>
+    <string name="music_browse_search">検索</string>
+    <string name="music_browse_add_to_playlist">プレイリストに追加</string>
+
+    <!-- Player -->
+    <string name="player_dismiss">閉じる</string>
+    <string name="player_unknown_title">不明なタイトル</string>
+    <string name="player_unknown_artist">不明なアーティスト</string>
+    <string name="player_play_mode">再生モード：%1$s</string>
+    <string name="player_previous">前へ</string>
+    <string name="player_pause">一時停止</string>
+    <string name="player_play">再生</string>
+    <string name="player_next">次へ</string>
+
+    <!-- Mini Player -->
+    <string name="mini_player_pause">一時停止</string>
+    <string name="mini_player_play">再生</string>
+    <string name="mini_player_next">次へ</string>
+    <string name="mini_player_close">閉じる</string>
+
+    <!-- Settings -->
+    <string name="settings_title">設定</string>
+    <string name="settings_scan_directories">スキャンディレクトリ</string>
+    <string name="settings_add_scan_directory">スキャンディレクトリを追加</string>
+    <string name="settings_theme">テーマ</string>
+    <string name="settings_theme_system">システム</string>
+    <string name="settings_theme_light">ライト</string>
+    <string name="settings_theme_dark">ダーク</string>
+    <string name="settings_add_directory_dialog_title">ディレクトリを追加</string>
+    <string name="settings_add_directory_confirm">追加</string>
+    <string name="settings_alarm_ring">アラーム音</string>
+    <string name="settings_breathing_light">呼吸灯効果</string>
+    <string name="settings_breathing_period">呼吸周期：%1$.1f 秒</string>
+    <string name="settings_alarm_playback">アラーム再生</string>
+    <string name="settings_language">言語</string>
+    <string name="settings_language_system">システム</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_language_zh">中文</string>
+    <string name="settings_language_ja">日本語</string>
+    <string name="settings_volume_ramp_duration">音量フェードイン時間</string>
+    <string name="settings_volume_ramp_disabled">オフ</string>
+    <string name="settings_volume_ramp_seconds">%d 秒</string>
+    <string name="settings_last_scan">最終スキャン：%1$s</string>
+    <string name="settings_directory_count">%1$d ディレクトリ</string>
+    <string name="settings_permission_diagnostics">権限診断</string>
+    <string name="settings_check_permissions">アラーム関連の権限を確認</string>
+    <string name="settings_toast_external_storage">外部ストレージデバイスはサポートされていません。内部ストレージのフォルダを選択してください。</string>
+    <string name="settings_toast_parse_failed">フォルダパスの解析に失敗しました。もう一度お試しください。</string>
+    <string name="settings_error_no_directory">ディレクトリが選択されていません</string>
+    <string name="settings_error_invalid_path">無効なディレクトリパス</string>
+    <string name="settings_error_add_failed">ディレクトリの追加に失敗しました</string>
+    <string name="scan_directory_remove">ディレクトリを削除</string>
+    <string name="theme_error_set_failed">テーマの更新に失敗しました</string>
+    <string name="alarm_ring_error_breathing_settings_failed">呼吸灯設定の更新に失敗しました</string>
+    <string name="error_load_failed">データの読み込みに失敗しました</string>
+    <string name="retry">再試行</string>
+
+    <!-- About -->
+    <string name="settings_about_title">について</string>
+    <string name="settings_about_description">バージョン情報</string>
+    <string name="about_screen_title">について</string>
+    <string name="about_version_label">バージョン</string>
+    <string name="about_supported_formats_title">対応オーディオ形式</string>
+    <string name="about_supported_formats_list">MP3, AAC, OGG, FLAC, WAV, Opus</string>
+    <string name="about_flac_note">* FLAC 再生には Android 8.1 以降 (API 27+) が必要です</string>
+
+    <!-- Permission Diagnostics -->
+    <string name="permission_diagnostics_title">権限診断</string>
+    <string name="permission_diagnostics_all_granted">すべての権限が付与されています</string>
+    <string name="permission_diagnostics_need_attention">一部の権限に対応が必要です</string>
+    <string name="permission_diagnostics_granted">付与済み</string>
+    <string name="permission_diagnostics_not_granted">未付与</string>
+    <string name="permission_diagnostics_fix">修正</string>
+    <string name="permission_diagnostics_settings">設定</string>
+
+    <!-- Autostart Guide (Chinese OEM ROMs) -->
+    <string name="autostart_guide_title">アラームを保存しました</string>
+    <string name="autostart_guide_message">アラームが時間通りに鳴るよう、システム設定で自動起動権限を有効にすることをお勧めします。有効にしない場合、システムがバックグラウンドでアプリを終了し、アラームが動作しない可能性があります。</string>
+    <string name="autostart_guide_open_settings">設定へ</string>
+    <string name="autostart_guide_skip">後で</string>
+    <string name="autostart_manual_guide_message">アラームが時間通りに鳴るよう、自動起動権限を手動で有効にしてください：\n\n1. システム「設定」を開く\n2.「アプリ」に入る\n3.「自動起動管理」をタップ\n4.「音乐兔」を見つけて有効にする\n\n有効にしない場合、システムがバックグラウンドでアプリを終了し、アラームが動作しない可能性があります。</string>
+    <string name="autostart_manual_guide_open_settings">システム設定を開く</string>
+</resources>
