@@ -1,5 +1,6 @@
 package com.rabbithole.musicbbit.presentation.alarm
 
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -37,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import com.rabbithole.musicbbit.LocaleHelper
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.service.AlarmActionReceiver
 import com.rabbithole.musicbbit.service.AlarmScheduler
@@ -61,6 +63,10 @@ class AlarmRingActivity : ComponentActivity() {
 
     private val viewModel: AlarmRingViewModel by viewModels()
     private var breathingJob: Job? = null
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.wrapContext(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

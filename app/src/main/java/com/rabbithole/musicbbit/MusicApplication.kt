@@ -19,6 +19,7 @@ class MusicApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        LocaleHelper.applyOnStartup(this)
         val isDebug = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         if (isDebug) {
             Timber.plant(Timber.DebugTree())
