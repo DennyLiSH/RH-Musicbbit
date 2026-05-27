@@ -2,12 +2,6 @@ package com.rabbithole.musicbbit.service
 
 import com.rabbithole.musicbbit.R
 
-/**
- * Pure-Kotlin description of an alarm notification's content.
- *
- * Separates "what the notification says and does" from "how it is rendered on Android".
- * This makes notification logic testable without Robolectric.
- */
 data class AlarmNotificationContent(
     val title: String,
     val text: String,
@@ -32,17 +26,24 @@ data class AlarmNotificationContent(
     }
 }
 
-/**
- * Builds [AlarmNotificationContent] from domain models.
- *
- * Pure function — no Android dependencies.
- */
-class AlarmNotificationContentBuilder {
+class AlarmNotificationContentBuilder(
+    private val defaultAlarmLabel: String,
+    private val unknownArtist: String,
+    private val playingFormat: String,
+    private val stop: String,
+    private val pause: String,
+    private val resume: String,
+    private val extend: String,
+    private val extendMinutesFormat: String,
+    private val toSongEnd: String,
+    private val alarmPausedTitle: String,
+    private val playbackPausedText: String,
+) {
 
     fun buildPlaying(alarmLabel: String?, songTitle: String, songArtist: String?): AlarmNotificationContent {
-        val label = alarmLabel ?: "Music Alarm"
-        val artist = songArtist ?: "Unknown artist"
-        val fullText = "Playing: $songTitle - $artist"
+        val label = alarmLabel ?: defaultAlarmLabel
+        val artist = songArtist ?: unknownArtist
+        val fullText = String.format(playingFormat, songTitle, artist)
         return AlarmNotificationContent(
             title = "⏰ $label",
             text = fullText,
@@ -51,26 +52,26 @@ class AlarmNotificationContentBuilder {
             autoCancel = false,
             showFullScreenIntent = true,
             actions = listOf(
-                AlarmNotificationContent.Action(R.drawable.ic_notification_stop, "Stop", AlarmNotificationContent.ActionType.Stop),
-                AlarmNotificationContent.Action(R.drawable.ic_notification_pause, "Pause", AlarmNotificationContent.ActionType.Pause),
-                AlarmNotificationContent.Action(R.drawable.ic_notification_expand_more, "Extend ▼", AlarmNotificationContent.ActionType.ExtendMinutes(5)),
-                AlarmNotificationContent.Action(R.drawable.ic_notification_snooze, "Extend 5 min", AlarmNotificationContent.ActionType.ExtendMinutes(5)),
-                AlarmNotificationContent.Action(R.drawable.ic_notification_snooze, "Extend 10 min", AlarmNotificationContent.ActionType.ExtendMinutes(10)),
-                AlarmNotificationContent.Action(R.drawable.ic_notification_snooze, "Extend 15 min", AlarmNotificationContent.ActionType.ExtendMinutes(15)),
-                AlarmNotificationContent.Action(R.drawable.ic_notification_skip_next, "To song end", AlarmNotificationContent.ActionType.ExtendToEnd),
+                AlarmNotificationContent.Action(R.drawable.ic_notification_stop, stop, AlarmNotificationContent.ActionType.Stop),
+                AlarmNotificationContent.Action(R.drawable.ic_notification_pause, pause, AlarmNotificationContent.ActionType.Pause),
+                AlarmNotificationContent.Action(R.drawable.ic_notification_expand_more, extend, AlarmNotificationContent.ActionType.ExtendMinutes(5)),
+                AlarmNotificationContent.Action(R.drawable.ic_notification_snooze, String.format(extendMinutesFormat, 5), AlarmNotificationContent.ActionType.ExtendMinutes(5)),
+                AlarmNotificationContent.Action(R.drawable.ic_notification_snooze, String.format(extendMinutesFormat, 10), AlarmNotificationContent.ActionType.ExtendMinutes(10)),
+                AlarmNotificationContent.Action(R.drawable.ic_notification_snooze, String.format(extendMinutesFormat, 15), AlarmNotificationContent.ActionType.ExtendMinutes(15)),
+                AlarmNotificationContent.Action(R.drawable.ic_notification_skip_next, toSongEnd, AlarmNotificationContent.ActionType.ExtendToEnd),
             ),
         )
     }
 
     fun buildPaused(): AlarmNotificationContent {
         return AlarmNotificationContent(
-            title = "⏰ Alarm Paused",
-            text = "Playback has been paused",
+            title = "⏰ $alarmPausedTitle",
+            text = playbackPausedText,
             isOngoing = true,
             autoCancel = false,
             actions = listOf(
-                AlarmNotificationContent.Action(R.drawable.ic_notification_play, "Resume", AlarmNotificationContent.ActionType.Resume),
-                AlarmNotificationContent.Action(R.drawable.ic_notification_stop, "Stop", AlarmNotificationContent.ActionType.Stop),
+                AlarmNotificationContent.Action(R.drawable.ic_notification_play, resume, AlarmNotificationContent.ActionType.Resume),
+                AlarmNotificationContent.Action(R.drawable.ic_notification_stop, stop, AlarmNotificationContent.ActionType.Stop),
             ),
         )
     }

@@ -1,6 +1,5 @@
 package com.rabbithole.musicbbit.presentation.playlist
 
-import androidx.activity.ComponentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
@@ -45,7 +44,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -59,6 +57,7 @@ import com.rabbithole.musicbbit.navigation.Player
 import com.rabbithole.musicbbit.presentation.components.ErrorContent
 import com.rabbithole.musicbbit.presentation.music.components.SongListItem
 import com.rabbithole.musicbbit.presentation.player.PlayerViewModel
+import com.rabbithole.musicbbit.presentation.components.rememberActivityScopedPlayerViewModel
 import com.rabbithole.musicbbit.presentation.playlist.components.AddSongsBottomSheet
 import kotlin.math.roundToInt
 
@@ -67,9 +66,7 @@ import kotlin.math.roundToInt
 fun PlaylistDetailScreen(
     navController: NavController,
     viewModel: PlaylistDetailViewModel = hiltViewModel(),
-    playerViewModel: PlayerViewModel = hiltViewModel(
-        viewModelStoreOwner = LocalContext.current as ComponentActivity
-    )
+    playerViewModel: PlayerViewModel = rememberActivityScopedPlayerViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val allSongs by viewModel.allSongs.collectAsStateWithLifecycle()

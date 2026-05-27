@@ -43,13 +43,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import android.content.Intent
-import androidx.activity.ComponentActivity
-import androidx.compose.ui.platform.LocalContext
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.presentation.components.rememberActivityScopedPlayerViewModel
 import com.rabbithole.musicbbit.presentation.alarm.AlarmRingActivity
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import com.rabbithole.musicbbit.presentation.util.formatDuration
@@ -59,9 +59,7 @@ import com.rabbithole.musicbbit.service.PlayMode
 fun PlayerScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    viewModel: PlayerViewModel = hiltViewModel(
-        viewModelStoreOwner = LocalContext.current as ComponentActivity
-    )
+    viewModel: PlayerViewModel = rememberActivityScopedPlayerViewModel()
 ) {
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
     val alarmLabel by viewModel.alarmLabel.collectAsStateWithLifecycle()

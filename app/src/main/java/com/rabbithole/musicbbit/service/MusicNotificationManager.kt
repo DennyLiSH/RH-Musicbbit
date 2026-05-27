@@ -42,7 +42,11 @@ class MusicNotificationManager @Inject constructor(
                 channelName,
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Music playback notification"
+                description = try {
+                    context.getString(R.string.notification_music_channel_desc)
+                } catch (e: android.content.res.Resources.NotFoundException) {
+                    "Music playback notification"
+                }
                 setShowBadge(false)
             }
             notificationManager.createNotificationChannel(channel)
@@ -83,7 +87,11 @@ class MusicNotificationManager @Inject constructor(
         val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification_small)
             .setContentTitle(song?.title ?: appName)
-            .setContentText(song?.artist ?: "Unknown artist")
+            .setContentText(song?.artist ?: try {
+                context.getString(R.string.notification_unknown_artist)
+            } catch (e: android.content.res.Resources.NotFoundException) {
+                "Unknown artist"
+            })
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -92,19 +100,19 @@ class MusicNotificationManager @Inject constructor(
 
         builder.addAction(
             R.drawable.ic_notification_skip_previous,
-            "Previous",
+            try { context.getString(R.string.player_previous) } catch (_: android.content.res.Resources.NotFoundException) { "Previous" },
             createActionPendingIntent(MusicPlaybackService.ACTION_PREVIOUS)
         )
 
         builder.addAction(
             if (state.isPlaying) R.drawable.ic_notification_pause else R.drawable.ic_notification_play,
-            if (state.isPlaying) "Pause" else "Play",
+            if (state.isPlaying) try { context.getString(R.string.pause) } catch (_: android.content.res.Resources.NotFoundException) { "Pause" } else try { context.getString(R.string.notification_play) } catch (_: android.content.res.Resources.NotFoundException) { "Play" },
             createActionPendingIntent(MusicPlaybackService.ACTION_TOGGLE_PLAY_PAUSE)
         )
 
         builder.addAction(
             R.drawable.ic_notification_skip_next,
-            "Next",
+            try { context.getString(R.string.player_next) } catch (_: android.content.res.Resources.NotFoundException) { "Next" },
             createActionPendingIntent(MusicPlaybackService.ACTION_NEXT)
         )
 

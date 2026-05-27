@@ -1,6 +1,5 @@
 package com.rabbithole.musicbbit.navigation
 
-import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -12,7 +11,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
@@ -24,6 +22,7 @@ import androidx.navigation.compose.rememberNavController
 import com.rabbithole.musicbbit.presentation.alarm.AlarmEditScreen
 import com.rabbithole.musicbbit.presentation.alarm.AlarmListScreen
 import com.rabbithole.musicbbit.presentation.components.BottomNavItem
+import com.rabbithole.musicbbit.presentation.components.rememberActivityScopedPlayerViewModel
 import com.rabbithole.musicbbit.presentation.music.MusicBrowseScreen
 import com.rabbithole.musicbbit.presentation.player.MiniPlayer
 import com.rabbithole.musicbbit.presentation.player.PlayerScreen
@@ -88,9 +87,7 @@ fun AppNavigation(
                 composable<PlaylistDetail> {
                     PlaylistDetailScreen(
                         navController = navController,
-                        playerViewModel = hiltViewModel(
-                            viewModelStoreOwner = LocalContext.current as ComponentActivity
-                        )
+                        playerViewModel = rememberActivityScopedPlayerViewModel()
                     )
                 }
                 composable<Alarm> {

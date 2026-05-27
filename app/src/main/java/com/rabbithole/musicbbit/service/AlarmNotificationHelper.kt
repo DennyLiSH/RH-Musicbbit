@@ -30,7 +30,27 @@ class AlarmNotificationHelper @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : NotificationPort {
 
-    private val contentBuilder = AlarmNotificationContentBuilder()
+    private val contentBuilder = AlarmNotificationContentBuilder(
+        defaultAlarmLabel = safeGetString(R.string.notification_default_alarm_label, "Music Alarm"),
+        unknownArtist = safeGetString(R.string.notification_unknown_artist, "Unknown artist"),
+        playingFormat = safeGetString(R.string.notification_playing_format, "Playing: %1\$s - %2\$s"),
+        stop = safeGetString(R.string.stop, "Stop"),
+        pause = safeGetString(R.string.pause, "Pause"),
+        resume = safeGetString(R.string.resume, "Resume"),
+        extend = safeGetString(R.string.notification_extend, "Extend ▼"),
+        extendMinutesFormat = safeGetString(R.string.notification_extend_minutes, "Extend %d min"),
+        toSongEnd = safeGetString(R.string.notification_to_song_end, "To song end"),
+        alarmPausedTitle = safeGetString(R.string.notification_alarm_paused, "Alarm Paused"),
+        playbackPausedText = safeGetString(R.string.notification_playback_paused, "Playback has been paused"),
+    )
+
+    private fun safeGetString(@androidx.annotation.StringRes resId: Int, fallback: String): String {
+        return try {
+            context.getString(resId)
+        } catch (_: android.content.res.Resources.NotFoundException) {
+            fallback
+        }
+    }
 
     override fun showAlarmPlaying(alarm: Alarm, song: Song) {
         createChannel()
@@ -80,7 +100,11 @@ class AlarmNotificationHelper @Inject constructor(
                 channelName,
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Music alarm notifications"
+                description = try {
+                        context.getString(R.string.notification_alarm_channel_desc)
+                    } catch (e: android.content.res.Resources.NotFoundException) {
+                        "Music alarm notifications"
+                    }
                 setShowBadge(false)
             }
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)

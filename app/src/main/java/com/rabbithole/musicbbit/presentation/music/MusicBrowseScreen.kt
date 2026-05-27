@@ -45,9 +45,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.activity.ComponentActivity
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rabbithole.musicbbit.presentation.components.rememberActivityScopedPlayerViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
@@ -64,9 +64,7 @@ import com.rabbithole.musicbbit.presentation.player.components.AddToPlaylistBott
 fun MusicBrowseScreen(
     navController: NavController,
     viewModel: MusicBrowseViewModel = hiltViewModel(),
-    playerViewModel: PlayerViewModel = hiltViewModel(
-        viewModelStoreOwner = LocalContext.current as ComponentActivity
-    )
+    playerViewModel: PlayerViewModel = rememberActivityScopedPlayerViewModel()
 ) {
     val context = LocalContext.current
 
