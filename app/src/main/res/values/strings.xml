@@ -177,6 +177,7 @@
     <string name="settings_directory_count">%1$d directories</string>
     <string name="settings_permission_diagnostics">Permission Diagnostics</string>
     <string name="settings_check_permissions">Check alarm-related permissions</string>
+    <string name="settings_manage_scan_paths">Manage music folder paths</string>
     <string name="settings_toast_external_storage">External storage devices are not supported. Please select a folder from internal storage.</string>
     <string name="settings_toast_parse_failed">Failed to parse folder path. Please try again.</string>
     <string name="settings_error_no_directory">No directory selected</string>

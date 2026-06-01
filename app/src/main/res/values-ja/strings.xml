@@ -177,6 +177,7 @@
     <string name="settings_directory_count">%1$d ディレクトリ</string>
     <string name="settings_permission_diagnostics">権限診断</string>
     <string name="settings_check_permissions">アラーム関連の権限を確認</string>
+    <string name="settings_manage_scan_paths">音楽フォルダのパスを管理</string>
     <string name="settings_toast_external_storage">外部ストレージデバイスはサポートされていません。内部ストレージのフォルダを選択してください。</string>
     <string name="settings_toast_parse_failed">フォルダパスの解析に失敗しました。もう一度お試しください。</string>
     <string name="settings_error_no_directory">ディレクトリが選択されていません</string>

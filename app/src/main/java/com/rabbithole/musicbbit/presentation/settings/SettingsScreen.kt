@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -93,7 +94,7 @@ fun SettingsScreen(
             // Scan Directories card
             SettingsNavCard(
                 title = stringResource(R.string.settings_scan_directories),
-                description = stringResource(R.string.settings_check_permissions),
+                description = stringResource(R.string.settings_manage_scan_paths),
                 onClick = { navController.navigate(ScanDirectorySettings) }
             )
 
@@ -232,14 +233,14 @@ private fun LanguageButton(
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             )
         ) {
-            Text(label, maxLines = 1)
+            Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     } else {
         OutlinedButton(
             onClick = onClick,
             modifier = modifier
         ) {
-            Text(label, maxLines = 1)
+            Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -314,14 +315,14 @@ private fun ThemeModeButton(
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             )
         ) {
-            Text(label)
+            Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     } else {
         OutlinedButton(
             onClick = onClick,
             modifier = modifier
         ) {
-            Text(label)
+            Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -334,7 +335,7 @@ private fun SettingsNavCard(
 ) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )

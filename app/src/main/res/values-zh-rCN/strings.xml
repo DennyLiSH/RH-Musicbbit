@@ -177,6 +177,7 @@
     <string name="settings_directory_count">%1$d 个目录</string>
     <string name="settings_permission_diagnostics">权限诊断</string>
     <string name="settings_check_permissions">检查闹钟相关权限</string>
+    <string name="settings_manage_scan_paths">管理音乐文件夹路径</string>
     <string name="settings_toast_external_storage">不支持外部存储设备，请选择内部存储中的文件夹。</string>
     <string name="settings_toast_parse_failed">解析文件夹路径失败，请重试。</string>
     <string name="settings_error_no_directory">未选择目录</string>
