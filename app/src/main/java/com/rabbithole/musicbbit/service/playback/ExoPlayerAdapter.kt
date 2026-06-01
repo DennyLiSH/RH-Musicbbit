@@ -7,6 +7,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.util.UnstableApi
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,6 +23,7 @@ import timber.log.Timber
  * shared between MusicPlaybackService and AlarmFireSession. The OS reclaims native
  * resources on process death; explicit [release] is supported but not required.
  */
+@UnstableApi
 @Singleton
 class ExoPlayerAdapter @Inject constructor(
     @param:ApplicationContext private val context: Context,
