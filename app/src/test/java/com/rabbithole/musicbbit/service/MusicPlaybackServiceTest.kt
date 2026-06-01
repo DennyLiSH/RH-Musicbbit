@@ -78,11 +78,15 @@ class MusicPlaybackServiceTest {
     }
 
     @Test
-    fun `onStartCommand returns START_STICKY`() {
+    fun `onStartCommand with null intent returns START_NOT_STICKY and stops self`() {
         service.onCreate()
 
         val result = service.onStartCommand(null, 0, 0)
-        assertEquals("Should return START_STICKY", Service.START_STICKY, result)
+        assertEquals(
+            "Should return START_NOT_STICKY for system restart with no active playback",
+            Service.START_NOT_STICKY,
+            result,
+        )
     }
 
     @Test

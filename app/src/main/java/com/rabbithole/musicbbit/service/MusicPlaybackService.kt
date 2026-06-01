@@ -67,8 +67,12 @@ class MusicPlaybackService : Service() {
     private fun observePlaybackState() {
         stateJob = serviceScope.launch {
             playbackSession.playbackState.collect { state ->
-                val notification = musicNotificationManager.buildNotification(state)
-                startForeground(NOTIFICATION_ID, notification)
+                if (state.currentSong != null) {
+                    val notification = musicNotificationManager.buildNotification(state)
+                    startForeground(NOTIFICATION_ID, notification)
+                } else {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                }
             }
         }
     }
@@ -78,11 +82,17 @@ class MusicPlaybackService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Timber.i("MusicPlaybackService started, action=${intent?.action}")
 
+        if (intent == null) {
+            // System restarted the service (START_STICKY), but no active playback — stop immediately
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         val state = playbackSession.playbackState.value
         val notification = musicNotificationManager.buildNotification(state)
         startForeground(NOTIFICATION_ID, notification)
 
-        when (intent?.action) {
+        when (intent.action) {
             ACTION_PLAY_ALARM -> {
                 val alarmId = intent.getLongExtra(EXTRA_ALARM_ID, -1L)
                 val isAlarmTrigger = intent.getBooleanExtra(EXTRA_IS_ALARM_TRIGGER, false)
