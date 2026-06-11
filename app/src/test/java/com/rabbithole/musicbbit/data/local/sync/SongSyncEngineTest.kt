@@ -26,4 +26,25 @@ class SongSyncEngineTest {
         assertEquals(emptyList<SongEntity>(), diff.toDelete)
         assertEquals(emptyList<SongEntity>(), diff.toUpdate)
     }
+
+    @Test
+    fun `sync returns deletes when songs are removed`() {
+        // Arrange
+        val existing = listOf(
+            SongEntity(id = 1, path = "/music/a.mp3", title = "Song A", artist = null, album = null, durationMs = 180000, dateAdded = 0, coverUri = null),
+            SongEntity(id = 2, path = "/music/b.mp3", title = "Song B", artist = null, album = null, durationMs = 200000, dateAdded = 0, coverUri = null)
+        )
+        val scanned = emptyList<SongEntity>()
+        val engine = SongSyncEngine()
+
+        // Act
+        val diff = engine.sync(existing, scanned)
+
+        // Assert
+        assertEquals(emptyList<SongEntity>(), diff.toInsert)
+        assertEquals(2, diff.toDelete.size)
+        assertEquals(1L, diff.toDelete[0].id)
+        assertEquals(2L, diff.toDelete[1].id)
+        assertEquals(emptyList<SongEntity>(), diff.toUpdate)
+    }
 }
