@@ -30,8 +30,7 @@ class SongSyncEngine @Inject constructor() {
         existing: List<SongEntity>
     ): SongDiff {
         val existingMap = existing.associateBy { it.path }
-        val scannedEntities = scanned.map { it.toEntity() }
-        val scannedMap = scannedEntities.associateBy { it.path }
+        val scannedMap = scanned.associate { it.path to it.toEntity() }
 
         val inserts = scannedMap.filterKeys { it !in existingMap }.values.toList()
         val deletes = existingMap.filterKeys { it !in scannedMap }.values.toList()
