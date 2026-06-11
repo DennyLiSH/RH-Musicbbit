@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +27,8 @@ import com.rabbithole.musicbbit.domain.model.ScanDirectory
 @Composable
 fun ScanDirectoryItem(
     directory: ScanDirectory,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit,
     onRemove: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -65,12 +69,36 @@ fun ScanDirectoryItem(
             }
         }
 
-        IconButton(onClick = onRemove) {
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = stringResource(R.string.scan_directory_remove),
-                tint = MaterialTheme.colorScheme.error
-            )
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            // 刷新按钮
+            IconButton(
+                onClick = onRefresh,
+                enabled = !isRefreshing
+            ) {
+                if (isRefreshing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = stringResource(R.string.refresh_directory),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // 删除按钮
+            IconButton(onClick = onRemove) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = stringResource(R.string.scan_directory_remove),
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
         }
     }
 }
