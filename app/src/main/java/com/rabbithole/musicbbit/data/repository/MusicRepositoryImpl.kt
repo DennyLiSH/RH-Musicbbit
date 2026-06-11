@@ -3,6 +3,7 @@ package com.rabbithole.musicbbit.data.repository
 import com.rabbithole.musicbbit.data.local.MusicScanner
 import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
+import com.rabbithole.musicbbit.data.local.sync.SongDiff
 import com.rabbithole.musicbbit.data.local.sync.SongSyncEngine
 import com.rabbithole.musicbbit.data.mapper.toDomain
 import com.rabbithole.musicbbit.data.mapper.toEntity
@@ -81,6 +82,18 @@ class MusicRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Timber.e(e, "Failed to refresh songs")
             Result.failure(e)
+        }
+    }
+
+    private suspend fun applySyncDiff(diff: SongDiff) {
+        if (diff.toDelete.isNotEmpty()) {
+            diff.toDelete.forEach { songDao.delete(it) }
+        }
+        if (diff.toInsert.isNotEmpty()) {
+            songDao.insertAll(diff.toInsert)
+        }
+        if (diff.toUpdate.isNotEmpty()) {
+            diff.toUpdate.forEach { songDao.update(it) }
         }
     }
 
