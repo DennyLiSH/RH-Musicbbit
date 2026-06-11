@@ -3,6 +3,7 @@ package com.rabbithole.musicbbit.data.repository
 import com.rabbithole.musicbbit.data.local.MusicScanner
 import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
+import com.rabbithole.musicbbit.data.local.sync.SongSyncEngine
 import com.rabbithole.musicbbit.data.mapper.toDomain
 import com.rabbithole.musicbbit.data.mapper.toEntity
 import com.rabbithole.musicbbit.di.IoDispatcher
@@ -20,6 +21,7 @@ class MusicRepositoryImpl @Inject constructor(
     private val songDao: SongDao,
     private val scanDirectoryDao: ScanDirectoryDao,
     private val musicScanner: MusicScanner,
+    private val songSyncEngine: SongSyncEngine,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : MusicRepository {
 
