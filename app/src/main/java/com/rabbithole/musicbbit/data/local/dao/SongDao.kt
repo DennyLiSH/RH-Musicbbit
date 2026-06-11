@@ -36,6 +36,6 @@ interface SongDao {
     @Query("SELECT * FROM songs WHERE title LIKE '%' || :query || '%' COLLATE NOCASE OR artist LIKE '%' || :query || '%' COLLATE NOCASE")
     fun searchSongs(query: String): Flow<List<SongEntity>>
 
-    @Query("SELECT * FROM songs WHERE path LIKE :prefix || '%' OR path = :prefix")
+    @Query("SELECT * FROM songs WHERE path LIKE :prefix || '/%' OR path = :prefix")
     fun getByPathPrefix(prefix: String): Flow<List<SongEntity>>
 }
