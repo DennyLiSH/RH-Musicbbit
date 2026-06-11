@@ -6,6 +6,8 @@ import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
 import com.rabbithole.musicbbit.data.local.model.ScanDirectoryEntity
 import com.rabbithole.musicbbit.data.local.model.SongEntity
+import com.rabbithole.musicbbit.data.local.sync.SongDiff
+import com.rabbithole.musicbbit.data.local.sync.SongSyncEngine
 import com.rabbithole.musicbbit.domain.model.Song
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -26,12 +28,13 @@ class MusicRepositoryImplTest {
     private val songDao: SongDao = mockk()
     private val scanDirectoryDao: ScanDirectoryDao = mockk()
     private val musicScanner: MusicScanner = mockk()
+    private val songSyncEngine: SongSyncEngine = mockk()
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var repository: MusicRepositoryImpl
 
     @Before
     fun setup() {
-        repository = MusicRepositoryImpl(songDao, scanDirectoryDao, musicScanner, testDispatcher)
+        repository = MusicRepositoryImpl(songDao, scanDirectoryDao, musicScanner, songSyncEngine, testDispatcher)
     }
 
     // ------------------------------------------------------------------
@@ -93,11 +96,18 @@ class MusicRepositoryImplTest {
     @Test
     fun `refreshSongs inserts new songs`() = runTest(testDispatcher) {
         val dir = scanDirEntity(path = "/storage/Music")
+        val newSong = songEntity(id = 0L, path = "/storage/Music/new.mp3", title = "New Song")
+
         every { scanDirectoryDao.getAll() } returns flowOf(listOf(dir))
         every { musicScanner.scanDirectories(listOf("/storage/Music")) } returns listOf(
             songDomain(id = 0L, path = "/storage/Music/new.mp3", title = "New Song")
         )
         every { songDao.getAll() } returns flowOf(emptyList())
+        every { songSyncEngine.computeDiff(any(), any()) } returns SongDiff(
+            toInsert = listOf(newSong),
+            toDelete = emptyList(),
+            toUpdate = emptyList()
+        )
         coEvery { songDao.insertAll(any()) } returns emptyList()
 
         val result = repository.refreshSongs()
@@ -114,6 +124,11 @@ class MusicRepositoryImplTest {
         every { scanDirectoryDao.getAll() } returns flowOf(listOf(dir))
         every { musicScanner.scanDirectories(listOf("/storage/Music")) } returns emptyList()
         every { songDao.getAll() } returns flowOf(listOf(existingSong))
+        every { songSyncEngine.computeDiff(any(), any()) } returns SongDiff(
+            toInsert = emptyList(),
+            toDelete = listOf(existingSong),
+            toUpdate = emptyList()
+        )
         coEvery { songDao.delete(any()) } returns Unit
 
         val result = repository.refreshSongs()

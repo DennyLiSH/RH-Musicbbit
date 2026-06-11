@@ -52,31 +52,13 @@ class MusicRepositoryImpl @Inject constructor(
             val scanned = musicScanner.scanDirectories(paths)
             val existing = songDao.getAll().firstOrNull() ?: emptyList()
 
-            val existingMap = existing.associateBy { it.path }
-            val scannedMap = scanned.associateBy { it.path }
+            val diff = songSyncEngine.computeDiff(scanned, existing)
 
-            val toInsert = scanned.filter { it.path !in existingMap }
-            val toDelete = existing.filter { it.path !in scannedMap }
-            val toUpdate = scanned.filter {
-                val existingSong = existingMap[it.path]
-                existingSong != null && existingSong != it.copy(id = existingSong.id)
-            }.map {
-                it.copy(id = existingMap[it.path]!!.id)
-            }
-
-            if (toDelete.isNotEmpty()) {
-                toDelete.forEach { songDao.delete(it) }
-            }
-            if (toInsert.isNotEmpty()) {
-                songDao.insertAll(toInsert.map { it.toEntity() })
-            }
-            if (toUpdate.isNotEmpty()) {
-                toUpdate.forEach { songDao.update(it.toEntity()) }
-            }
+            applySyncDiff(diff)
 
             Timber.i(
                 "Song refresh complete: scanned=${scanned.size}, " +
-                    "inserted=${toInsert.size}, deleted=${toDelete.size}, updated=${toUpdate.size}"
+                    "inserted=${diff.toInsert.size}, deleted=${diff.toDelete.size}, updated=${diff.toUpdate.size}"
             )
             Result.success(Unit)
         } catch (e: Exception) {
