@@ -132,6 +132,9 @@ fun ScanDirectorySettingsScreen(
                         state = state,
                         navController = navController,
                         onAddDirectory = { treeLauncher.launch(null) },
+                        onRefreshDirectory = { id ->
+                            viewModel.onAction(ScanDirectorySettingsAction.OnRefreshDirectory(id))
+                        },
                         onRemoveDirectory = { id ->
                             viewModel.onAction(ScanDirectorySettingsAction.OnRemoveDirectory(id))
                         },
@@ -159,6 +162,7 @@ private fun SuccessContent(
     state: ScanDirectorySettingsUiState.Success,
     navController: NavController,
     onAddDirectory: () -> Unit,
+    onRefreshDirectory: (Long) -> Unit,
     onRemoveDirectory: (Long) -> Unit,
     onConfirmDirectory: () -> Unit,
     onCancelDirectory: () -> Unit,
@@ -202,6 +206,8 @@ private fun SuccessContent(
             ) { directory ->
                 ScanDirectoryItem(
                     directory = directory,
+                    isRefreshing = directory.id in state.refreshingDirectoryIds,
+                    onRefresh = { onRefreshDirectory(directory.id) },
                     onRemove = { onRemoveDirectory(directory.id) }
                 )
             }
