@@ -47,4 +47,29 @@ class SongSyncEngineTest {
         assertEquals(2L, diff.toDelete[1].id)
         assertEquals(emptyList<SongEntity>(), diff.toUpdate)
     }
+
+    @Test
+    fun `sync returns updates when metadata changes`() {
+        // Arrange
+        val existing = listOf(
+            SongEntity(id = 1, path = "/music/a.mp3", title = "Song A", artist = "Artist A", album = null, durationMs = 180000, dateAdded = 1000, coverUri = null)
+        )
+        val scanned = listOf(
+            SongEntity(id = 0, path = "/music/a.mp3", title = "Song A", artist = "Artist A Updated", album = "Album A", durationMs = 180000, dateAdded = 2000, coverUri = "/cover/a.jpg")
+        )
+        val engine = SongSyncEngine()
+
+        // Act
+        val diff = engine.sync(existing, scanned)
+
+        // Assert
+        assertEquals(emptyList<SongEntity>(), diff.toInsert)
+        assertEquals(emptyList<SongEntity>(), diff.toDelete)
+        assertEquals(1, diff.toUpdate.size)
+        assertEquals(1L, diff.toUpdate[0].id)  // ID preserved
+        assertEquals("Artist A Updated", diff.toUpdate[0].artist)
+        assertEquals("Album A", diff.toUpdate[0].album)
+        assertEquals(2000L, diff.toUpdate[0].dateAdded)
+        assertEquals("/cover/a.jpg", diff.toUpdate[0].coverUri)
+    }
 }
