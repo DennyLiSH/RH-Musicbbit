@@ -7,4 +7,5 @@ interface MusicRepository {
     fun getAllSongs(): Flow<List<Song>>
     fun searchSongs(query: String): Flow<List<Song>>
     suspend fun refreshSongs(): Result<Unit>
+    suspend fun refreshDirectory(directoryPath: String): Result<Unit>
 }

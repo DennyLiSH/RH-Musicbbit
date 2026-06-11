@@ -67,6 +67,28 @@ class MusicRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun refreshDirectory(directoryPath: String): Result<Unit> =
+        withContext(ioDispatcher) {
+            try {
+                Timber.i("Refreshing directory: $directoryPath")
+
+                val scanned = musicScanner.scanDirectories(listOf(directoryPath))
+                val existing = songDao.getByPathPrefix(directoryPath).firstOrNull() ?: emptyList()
+                val diff = songSyncEngine.computeDiff(scanned, existing)
+
+                applySyncDiff(diff)
+
+                Timber.i(
+                    "Directory refresh complete: $directoryPath, " +
+                        "inserted=${diff.toInsert.size}, deleted=${diff.toDelete.size}, updated=${diff.toUpdate.size}"
+                )
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to refresh directory: $directoryPath")
+                Result.failure(e)
+            }
+        }
+
     private suspend fun applySyncDiff(diff: SongDiff) {
         if (diff.toDelete.isNotEmpty()) {
             diff.toDelete.forEach { songDao.delete(it) }
