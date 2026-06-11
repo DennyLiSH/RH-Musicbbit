@@ -1,6 +1,7 @@
 package com.rabbithole.musicbbit.data.local.sync
 
 import com.rabbithole.musicbbit.data.local.model.SongEntity
+import com.rabbithole.musicbbit.domain.model.Song
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -11,13 +12,13 @@ class SongSyncEngineTest {
         // Arrange
         val existing = emptyList<SongEntity>()
         val scanned = listOf(
-            SongEntity(id = 0, path = "/music/a.mp3", title = "Song A", artist = null, album = null, durationMs = 180000, dateAdded = 0, coverUri = null),
-            SongEntity(id = 0, path = "/music/b.mp3", title = "Song B", artist = null, album = null, durationMs = 200000, dateAdded = 0, coverUri = null)
+            Song(id = 0, path = "/music/a.mp3", title = "Song A", artist = null, album = null, durationMs = 180000, dateAdded = 0, coverUri = null),
+            Song(id = 0, path = "/music/b.mp3", title = "Song B", artist = null, album = null, durationMs = 200000, dateAdded = 0, coverUri = null)
         )
         val engine = SongSyncEngine()
 
         // Act
-        val diff = engine.sync(existing, scanned)
+        val diff = engine.computeDiff(scanned, existing)
 
         // Assert
         assertEquals(2, diff.toInsert.size)
@@ -34,11 +35,11 @@ class SongSyncEngineTest {
             SongEntity(id = 1, path = "/music/a.mp3", title = "Song A", artist = null, album = null, durationMs = 180000, dateAdded = 0, coverUri = null),
             SongEntity(id = 2, path = "/music/b.mp3", title = "Song B", artist = null, album = null, durationMs = 200000, dateAdded = 0, coverUri = null)
         )
-        val scanned = emptyList<SongEntity>()
+        val scanned = emptyList<Song>()
         val engine = SongSyncEngine()
 
         // Act
-        val diff = engine.sync(existing, scanned)
+        val diff = engine.computeDiff(scanned, existing)
 
         // Assert
         assertEquals(emptyList<SongEntity>(), diff.toInsert)
@@ -55,12 +56,12 @@ class SongSyncEngineTest {
             SongEntity(id = 1, path = "/music/a.mp3", title = "Song A", artist = "Artist A", album = null, durationMs = 180000, dateAdded = 1000, coverUri = null)
         )
         val scanned = listOf(
-            SongEntity(id = 0, path = "/music/a.mp3", title = "Song A", artist = "Artist A Updated", album = "Album A", durationMs = 180000, dateAdded = 2000, coverUri = "/cover/a.jpg")
+            Song(id = 0, path = "/music/a.mp3", title = "Song A", artist = "Artist A Updated", album = "Album A", durationMs = 180000, dateAdded = 2000, coverUri = "/cover/a.jpg")
         )
         val engine = SongSyncEngine()
 
         // Act
-        val diff = engine.sync(existing, scanned)
+        val diff = engine.computeDiff(scanned, existing)
 
         // Assert
         assertEquals(emptyList<SongEntity>(), diff.toInsert)
@@ -77,11 +78,11 @@ class SongSyncEngineTest {
     fun `sync handles empty lists`() {
         // Arrange
         val existing = emptyList<SongEntity>()
-        val scanned = emptyList<SongEntity>()
+        val scanned = emptyList<Song>()
         val engine = SongSyncEngine()
 
         // Act
-        val diff = engine.sync(existing, scanned)
+        val diff = engine.computeDiff(scanned, existing)
 
         // Assert
         assertEquals(emptyList<SongEntity>(), diff.toInsert)
@@ -96,12 +97,12 @@ class SongSyncEngineTest {
             SongEntity(id = 1, path = "/music/a.mp3", title = "Song A", artist = null, album = null, durationMs = 180000, dateAdded = 0, coverUri = null)
         )
         val scanned = listOf(
-            SongEntity(id = 0, path = "/music/a.mp3", title = "Song A", artist = null, album = null, durationMs = 180000, dateAdded = 0, coverUri = null)
+            Song(id = 0, path = "/music/a.mp3", title = "Song A", artist = null, album = null, durationMs = 180000, dateAdded = 0, coverUri = null)
         )
         val engine = SongSyncEngine()
 
         // Act
-        val diff = engine.sync(existing, scanned)
+        val diff = engine.computeDiff(scanned, existing)
 
         // Assert
         assertEquals(emptyList<SongEntity>(), diff.toInsert)
@@ -117,13 +118,13 @@ class SongSyncEngineTest {
             SongEntity(id = 2, path = "/music/b.mp3", title = "Song B", artist = null, album = null, durationMs = 200000, dateAdded = 0, coverUri = null)
         )
         val scanned = listOf(
-            SongEntity(id = 0, path = "/music/a.mp3", title = "Song A", artist = "New", album = null, durationMs = 180000, dateAdded = 0, coverUri = null),
-            SongEntity(id = 0, path = "/music/c.mp3", title = "Song C", artist = null, album = null, durationMs = 220000, dateAdded = 0, coverUri = null)
+            Song(id = 0, path = "/music/a.mp3", title = "Song A", artist = "New", album = null, durationMs = 180000, dateAdded = 0, coverUri = null),
+            Song(id = 0, path = "/music/c.mp3", title = "Song C", artist = null, album = null, durationMs = 220000, dateAdded = 0, coverUri = null)
         )
         val engine = SongSyncEngine()
 
         // Act
-        val diff = engine.sync(existing, scanned)
+        val diff = engine.computeDiff(scanned, existing)
 
         // Assert
         assertEquals(1, diff.toInsert.size)
