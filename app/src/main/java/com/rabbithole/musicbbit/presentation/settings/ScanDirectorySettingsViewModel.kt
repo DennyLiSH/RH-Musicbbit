@@ -39,7 +39,8 @@ sealed interface ScanDirectorySettingsUiState {
         val pendingDirectory: PendingDirectory? = null,
         val errorMessageResId: Int? = null,
         val breathingEnabled: Boolean = true,
-        val breathingPeriodMs: Long = 3500L
+        val breathingPeriodMs: Long = 3500L,
+        val refreshingDirectoryIds: Set<Long> = emptySet()
     ) : ScanDirectorySettingsUiState
 }
 
@@ -51,6 +52,7 @@ sealed interface ScanDirectorySettingsAction {
     data object OnCancelDirectoryPreview : ScanDirectorySettingsAction
     data class OnBreathingEnabledChanged(val enabled: Boolean) : ScanDirectorySettingsAction
     data class OnBreathingPeriodChanged(val periodMs: Long) : ScanDirectorySettingsAction
+    data class OnRefreshDirectory(val directoryId: Long) : ScanDirectorySettingsAction
 }
 
 @HiltViewModel
@@ -167,6 +169,10 @@ class ScanDirectorySettingsViewModel @Inject constructor(
                         }
                 }
             }
+
+            is ScanDirectorySettingsAction.OnRefreshDirectory -> {
+                refreshDirectory(action.directoryId)
+            }
         }
     }
 
@@ -211,6 +217,29 @@ class ScanDirectorySettingsViewModel @Inject constructor(
                         it.copy(errorMessageResId = R.string.settings_error_add_failed, pendingDirectory = null)
                     }
                 }
+        }
+    }
+
+    private fun refreshDirectory(directoryId: Long) {
+        val directory = (_uiState.value as? ScanDirectorySettingsUiState.Success)
+            ?.directories?.find { it.id == directoryId } ?: return
+
+        val currentState = _uiState.value as? ScanDirectorySettingsUiState.Success
+        if (currentState != null && directoryId in currentState.refreshingDirectoryIds) {
+            Timber.w("Directory $directoryId is already refreshing, skipping")
+            return
+        }
+
+        viewModelScope.launch {
+            updateSuccess { it.copy(refreshingDirectoryIds = it.refreshingDirectoryIds + directoryId) }
+
+            val result = musicRepository.refreshDirectory(directory.path)
+
+            updateSuccess { it.copy(refreshingDirectoryIds = it.refreshingDirectoryIds - directoryId) }
+
+            if (result.isFailure) {
+                Timber.e(result.exceptionOrNull(), "Failed to refresh directory: ${directory.path}")
+            }
         }
     }
 
