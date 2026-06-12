@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
-import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
 import com.rabbithole.musicbbit.domain.validation.ScanDirectoryValidator
@@ -38,8 +37,6 @@ sealed interface ScanDirectorySettingsUiState {
         val lastScanTime: String? = null,
         val pendingDirectory: PendingDirectory? = null,
         val errorMessageResId: Int? = null,
-        val breathingEnabled: Boolean = true,
-        val breathingPeriodMs: Long = 3500L,
         val refreshingDirectoryIds: Set<Long> = emptySet()
     ) : ScanDirectorySettingsUiState
 }
@@ -50,16 +47,13 @@ sealed interface ScanDirectorySettingsAction {
     data class OnScanDirectoryPreview(val path: String, val name: String) : ScanDirectorySettingsAction
     data object OnConfirmAddDirectory : ScanDirectorySettingsAction
     data object OnCancelDirectoryPreview : ScanDirectorySettingsAction
-    data class OnBreathingEnabledChanged(val enabled: Boolean) : ScanDirectorySettingsAction
-    data class OnBreathingPeriodChanged(val periodMs: Long) : ScanDirectorySettingsAction
     data class OnRefreshDirectory(val directoryId: Long) : ScanDirectorySettingsAction
 }
 
 @HiltViewModel
 class ScanDirectorySettingsViewModel @Inject constructor(
     private val scanDirectoryRepository: ScanDirectoryRepository,
-    private val musicRepository: MusicRepository,
-    private val alarmRingSettingsRepository: AlarmRingSettingsRepository
+    private val musicRepository: MusicRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ScanDirectorySettingsUiState>(ScanDirectorySettingsUiState.Loading)
@@ -69,23 +63,6 @@ class ScanDirectorySettingsViewModel @Inject constructor(
 
     init {
         observeDirectories()
-        observeBreathingSettings()
-    }
-
-    private fun observeBreathingSettings() {
-        combine(
-            alarmRingSettingsRepository.isBreathingEnabled(),
-            alarmRingSettingsRepository.getBreathingPeriodMs()
-        ) { enabled, periodMs ->
-            updateSuccess { currentState ->
-                currentState.copy(breathingEnabled = enabled, breathingPeriodMs = periodMs)
-            }
-        }
-            .catch { e ->
-                Timber.e(e, "Breathing settings flow failed")
-                updateSuccess { it.copy(errorMessageResId = R.string.error_load_failed) }
-            }
-            .launchIn(viewModelScope)
     }
 
     private fun observeDirectories() {
@@ -147,26 +124,6 @@ class ScanDirectorySettingsViewModel @Inject constructor(
             is ScanDirectorySettingsAction.OnCancelDirectoryPreview -> {
                 updateSuccess {
                     it.copy(pendingDirectory = null, errorMessageResId = null)
-                }
-            }
-
-            is ScanDirectorySettingsAction.OnBreathingEnabledChanged -> {
-                viewModelScope.launch {
-                    alarmRingSettingsRepository.setBreathingEnabled(action.enabled)
-                        .onFailure { e ->
-                            Timber.w(e, "Failed to set breathing enabled")
-                            updateSuccess { it.copy(errorMessageResId = R.string.alarm_ring_error_breathing_settings_failed) }
-                        }
-                }
-            }
-
-            is ScanDirectorySettingsAction.OnBreathingPeriodChanged -> {
-                viewModelScope.launch {
-                    alarmRingSettingsRepository.setBreathingPeriodMs(action.periodMs)
-                        .onFailure { e ->
-                            Timber.w(e, "Failed to set breathing period")
-                            updateSuccess { it.copy(errorMessageResId = R.string.alarm_ring_error_breathing_settings_failed) }
-                        }
                 }
             }
 

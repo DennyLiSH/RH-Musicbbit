@@ -143,12 +143,6 @@ fun ScanDirectorySettingsScreen(
                         },
                         onCancelDirectory = {
                             viewModel.onAction(ScanDirectorySettingsAction.OnCancelDirectoryPreview)
-                        },
-                        onBreathingEnabledChanged = { enabled ->
-                            viewModel.onAction(ScanDirectorySettingsAction.OnBreathingEnabledChanged(enabled))
-                        },
-                        onBreathingPeriodChanged = { periodMs ->
-                            viewModel.onAction(ScanDirectorySettingsAction.OnBreathingPeriodChanged(periodMs))
                         }
                     )
                 }
@@ -165,9 +159,7 @@ private fun SuccessContent(
     onRefreshDirectory: (Long) -> Unit,
     onRemoveDirectory: (Long) -> Unit,
     onConfirmDirectory: () -> Unit,
-    onCancelDirectory: () -> Unit,
-    onBreathingEnabledChanged: (Boolean) -> Unit,
-    onBreathingPeriodChanged: (Long) -> Unit
+    onCancelDirectory: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize()
@@ -175,16 +167,6 @@ private fun SuccessContent(
         LazyColumn(
             modifier = Modifier.weight(1f)
         ) {
-            item(key = "breathing_settings") {
-                BreathingSettingsSection(
-                    enabled = state.breathingEnabled,
-                    periodMs = state.breathingPeriodMs,
-                    onEnabledChanged = onBreathingEnabledChanged,
-                    onPeriodChanged = onBreathingPeriodChanged,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-
             item(key = "permission_diagnostics") {
                 PermissionDiagnosticsCard(
                     onClick = { navController.navigate(PermissionDiagnostics) },
@@ -295,52 +277,6 @@ private fun ConfirmAddDirectoryDialog(
             }
         }
     )
-}
-
-@Composable
-private fun BreathingSettingsSection(
-    enabled: Boolean,
-    periodMs: Long,
-    onEnabledChanged: (Boolean) -> Unit,
-    onPeriodChanged: (Long) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier) {
-        Text(
-            text = stringResource(R.string.settings_alarm_ring),
-            style = MaterialTheme.typography.titleMedium
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.settings_breathing_light),
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Switch(
-                checked = enabled,
-                onCheckedChange = onEnabledChanged
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        val alpha = if (enabled) 1.0f else 0.5f
-        Text(
-            text = stringResource(R.string.settings_breathing_period, periodMs / 1000f),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
-        )
-        Slider(
-            value = periodMs.toFloat(),
-            onValueChange = { onPeriodChanged(it.toLong()) },
-            valueRange = 1500f..6000f,
-            steps = 8,
-            enabled = enabled,
-            modifier = Modifier.alpha(alpha)
-        )
-    }
 }
 
 @Composable
