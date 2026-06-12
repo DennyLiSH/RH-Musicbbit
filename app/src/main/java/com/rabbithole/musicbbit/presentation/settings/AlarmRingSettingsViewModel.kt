@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -21,7 +22,9 @@ class AlarmRingSettingsViewModel @Inject constructor(
 ) : ViewModel() {
 
     data class AlarmRingSettingsUiState(
-        val volumeRampDurationSeconds: Int = 5
+        val volumeRampDurationSeconds: Int = 5,
+        val breathingEnabled: Boolean = false,
+        val breathingPeriodMs: Long = 3000L
     )
 
     private val _uiState = MutableStateFlow(AlarmRingSettingsUiState())
@@ -29,6 +32,7 @@ class AlarmRingSettingsViewModel @Inject constructor(
 
     init {
         observeVolumeRampDuration()
+        observeBreathingSettings()
     }
 
     private fun observeVolumeRampDuration() {
@@ -42,11 +46,42 @@ class AlarmRingSettingsViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
+    private fun observeBreathingSettings() {
+        combine(
+            alarmRingSettingsRepository.isBreathingEnabled(),
+            alarmRingSettingsRepository.getBreathingPeriodMs()
+        ) { enabled, periodMs ->
+            _uiState.update { it.copy(breathingEnabled = enabled, breathingPeriodMs = periodMs) }
+        }
+            .catch { e ->
+                Timber.e(e, "Failed to load breathing settings")
+            }
+            .launchIn(viewModelScope)
+    }
+
     fun setVolumeRampDuration(seconds: Int) {
         viewModelScope.launch {
             alarmRingSettingsRepository.setVolumeRampDurationSeconds(seconds)
                 .onFailure { e ->
                     Timber.w(e, "Failed to set volume ramp duration")
+                }
+        }
+    }
+
+    fun setBreathingEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            alarmRingSettingsRepository.setBreathingEnabled(enabled)
+                .onFailure { e ->
+                    Timber.w(e, "Failed to set breathing enabled")
+                }
+        }
+    }
+
+    fun setBreathingPeriodMs(periodMs: Long) {
+        viewModelScope.launch {
+            alarmRingSettingsRepository.setBreathingPeriodMs(periodMs)
+                .onFailure { e ->
+                    Timber.w(e, "Failed to set breathing period")
                 }
         }
     }
