@@ -164,7 +164,6 @@
     <string name="settings_alarm_ring">Alarm Ring</string>
     <string name="settings_breathing_light">Breathing light effect</string>
     <string name="settings_breathing_period">Breathing period: %1$.1fs</string>
-    <string name="settings_alarm_playback">Alarm Playback</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_system">System</string>
     <string name="settings_language_en">English</string>
