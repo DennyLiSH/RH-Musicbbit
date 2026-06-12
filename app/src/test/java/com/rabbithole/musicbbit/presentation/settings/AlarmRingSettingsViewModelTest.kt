@@ -52,6 +52,8 @@ class AlarmRingSettingsViewModelTest {
     @Test
     fun `init loads volume ramp duration from repository`() = runTest {
         every { alarmRingSettingsRepository.getVolumeRampDurationSeconds() } returns flowOf(10)
+        every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(false)
+        every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3000L)
 
         val viewModel = AlarmRingSettingsViewModel(alarmRingSettingsRepository)
 
@@ -61,6 +63,8 @@ class AlarmRingSettingsViewModelTest {
     @Test
     fun `setVolumeRampDuration forwards to repository`() = runTest {
         every { alarmRingSettingsRepository.getVolumeRampDurationSeconds() } returns flowOf(5)
+        every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(false)
+        every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3000L)
         coEvery { alarmRingSettingsRepository.setVolumeRampDurationSeconds(15) } returns Result.success(Unit)
 
         val viewModel = AlarmRingSettingsViewModel(alarmRingSettingsRepository)
@@ -74,6 +78,8 @@ class AlarmRingSettingsViewModelTest {
     fun `uiState updates when repository emits new value`() = runTest {
         val volumeRampFlow = MutableStateFlow(5)
         every { alarmRingSettingsRepository.getVolumeRampDurationSeconds() } returns volumeRampFlow
+        every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(false)
+        every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3000L)
 
         val viewModel = AlarmRingSettingsViewModel(alarmRingSettingsRepository)
         assertEquals(5, viewModel.uiState.value.volumeRampDurationSeconds)
@@ -85,6 +91,8 @@ class AlarmRingSettingsViewModelTest {
     @Test
     fun `repository error does not crash uiState`() = runTest {
         every { alarmRingSettingsRepository.getVolumeRampDurationSeconds() } returns flowOf(5)
+        every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(false)
+        every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3000L)
         coEvery { alarmRingSettingsRepository.setVolumeRampDurationSeconds(10) } returns Result.failure(RuntimeException("Failed"))
 
         val viewModel = AlarmRingSettingsViewModel(alarmRingSettingsRepository)
