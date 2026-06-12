@@ -94,4 +94,54 @@ class AlarmRingSettingsViewModelTest {
 
         assertEquals(5, viewModel.uiState.value.volumeRampDurationSeconds)
     }
+
+    @Test
+    fun `observeBreathingSettings updates UI state correctly`() = runTest {
+        // Given
+        val breathingEnabledFlow = MutableStateFlow(true)
+        val breathingPeriodFlow = MutableStateFlow(4000L)
+        every { alarmRingSettingsRepository.getVolumeRampDurationSeconds() } returns flowOf(5)
+        every { alarmRingSettingsRepository.isBreathingEnabled() } returns breathingEnabledFlow
+        every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns breathingPeriodFlow
+
+        // When
+        val viewModel = AlarmRingSettingsViewModel(alarmRingSettingsRepository)
+
+        // Then
+        val state = viewModel.uiState.value
+        assertEquals(true, state.breathingEnabled)
+        assertEquals(4000L, state.breathingPeriodMs)
+    }
+
+    @Test
+    fun `setBreathingEnabled calls repository method`() = runTest {
+        // Given
+        every { alarmRingSettingsRepository.getVolumeRampDurationSeconds() } returns flowOf(5)
+        every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(false)
+        every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3000L)
+        coEvery { alarmRingSettingsRepository.setBreathingEnabled(any()) } returns Result.success(Unit)
+        val viewModel = AlarmRingSettingsViewModel(alarmRingSettingsRepository)
+
+        // When
+        viewModel.setBreathingEnabled(false)
+
+        // Then
+        coVerify { alarmRingSettingsRepository.setBreathingEnabled(false) }
+    }
+
+    @Test
+    fun `setBreathingPeriodMs calls repository method`() = runTest {
+        // Given
+        every { alarmRingSettingsRepository.getVolumeRampDurationSeconds() } returns flowOf(5)
+        every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(false)
+        every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3000L)
+        coEvery { alarmRingSettingsRepository.setBreathingPeriodMs(any()) } returns Result.success(Unit)
+        val viewModel = AlarmRingSettingsViewModel(alarmRingSettingsRepository)
+
+        // When
+        viewModel.setBreathingPeriodMs(5000L)
+
+        // Then
+        coVerify { alarmRingSettingsRepository.setBreathingPeriodMs(5000L) }
+    }
 }

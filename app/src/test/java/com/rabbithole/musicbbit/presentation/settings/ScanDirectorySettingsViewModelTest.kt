@@ -2,7 +2,6 @@ package com.rabbithole.musicbbit.presentation.settings
 
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
-import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
 import io.mockk.coEvery
@@ -32,7 +31,6 @@ class ScanDirectorySettingsViewModelTest {
 
     private lateinit var scanDirectoryRepository: ScanDirectoryRepository
     private lateinit var musicRepository: MusicRepository
-    private lateinit var alarmRingSettingsRepository: AlarmRingSettingsRepository
 
     companion object {
         @JvmStatic
@@ -50,7 +48,6 @@ class ScanDirectorySettingsViewModelTest {
         Dispatchers.setMain(testDispatcher)
         scanDirectoryRepository = mockk(relaxed = true)
         musicRepository = mockk(relaxed = true)
-        alarmRingSettingsRepository = mockk(relaxed = true)
     }
 
     @After
@@ -65,13 +62,10 @@ class ScanDirectorySettingsViewModelTest {
             ScanDirectory(id = 2L, path = "/download", name = "Downloads", addedAt = 0L)
         )
         every { scanDirectoryRepository.getAll() } returns flowOf(directories)
-        every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(true)
-        every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3500L)
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
-            musicRepository,
-            alarmRingSettingsRepository
+            musicRepository
         )
 
         val state = viewModel.uiState.value as ScanDirectorySettingsUiState.Success
@@ -82,15 +76,12 @@ class ScanDirectorySettingsViewModelTest {
     @Test
     fun `add directory success clears pendingDirectory`() = runTest {
         every { scanDirectoryRepository.getAll() } returns flowOf(emptyList())
-        every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(true)
-        every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3500L)
         coEvery { scanDirectoryRepository.add(any()) } coAnswers { Result.success(1L) }
         coEvery { musicRepository.refreshSongs() } returns Result.success(Unit)
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
-            musicRepository,
-            alarmRingSettingsRepository
+            musicRepository
         )
 
         val tempDir = System.getProperty("java.io.tmpdir")!!
@@ -107,14 +98,11 @@ class ScanDirectorySettingsViewModelTest {
     @Test
     fun `add directory failure sets error`() = runTest {
         every { scanDirectoryRepository.getAll() } returns flowOf(emptyList())
-        every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(true)
-        every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3500L)
         coEvery { scanDirectoryRepository.add(any()) } returns Result.failure(RuntimeException("Failed"))
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
-            musicRepository,
-            alarmRingSettingsRepository
+            musicRepository
         )
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -132,14 +120,11 @@ class ScanDirectorySettingsViewModelTest {
     @Test
     fun `remove directory calls repository remove`() = runTest {
         every { scanDirectoryRepository.getAll() } returns flowOf(emptyList())
-        every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(true)
-        every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3500L)
         coEvery { scanDirectoryRepository.remove(any()) } returns Result.success(Unit)
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
-            musicRepository,
-            alarmRingSettingsRepository
+            musicRepository
         )
 
         viewModel.onAction(ScanDirectorySettingsAction.OnRemoveDirectory(1L))
@@ -152,11 +137,9 @@ class ScanDirectorySettingsViewModelTest {
     fun `retry reloads directories after error`() = runTest {
         val errorFlow = kotlinx.coroutines.flow.flow<List<ScanDirectory>> { throw RuntimeException("DB error") }
         every { scanDirectoryRepository.getAll() } returns errorFlow
-        every { alarmRingSettingsRepository.isBreathingEnabled() } returns flowOf(true)
-        every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns flowOf(3500L)
 
         val viewModel = ScanDirectorySettingsViewModel(
-            scanDirectoryRepository, musicRepository, alarmRingSettingsRepository
+            scanDirectoryRepository, musicRepository
         )
         testDispatcher.scheduler.advanceUntilIdle()
 
