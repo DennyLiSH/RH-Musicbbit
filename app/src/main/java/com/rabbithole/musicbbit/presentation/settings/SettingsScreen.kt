@@ -24,6 +24,8 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -31,7 +33,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -82,10 +86,12 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Alarm playback section
-            VolumeRampSection(
-                currentDuration = alarmRingUiState.volumeRampDurationSeconds,
-                onDurationChange = { alarmRingSettingsViewModel.setVolumeRampDuration(it) }
+            // Alarm ring section
+            AlarmRingSettingsSection(
+                alarmRingUiState = alarmRingUiState,
+                onVolumeRampChange = { alarmRingSettingsViewModel.setVolumeRampDuration(it) },
+                onBreathingEnabledChanged = { alarmRingSettingsViewModel.setBreathingEnabled(it) },
+                onBreathingPeriodChanged = { alarmRingSettingsViewModel.setBreathingPeriodMs(it) }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -246,53 +252,47 @@ private fun LanguageButton(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun VolumeRampSection(
+private fun VolumeRampDropdown(
     currentDuration: Int,
     onDurationChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
-        Text(
-            text = stringResource(R.string.settings_alarm_playback),
-            style = MaterialTheme.typography.titleMedium
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = when (currentDuration) {
+        0 -> stringResource(R.string.settings_volume_ramp_disabled)
+        else -> stringResource(R.string.settings_volume_ramp_seconds, currentDuration)
+    }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = selectedLabel,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.settings_volume_ramp_duration)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        var expanded by remember { mutableStateOf(false) }
-        val selectedLabel = when (currentDuration) {
-            0 -> stringResource(R.string.settings_volume_ramp_disabled)
-            else -> stringResource(R.string.settings_volume_ramp_seconds, currentDuration)
-        }
-        ExposedDropdownMenuBox(
+        ExposedDropdownMenu(
             expanded = expanded,
-            onExpandedChange = { expanded = it }
+            onDismissRequest = { expanded = false }
         ) {
-            OutlinedTextField(
-                value = selectedLabel,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text(stringResource(R.string.settings_volume_ramp_duration)) },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier
-                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                    .fillMaxWidth()
-            )
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                VolumeRampPresets.forEach { seconds ->
-                    val label = when (seconds) {
-                        0 -> stringResource(R.string.settings_volume_ramp_disabled)
-                        else -> stringResource(R.string.settings_volume_ramp_seconds, seconds)
-                    }
-                    DropdownMenuItem(
-                        text = { Text(label) },
-                        onClick = {
-                            onDurationChange(seconds)
-                            expanded = false
-                        }
-                    )
+            VolumeRampPresets.forEach { seconds ->
+                val label = when (seconds) {
+                    0 -> stringResource(R.string.settings_volume_ramp_disabled)
+                    else -> stringResource(R.string.settings_volume_ramp_seconds, seconds)
                 }
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = {
+                        onDurationChange(seconds)
+                        expanded = false
+                    }
+                )
             }
         }
     }
@@ -353,5 +353,77 @@ private fun SettingsNavCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+@Composable
+private fun BreathingLightControls(
+    enabled: Boolean,
+    periodMs: Long,
+    onEnabledChanged: (Boolean) -> Unit,
+    onPeriodChanged: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.settings_breathing_light),
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Switch(
+                checked = enabled,
+                onCheckedChange = onEnabledChanged
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        val alpha = if (enabled) 1.0f else 0.5f
+        Text(
+            text = stringResource(R.string.settings_breathing_period, periodMs / 1000f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
+        )
+        Slider(
+            value = periodMs.toFloat(),
+            onValueChange = { onPeriodChanged(it.toLong()) },
+            valueRange = 1500f..6000f,
+            steps = 8,
+            enabled = enabled,
+            modifier = Modifier.alpha(alpha)
+        )
+    }
+}
+
+@Composable
+private fun AlarmRingSettingsSection(
+    alarmRingUiState: AlarmRingSettingsViewModel.AlarmRingSettingsUiState,
+    onVolumeRampChange: (Int) -> Unit,
+    onBreathingEnabledChanged: (Boolean) -> Unit,
+    onBreathingPeriodChanged: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = stringResource(R.string.settings_alarm_ring),
+            style = MaterialTheme.typography.titleMedium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        VolumeRampDropdown(
+            currentDuration = alarmRingUiState.volumeRampDurationSeconds,
+            onDurationChange = onVolumeRampChange
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        BreathingLightControls(
+            enabled = alarmRingUiState.breathingEnabled,
+            periodMs = alarmRingUiState.breathingPeriodMs,
+            onEnabledChanged = onBreathingEnabledChanged,
+            onPeriodChanged = onBreathingPeriodChanged
+        )
     }
 }
