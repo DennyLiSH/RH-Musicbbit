@@ -11,17 +11,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -130,39 +127,25 @@ private fun ThemeSettingsSection(
     onThemeModeChange: (ThemeMode) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
-        Text(
-            text = stringResource(R.string.settings_theme),
-            style = MaterialTheme.typography.titleMedium
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ThemeModeButton(
-                label = stringResource(R.string.settings_theme_system),
-                selected = themeMode == ThemeMode.SYSTEM,
-                onClick = { onThemeModeChange(ThemeMode.SYSTEM) },
-                modifier = Modifier.weight(1f)
-            )
-            ThemeModeButton(
-                label = stringResource(R.string.settings_theme_light),
-                selected = themeMode == ThemeMode.LIGHT,
-                onClick = { onThemeModeChange(ThemeMode.LIGHT) },
-                modifier = Modifier.weight(1f)
-            )
-            ThemeModeButton(
-                label = stringResource(R.string.settings_theme_dark),
-                selected = themeMode == ThemeMode.DARK,
-                onClick = { onThemeModeChange(ThemeMode.DARK) },
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
+    ThemeDropdown(
+        themeMode = themeMode,
+        onThemeModeChange = onThemeModeChange,
+        modifier = modifier
+    )
 }
 
 private val VolumeRampPresets = listOf(0, 5, 10, 15, 30, 60)
+
+private val ThemeOptions = listOf(ThemeMode.SYSTEM, ThemeMode.LIGHT, ThemeMode.DARK)
+
+// Order intentionally differs from AppLanguage.entries (enum defines ENGLISH before CHINESE;
+// UI historically shows CHINESE before ENGLISH).
+private val LanguageOptions = listOf(
+    AppLanguage.SYSTEM,
+    AppLanguage.CHINESE,
+    AppLanguage.ENGLISH,
+    AppLanguage.JAPANESE
+)
 
 @Composable
 private fun LanguageSettingsSection(
@@ -172,82 +155,64 @@ private fun LanguageSettingsSection(
     val currentLanguage = remember { LocaleHelper.getCurrentLanguage(context) }
     var selectedLanguage by remember { mutableStateOf(currentLanguage) }
 
-    Column(modifier = modifier) {
-        Text(
-            text = stringResource(R.string.settings_language),
-            style = MaterialTheme.typography.titleMedium
+    LanguageDropdown(
+        selectedLanguage = selectedLanguage,
+        onLanguageChange = {
+            selectedLanguage = it
+            LocaleHelper.setLanguage(context as Activity, it)
+        },
+        modifier = modifier
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LanguageDropdown(
+    selectedLanguage: AppLanguage,
+    onLanguageChange: (AppLanguage) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = languageLabel(selectedLanguage)
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = selectedLabel,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.settings_language)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
         ) {
-            LanguageButton(
-                label = stringResource(R.string.settings_language_system),
-                selected = selectedLanguage == AppLanguage.SYSTEM,
-                onClick = {
-                    selectedLanguage = AppLanguage.SYSTEM
-                    LocaleHelper.setLanguage(context as Activity, AppLanguage.SYSTEM)
-                },
-                modifier = Modifier.weight(1f)
-            )
-            LanguageButton(
-                label = stringResource(R.string.settings_language_zh),
-                selected = selectedLanguage == AppLanguage.CHINESE,
-                onClick = {
-                    selectedLanguage = AppLanguage.CHINESE
-                    LocaleHelper.setLanguage(context as Activity, AppLanguage.CHINESE)
-                },
-                modifier = Modifier.weight(1f)
-            )
-            LanguageButton(
-                label = stringResource(R.string.settings_language_en),
-                selected = selectedLanguage == AppLanguage.ENGLISH,
-                onClick = {
-                    selectedLanguage = AppLanguage.ENGLISH
-                    LocaleHelper.setLanguage(context as Activity, AppLanguage.ENGLISH)
-                },
-                modifier = Modifier.weight(1f)
-            )
-            LanguageButton(
-                label = stringResource(R.string.settings_language_ja),
-                selected = selectedLanguage == AppLanguage.JAPANESE,
-                onClick = {
-                    selectedLanguage = AppLanguage.JAPANESE
-                    LocaleHelper.setLanguage(context as Activity, AppLanguage.JAPANESE)
-                },
-                modifier = Modifier.weight(1f)
-            )
+            LanguageOptions.forEach { language ->
+                DropdownMenuItem(
+                    text = { Text(languageLabel(language)) },
+                    onClick = {
+                        onLanguageChange(language)
+                        expanded = false
+                    }
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun LanguageButton(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    if (selected) {
-        FilledTonalButton(
-            onClick = onClick,
-            modifier = modifier,
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        ) {
-            Text(label)
-        }
-    } else {
-        OutlinedButton(
-            onClick = onClick,
-            modifier = modifier
-        ) {
-            Text(label)
-        }
-    }
+private fun languageLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.SYSTEM -> stringResource(R.string.settings_language_system)
+    AppLanguage.CHINESE -> stringResource(R.string.settings_language_zh)
+    AppLanguage.ENGLISH -> stringResource(R.string.settings_language_en)
+    AppLanguage.JAPANESE -> stringResource(R.string.settings_language_ja)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -298,32 +263,53 @@ private fun VolumeRampDropdown(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ThemeModeButton(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
+private fun ThemeDropdown(
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (selected) {
-        FilledTonalButton(
-            onClick = onClick,
-            modifier = modifier,
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            )
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = themeLabel(themeMode)
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = selectedLabel,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.settings_theme)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth()
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
         ) {
-            Text(label)
-        }
-    } else {
-        OutlinedButton(
-            onClick = onClick,
-            modifier = modifier
-        ) {
-            Text(label)
+            ThemeOptions.forEach { mode ->
+                DropdownMenuItem(
+                    text = { Text(themeLabel(mode)) },
+                    onClick = {
+                        onThemeModeChange(mode)
+                        expanded = false
+                    }
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun themeLabel(mode: ThemeMode): String = when (mode) {
+    ThemeMode.SYSTEM -> stringResource(R.string.settings_theme_system)
+    ThemeMode.LIGHT -> stringResource(R.string.settings_theme_light)
+    ThemeMode.DARK -> stringResource(R.string.settings_theme_dark)
 }
 
 @Composable
