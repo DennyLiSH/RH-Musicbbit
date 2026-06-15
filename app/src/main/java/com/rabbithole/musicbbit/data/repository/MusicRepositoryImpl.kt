@@ -23,17 +23,20 @@ class MusicRepositoryImpl @Inject constructor(
     private val scanDirectoryDao: ScanDirectoryDao,
     private val musicScanner: MusicScanner,
     private val songSyncEngine: SongSyncEngine,
+    private val songSorter: SongSorter,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : MusicRepository {
 
     override fun getAllSongs(): Flow<List<Song>> {
         return songDao.getAll()
             .map { entities -> entities.map { it.toDomain() } }
+            .map { songs -> songSorter.sort(songs) }
     }
 
     override fun searchSongs(query: String): Flow<List<Song>> {
         return songDao.searchSongs(query)
             .map { entities -> entities.map { it.toDomain() } }
+            .map { songs -> songSorter.sort(songs) }
     }
 
     override suspend fun refreshSongs(): Result<Unit> = withContext(ioDispatcher) {

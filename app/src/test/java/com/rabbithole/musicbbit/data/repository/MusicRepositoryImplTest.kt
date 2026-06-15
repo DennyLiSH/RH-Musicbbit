@@ -29,12 +29,15 @@ class MusicRepositoryImplTest {
     private val scanDirectoryDao: ScanDirectoryDao = mockk()
     private val musicScanner: MusicScanner = mockk()
     private val songSyncEngine: SongSyncEngine = mockk()
+    private val songSorter: SongSorter = SongSorter()
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var repository: MusicRepositoryImpl
 
     @Before
     fun setup() {
-        repository = MusicRepositoryImpl(songDao, scanDirectoryDao, musicScanner, songSyncEngine, testDispatcher)
+        repository = MusicRepositoryImpl(
+            songDao, scanDirectoryDao, musicScanner, songSyncEngine, songSorter, testDispatcher
+        )
     }
 
     // ------------------------------------------------------------------
@@ -147,7 +150,7 @@ class MusicRepositoryImplTest {
     }
 
     @Test
-    fun `searchSongs delegates to songDao`() = runTest(testDispatcher) {
+    fun `searchSongs delegates to songDao and sorts result`() = runTest(testDispatcher) {
         val songs = listOf(
             songEntity(id = 1L, title = "Hello World", artist = "Artist A"),
             songEntity(id = 2L, title = "Hello Again", artist = "Artist B")
@@ -157,8 +160,8 @@ class MusicRepositoryImplTest {
         repository.searchSongs("hello").test {
             val results = awaitItem()
             assertEquals(2, results.size)
-            assertEquals("Hello World", results[0].title)
-            assertEquals("Hello Again", results[1].title)
+            assertEquals("Hello Again", results[0].title)
+            assertEquals("Hello World", results[1].title)
             awaitComplete()
         }
     }
