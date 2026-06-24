@@ -1,5 +1,9 @@
 package com.rabbithole.musicbbit.presentation.music
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -61,7 +65,7 @@ import com.rabbithole.musicbbit.presentation.components.ErrorContent
 import com.rabbithole.musicbbit.presentation.components.LoadingState
 import com.rabbithole.musicbbit.presentation.player.components.AddToPlaylistBottomSheet
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
 fun MusicBrowseScreen(
     navController: NavController,
@@ -109,45 +113,52 @@ fun MusicBrowseScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            when (val state = uiState) {
-                is MusicUiState.Loading -> {
-                    LoadingState()
-                }
+            Crossfade(
+                targetState = uiState,
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                modifier = Modifier.fillMaxSize(),
+                label = "MusicBrowseState"
+            ) { state ->
+                when (state) {
+                    is MusicUiState.Loading -> {
+                        LoadingState()
+                    }
 
-                is MusicUiState.Error -> {
-                    ErrorContent(
-                        message = stringResource(state.messageResId),
-                        icon = rememberVectorPainter(Icons.Filled.Error),
-                        onRetry = viewModel::retry
-                    )
-                }
+                    is MusicUiState.Error -> {
+                        ErrorContent(
+                            message = stringResource(state.messageResId),
+                            icon = rememberVectorPainter(Icons.Filled.Error),
+                            onRetry = viewModel::retry
+                        )
+                    }
 
-                is MusicUiState.NoScanDirectory -> {
-                    NoScanDirectoryContent(
-                        onNavigateToSettings = { navController.navigate(ScanDirectorySettings) }
-                    )
-                }
+                    is MusicUiState.NoScanDirectory -> {
+                        NoScanDirectoryContent(
+                            onNavigateToSettings = { navController.navigate(ScanDirectorySettings) }
+                        )
+                    }
 
-                is MusicUiState.Empty -> {
-                    EmptyState(
-                        title = stringResource(R.string.music_browse_empty)
-                    )
-                }
+                    is MusicUiState.Empty -> {
+                        EmptyState(
+                            title = stringResource(R.string.music_browse_empty)
+                        )
+                    }
 
-                is MusicUiState.Success -> {
-                    SuccessContent(
-                        songs = state.songs,
-                        searchQuery = state.searchQuery,
-                        onSearchQueryChange = { viewModel.onAction(MusicBrowseAction.OnSearchQueryChange(it)) },
-                        onSongClick = { song ->
-                            viewModel.onAction(MusicBrowseAction.OnSongClick(song))
-                            playerViewModel.play(song, playlistId = -1)
-                            navController.navigate(Player)
-                        },
-                        onAddToPlaylist = { song ->
-                            viewModel.onAction(MusicBrowseAction.OnSongClick(song))
-                        }
-                    )
+                    is MusicUiState.Success -> {
+                        SuccessContent(
+                            songs = state.songs,
+                            searchQuery = state.searchQuery,
+                            onSearchQueryChange = { viewModel.onAction(MusicBrowseAction.OnSearchQueryChange(it)) },
+                            onSongClick = { song ->
+                                viewModel.onAction(MusicBrowseAction.OnSongClick(song))
+                                playerViewModel.play(song, playlistId = -1)
+                                navController.navigate(Player)
+                            },
+                            onAddToPlaylist = { song ->
+                                viewModel.onAction(MusicBrowseAction.OnSongClick(song))
+                            }
+                        )
+                    }
                 }
             }
         }

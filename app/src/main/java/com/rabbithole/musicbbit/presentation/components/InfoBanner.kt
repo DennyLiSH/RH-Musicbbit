@@ -60,7 +60,7 @@ fun InfoBanner(
                 Text(
                     text = stringResource(message),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
             TextButton(onClick = onClick) {

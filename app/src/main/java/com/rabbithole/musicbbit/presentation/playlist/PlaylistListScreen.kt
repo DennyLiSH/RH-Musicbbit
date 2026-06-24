@@ -1,5 +1,9 @@
 package com.rabbithole.musicbbit.presentation.playlist
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,7 +61,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
 fun PlaylistListScreen(
     navController: NavController,
@@ -96,37 +100,44 @@ fun PlaylistListScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            when (val state = uiState) {
-                is PlaylistListUiState.Loading -> {
-                    LoadingState()
-                }
+            Crossfade(
+                targetState = uiState,
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                modifier = Modifier.fillMaxSize(),
+                label = "PlaylistListState"
+            ) { state ->
+                when (state) {
+                    is PlaylistListUiState.Loading -> {
+                        LoadingState()
+                    }
 
-                is PlaylistListUiState.Error -> {
-                    ErrorContent(
-                        message = stringResource(state.messageResId),
-                        icon = rememberVectorPainter(Icons.Filled.Error),
-                        onRetry = viewModel::retry
-                    )
-                }
+                    is PlaylistListUiState.Error -> {
+                        ErrorContent(
+                            message = stringResource(state.messageResId),
+                            icon = rememberVectorPainter(Icons.Filled.Error),
+                            onRetry = viewModel::retry
+                        )
+                    }
 
-                is PlaylistListUiState.Success -> {
-                    if (state.playlists.isEmpty()) {
-                        EmptyState(
-                            icon = rememberVectorPainter(Icons.AutoMirrored.Filled.PlaylistPlay),
-                            title = stringResource(R.string.playlist_list_empty_title),
-                            subtitle = stringResource(R.string.playlist_list_empty_subtitle)
-                        )
-                    } else {
-                        PlaylistListContent(
-                            playlists = state.playlists,
-                            onPlaylistClick = { playlistId ->
-                                viewModel.onAction(PlaylistListAction.OnPlaylistClick(playlistId))
-                                navController.navigate(PlaylistDetail(playlistId = playlistId))
-                            },
-                            onDeletePlaylist = { playlist ->
-                                viewModel.onAction(PlaylistListAction.OnDeletePlaylist(playlist))
-                            }
-                        )
+                    is PlaylistListUiState.Success -> {
+                        if (state.playlists.isEmpty()) {
+                            EmptyState(
+                                icon = rememberVectorPainter(Icons.AutoMirrored.Filled.PlaylistPlay),
+                                title = stringResource(R.string.playlist_list_empty_title),
+                                subtitle = stringResource(R.string.playlist_list_empty_subtitle)
+                            )
+                        } else {
+                            PlaylistListContent(
+                                playlists = state.playlists,
+                                onPlaylistClick = { playlistId ->
+                                    viewModel.onAction(PlaylistListAction.OnPlaylistClick(playlistId))
+                                    navController.navigate(PlaylistDetail(playlistId = playlistId))
+                                },
+                                onDeletePlaylist = { playlist ->
+                                    viewModel.onAction(PlaylistListAction.OnDeletePlaylist(playlist))
+                                }
+                            )
+                        }
                     }
                 }
             }

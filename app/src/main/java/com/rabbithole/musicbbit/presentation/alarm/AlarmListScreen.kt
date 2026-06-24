@@ -59,7 +59,11 @@ import com.rabbithole.musicbbit.presentation.components.LoadingState
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -69,7 +73,7 @@ import androidx.compose.ui.unit.IntOffset
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
 fun AlarmListScreen(
     navController: NavController,
@@ -110,54 +114,61 @@ fun AlarmListScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            when (val state = uiState) {
-                is AlarmListUiState.Loading -> {
-                    LoadingState()
-                }
+            Crossfade(
+                targetState = uiState,
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                modifier = Modifier.fillMaxSize(),
+                label = "AlarmListState"
+            ) { state ->
+                when (state) {
+                    is AlarmListUiState.Loading -> {
+                        LoadingState()
+                    }
 
-                is AlarmListUiState.Error -> {
-                    ErrorContent(message = stringResource(state.messageResId), icon = rememberVectorPainter(Icons.Filled.Error), onRetry = viewModel::retry)
-                }
+                    is AlarmListUiState.Error -> {
+                        ErrorContent(message = stringResource(state.messageResId), icon = rememberVectorPainter(Icons.Filled.Error), onRetry = viewModel::retry)
+                    }
 
-                is AlarmListUiState.Success -> {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        if (!isIgnoringBatteryOptimizations) {
-                            BatteryOptimizationBanner(
-                                onClick = {
-                                    val intent = viewModel.createBatteryOptimizationIntent()
-                                    if (intent.resolveActivity(context.packageManager) != null) {
-                                        context.startActivity(intent)
+                    is AlarmListUiState.Success -> {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            if (!isIgnoringBatteryOptimizations) {
+                                BatteryOptimizationBanner(
+                                    onClick = {
+                                        val intent = viewModel.createBatteryOptimizationIntent()
+                                        if (intent.resolveActivity(context.packageManager) != null) {
+                                            context.startActivity(intent)
+                                        }
                                     }
-                                }
-                            )
-                        }
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !isFullScreenIntentGranted) {
-                            FullScreenIntentBanner(
-                                onClick = {
-                                    FullScreenIntentPermissionHelper.openSettings(context)
-                                }
-                            )
-                        }
-                        if (state.alarms.isEmpty()) {
-                            EmptyState(
-                                icon = rememberVectorPainter(Icons.Default.Alarm),
-                                title = stringResource(R.string.alarm_empty_title),
-                                subtitle = stringResource(R.string.alarm_empty_subtitle)
-                            )
-                        } else {
-                            AlarmListContent(
-                                alarms = state.alarms,
-                                onAlarmClick = { alarmId ->
-                                    viewModel.onAction(AlarmListAction.OnAlarmClick(alarmId))
-                                    navController.navigate(AlarmEdit(alarmId = alarmId))
-                                },
-                                onToggleEnabled = { alarmId, enabled ->
-                                    viewModel.onAction(AlarmListAction.OnToggleEnabled(alarmId, enabled))
-                                },
-                                onDeleteAlarm = { alarm ->
-                                    viewModel.onAction(AlarmListAction.OnDeleteAlarm(alarm))
-                                }
-                            )
+                                )
+                            }
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !isFullScreenIntentGranted) {
+                                FullScreenIntentBanner(
+                                    onClick = {
+                                        FullScreenIntentPermissionHelper.openSettings(context)
+                                    }
+                                )
+                            }
+                            if (state.alarms.isEmpty()) {
+                                EmptyState(
+                                    icon = rememberVectorPainter(Icons.Default.Alarm),
+                                    title = stringResource(R.string.alarm_empty_title),
+                                    subtitle = stringResource(R.string.alarm_empty_subtitle)
+                                )
+                            } else {
+                                AlarmListContent(
+                                    alarms = state.alarms,
+                                    onAlarmClick = { alarmId ->
+                                        viewModel.onAction(AlarmListAction.OnAlarmClick(alarmId))
+                                        navController.navigate(AlarmEdit(alarmId = alarmId))
+                                    },
+                                    onToggleEnabled = { alarmId, enabled ->
+                                        viewModel.onAction(AlarmListAction.OnToggleEnabled(alarmId, enabled))
+                                    },
+                                    onDeleteAlarm = { alarm ->
+                                        viewModel.onAction(AlarmListAction.OnDeleteAlarm(alarm))
+                                    }
+                                )
+                            }
                         }
                     }
                 }

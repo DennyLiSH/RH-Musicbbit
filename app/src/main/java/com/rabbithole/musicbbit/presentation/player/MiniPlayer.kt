@@ -1,6 +1,7 @@
 package com.rabbithole.musicbbit.presentation.player
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -38,6 +39,8 @@ import androidx.compose.ui.res.stringResource
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.navigation.Player
 
+private const val DURATION_MS = 300
+
 @Composable
 fun MiniPlayer(
     navController: NavHostController,
@@ -50,8 +53,14 @@ fun MiniPlayer(
 
     AnimatedVisibility(
         visible = currentSong != null,
-        enter = slideInVertically(initialOffsetY = { it }),
-        exit = slideOutVertically(targetOffsetY = { it })
+        enter = slideInVertically(
+            animationSpec = tween(DURATION_MS, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            initialOffsetY = { it }
+        ),
+        exit = slideOutVertically(
+            animationSpec = tween(DURATION_MS, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            targetOffsetY = { it }
+        )
     ) {
         val isAlarmMode = playbackState.alarmId != null
         val containerColor = if (isAlarmMode) {
