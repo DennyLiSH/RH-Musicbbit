@@ -12,6 +12,15 @@
     <string name="alarm_empty_title">暂无闹钟</string>
     <string name="alarm_empty_subtitle">点击 + 创建一个</string>
     <string name="alarm_list_create_alarm">创建闹钟</string>
+    <string name="alarm_list_delete">删除闹钟</string>
+    <string name="alarm_ring_pause">暂停</string>
+    <string name="alarm_ring_stop">停止</string>
+    <string name="discard_changes_title">放弃更改？</string>
+    <string name="discard_changes_message">未保存的编辑将丢失。</string>
+    <string name="alarm_saved">闹钟已保存</string>
+    <string name="alarm_save_failed">闹钟保存失败</string>
+    <string name="alarm_save_failed_permission">精确闹钟权限被吊销，请在设置中重新授予。</string>
+    <string name="alarm_save_failed_playlist_missing">所选播放列表已不存在。</string>
     <string name="alarm_one_time">单次</string>
     <string name="alarm_daily">每天</string>
     <string name="alarm_weekdays">工作日</string>

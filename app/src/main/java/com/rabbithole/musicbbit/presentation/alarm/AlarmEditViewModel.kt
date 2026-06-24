@@ -50,6 +50,7 @@ data class AlarmEditUiState(
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
     val saveCompleted: Boolean = false,
+    val saveFailedMessageResId: Int? = null,
     val isNewAlarm: Boolean = true,
     val errorMessageResId: Int? = null,
     val form: AlarmFormState = AlarmFormState(),
@@ -231,6 +232,24 @@ class AlarmEditViewModel @Inject constructor(
         _uiState.update { it.copy(saveCompleted = true) }
     }
 
+    /**
+     * Clears the inline form error message. Called by UI when user edits any
+     * form field after a validation error was shown (e.g. LaunchedEffect on
+     * playlistId after a "playlist required" error).
+     */
+    fun clearError() {
+        _uiState.update { it.copy(errorMessageResId = null) }
+    }
+
+    /**
+     * Clears the save-failure Snackbar trigger. Called by UI after the
+     * Snackbar finishes displaying, so the message doesn't re-show on
+     * configuration change.
+     */
+    fun clearSaveFailedMessage() {
+        _uiState.update { it.copy(saveFailedMessageResId = null) }
+    }
+
     private fun saveAlarm() {
         val form = _uiState.value.form
 
@@ -277,7 +296,9 @@ class AlarmEditViewModel @Inject constructor(
                     }
                 }
                 is AlarmSaveOrchestrator.SaveOutcome.Failure -> {
-                    _uiState.update { it.copy(isSaving = false, errorMessageResId = outcome.errorResId) }
+                    _uiState.update {
+                        it.copy(isSaving = false, saveFailedMessageResId = R.string.alarm_save_failed)
+                    }
                 }
             }
         }

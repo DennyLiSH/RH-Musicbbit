@@ -3,6 +3,7 @@ package com.rabbithole.musicbbit.presentation.alarm
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +33,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -127,15 +130,58 @@ fun AlarmEditScreen(
     var showFullScreenIntentDialog by remember { mutableStateOf(false) }
     var showAutostartGuideDialog by remember { mutableStateOf(false) }
     var showAutostartManualGuideDialog by remember { mutableStateOf(false) }
+    var showDiscardDialog by remember { mutableStateOf(false) }
+    var hasUnsavedChanges by remember { mutableStateOf(false) }
     var autostartIntent by remember { mutableStateOf<Intent?>(null) }
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val saveFailedMessageResId = uiState.saveFailedMessageResId
+    val saveFailedMessage = saveFailedMessageResId?.let { stringResource(it) }
+    val alarmSavedMessage = stringResource(R.string.alarm_saved)
 
-    // Navigate up when save is completed
+    // Track form edits for BackHandler gating. OnSave does not count — once
+    // save completes the screen navigates up anyway.
+    val onActionWithTracking: (AlarmEditAction) -> Unit = { action ->
+        if (action !is AlarmEditAction.OnSave) {
+            hasUnsavedChanges = true
+        }
+        viewModel.onAction(action)
+    }
+
+    // Navigate up when save is completed; briefly toast the success message
+    // (Toast used instead of Snackbar because Snackbar is destroyed on
+    // navigateUp; Toast survives the screen change).
     LaunchedEffect(uiState.saveCompleted) {
         if (uiState.saveCompleted) {
             Timber.i("Alarm saved, navigating up")
+            android.widget.Toast.makeText(context, alarmSavedMessage, android.widget.Toast.LENGTH_SHORT).show()
             navController.navigateUp()
         }
+    }
+
+    // Show Snackbar on save failure, then clear the trigger so it doesn't
+    // re-show on configuration change.
+    LaunchedEffect(saveFailedMessageResId) {
+        saveFailedMessage?.let { msg ->
+            snackbarHostState.showSnackbar(message = msg)
+            viewModel.clearSaveFailedMessage()
+        }
+    }
+
+    // Clear inline form error as soon as user edits the playlist field
+    // (only after a prior submit attempt set the error — initial empty state
+    // is not an error).
+    LaunchedEffect(form.playlistId) {
+        if (uiState.errorMessageResId != null) {
+            viewModel.clearError()
+        }
+    }
+
+    // Intercept system back / navigation arrow only when user has unsaved
+    // edits. If OEM ROM predictive-back gesture conflicts, system gesture
+    // wins (BackHandler is bypassed when disabled).
+    BackHandler(enabled = hasUnsavedChanges) {
+        showDiscardDialog = true
     }
 
     // Collect one-time events from ViewModel
@@ -154,6 +200,7 @@ fun AlarmEditScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -165,7 +212,13 @@ fun AlarmEditScreen(
                     Text(stringResource(titleTextRes))
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
+                    IconButton(onClick = {
+                        if (hasUnsavedChanges) {
+                            showDiscardDialog = true
+                        } else {
+                            navController.navigateUp()
+                        }
+                    }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.common_back)
@@ -210,7 +263,7 @@ fun AlarmEditScreen(
                 AlarmEditContent(
                     uiState = uiState,
                     onTimeClick = { showTimePicker = true },
-                    onAction = viewModel::onAction
+                    onAction = onActionWithTracking
                 )
             }
         }
@@ -317,6 +370,30 @@ fun AlarmEditScreen(
                 }
                 showAutostartManualGuideDialog = false
                 viewModel.onAutostartGuideDismissed()
+            }
+        )
+    }
+
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text(stringResource(R.string.discard_changes_title)) },
+            text = { Text(stringResource(R.string.discard_changes_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardDialog = false
+                        hasUnsavedChanges = false
+                        navController.navigateUp()
+                    }
+                ) {
+                    Text(stringResource(R.string.action_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             }
         )
     }

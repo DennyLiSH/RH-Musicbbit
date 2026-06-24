@@ -136,11 +136,6 @@ class AlarmRingActivity : ComponentActivity() {
         Timber.d("Breathing animation stopped, brightness restored")
     }
 
-    override fun onUserInteraction() {
-        super.onUserInteraction()
-        stopBreathingAnimation()
-    }
-
     override fun onDestroy() {
         stopBreathingAnimation()
         Timber.i("AlarmRingActivity destroyed")
@@ -237,12 +232,13 @@ private fun AlarmRingScreen(
                 icon = {
                     Icon(
                         imageVector = if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (uiState.isPlaying) stringResource(R.string.pause) else stringResource(R.string.resume),
+                        contentDescription = if (uiState.isPlaying) stringResource(R.string.alarm_ring_pause) else stringResource(R.string.resume),
                         modifier = Modifier.size(32.dp)
                     )
                 },
-                label = if (uiState.isPlaying) stringResource(R.string.pause) else stringResource(R.string.resume),
+                label = if (uiState.isPlaying) stringResource(R.string.alarm_ring_pause) else stringResource(R.string.resume),
                 onClick = {
+                    (context as? AlarmRingActivity)?.stopBreathingAnimation()
                     if (uiState.isPlaying) {
                         viewModel.pause()
                     } else {
@@ -258,12 +254,13 @@ private fun AlarmRingScreen(
                 icon = {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(R.string.stop),
+                        contentDescription = stringResource(R.string.alarm_ring_stop),
                         modifier = Modifier.size(32.dp)
                     )
                 },
-                label = stringResource(R.string.stop),
+                label = stringResource(R.string.alarm_ring_stop),
                 onClick = {
+                    (context as? AlarmRingActivity)?.stopBreathingAnimation()
                     viewModel.stop()
                     onStop()
                 },

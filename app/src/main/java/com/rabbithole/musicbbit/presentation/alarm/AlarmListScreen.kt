@@ -56,6 +56,7 @@ import com.rabbithole.musicbbit.presentation.components.ErrorContent
 import com.rabbithole.musicbbit.presentation.components.EmptyState
 import com.rabbithole.musicbbit.presentation.components.InfoBanner
 import com.rabbithole.musicbbit.presentation.components.LoadingState
+import com.rabbithole.musicbbit.presentation.components.performHapticSafe
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
@@ -67,8 +68,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
@@ -232,6 +235,7 @@ private fun SwipeableAlarmItem(
     val scope = rememberCoroutineScope()
     val offsetX = remember { Animatable(0f) }
     val maxSwipePx = with(LocalDensity.current) { 80.dp.toPx() }
+    val haptic = LocalHapticFeedback.current
 
     Box(
         modifier = Modifier
@@ -252,14 +256,14 @@ private fun SwipeableAlarmItem(
             IconButton(
                 onClick = {
                     scope.launch {
-                        offsetX.animateTo(0f)
+                        offsetX.animateTo(0f, tween(durationMillis = 250, easing = FastOutSlowInEasing))
                     }
                     onDelete()
                 }
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete alarm",
+                    contentDescription = stringResource(R.string.alarm_list_delete),
                     tint = MaterialTheme.colorScheme.onErrorContainer
                 )
             }
@@ -277,7 +281,7 @@ private fun SwipeableAlarmItem(
                             scope.launch {
                                 val threshold = maxSwipePx * 0.3f
                                 val target = if (offsetX.value < -threshold) -maxSwipePx else 0f
-                                offsetX.animateTo(target)
+                                offsetX.animateTo(target, tween(durationMillis = 250, easing = FastOutSlowInEasing))
                             }
                         }
                     ) { change, dragAmount ->
@@ -326,7 +330,10 @@ private fun SwipeableAlarmItem(
                 // Right: enable/disable switch
                 Switch(
                     checked = alarm.isEnabled,
-                    onCheckedChange = onToggleEnabled
+                    onCheckedChange = { enabled ->
+                        haptic.performHapticSafe(HapticFeedbackType.LongPress)
+                        onToggleEnabled(enabled)
+                    }
                 )
             }
         }

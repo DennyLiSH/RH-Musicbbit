@@ -2,6 +2,7 @@ package com.rabbithole.musicbbit.presentation.alarm
 
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.domain.model.Playlist
@@ -175,6 +176,76 @@ class AlarmEditViewModelTest {
         val state = viewModel.uiState.value
         assertFalse("saveCompleted should be false", state.saveCompleted)
         assertNotNull("errorMessageResId should be set", state.errorMessageResId)
+        assertEquals(
+            "errorMessageResId should resolve to the playlist-required key",
+            R.string.alarm_edit_error_select_playlist,
+            state.errorMessageResId
+        )
+    }
+
+    @Test
+    fun `clearError clears error message resId after a prior validation failure`() = runTest {
+        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        // Trigger a validation error first
+        viewModel.onAction(AlarmEditAction.OnSave)
+        assertNotNull(
+            "errorMessageResId should be set after save with no playlist",
+            viewModel.uiState.value.errorMessageResId
+        )
+
+        viewModel.clearError()
+
+        assertNull(
+            "errorMessageResId should be null after clearError",
+            viewModel.uiState.value.errorMessageResId
+        )
+    }
+
+    @Test
+    fun `screen first shown has no error message (no proactive validation)`() {
+        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        assertNull(
+            "errorMessageResId should be null on initial state",
+            viewModel.uiState.value.errorMessageResId
+        )
+        assertNull(
+            "saveFailedMessageResId should be null on initial state",
+            viewModel.uiState.value.saveFailedMessageResId
+        )
+    }
+
+    @Test
+    fun `save failure sets saveFailedMessageResId and stays on page`() = runTest {
+        every { playlistRepository.getAllPlaylists() } returns flowOf(
+            listOf(Playlist(10L, "Morning Mix", 0L, 0L))
+        )
+        io.mockk.coEvery { alarmRepository.saveAlarm(any()) } returns
+            Result.failure(RuntimeException("DB write failed"))
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        viewModel.onAction(AlarmEditAction.OnPlaylistSelected(10L))
+        viewModel.onAction(AlarmEditAction.OnSave)
+
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(
+            "saveFailedMessageResId should be set to alarm_save_failed",
+            R.string.alarm_save_failed,
+            state.saveFailedMessageResId
+        )
+        assertFalse("saveCompleted should be false on save failure", state.saveCompleted)
+        assertFalse("isSaving should be false after save completes", state.isSaving)
     }
 
     @Test

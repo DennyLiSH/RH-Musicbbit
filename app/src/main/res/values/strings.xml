@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Music Rabbit</string>
     <string name="alarm_select_time">Select Time</string>
     <string name="action_confirm">Confirm</string>
@@ -12,6 +12,15 @@
     <string name="alarm_empty_title">No alarms yet</string>
     <string name="alarm_empty_subtitle">Tap + to create one</string>
     <string name="alarm_list_create_alarm">Create Alarm</string>
+    <string name="alarm_list_delete">Delete alarm</string>
+    <string name="alarm_ring_pause">Pause</string>
+    <string name="alarm_ring_stop">Stop</string>
+    <string name="discard_changes_title">Discard changes?</string>
+    <string name="discard_changes_message">Your unsaved edits will be lost.</string>
+    <string name="alarm_saved">Alarm saved</string>
+    <string name="alarm_save_failed">Failed to save alarm</string>
+    <string name="alarm_save_failed_permission" tools:ignore="UnusedResources">Exact alarm permission was revoked. Please re-grant in settings.</string>
+    <string name="alarm_save_failed_playlist_missing" tools:ignore="UnusedResources">The selected playlist no longer exists.</string>
     <string name="alarm_one_time">One-time</string>
     <string name="alarm_daily">Daily</string>
     <string name="alarm_weekdays">Weekdays</string>

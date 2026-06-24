@@ -12,6 +12,15 @@
     <string name="alarm_empty_title">アラームなし</string>
     <string name="alarm_empty_subtitle">+ をタップして作成</string>
     <string name="alarm_list_create_alarm">アラームを作成</string>
+    <string name="alarm_list_delete">アラームを削除</string>
+    <string name="alarm_ring_pause">一時停止</string>
+    <string name="alarm_ring_stop">停止</string>
+    <string name="discard_changes_title">変更を破棄しますか？</string>
+    <string name="discard_changes_message">未保存の編集内容は失われます。</string>
+    <string name="alarm_saved">アラームを保存しました</string>
+    <string name="alarm_save_failed">アラームの保存に失敗しました</string>
+    <string name="alarm_save_failed_permission">正確なアラーム権限が取り消されました。設定で再許可してください。</string>
+    <string name="alarm_save_failed_playlist_missing">選択したプレイリストは存在しません。</string>
     <string name="alarm_one_time">一回のみ</string>
     <string name="alarm_daily">毎日</string>
     <string name="alarm_weekdays">平日</string>
