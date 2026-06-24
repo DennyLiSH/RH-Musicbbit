@@ -1,14 +1,11 @@
 package com.rabbithole.musicbbit.service
 
 import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import androidx.core.app.NotificationCompat
-import com.rabbithole.musicbbit.MainActivity
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.presentation.alarm.AlarmRingActivity
 import com.rabbithole.musicbbit.domain.model.Alarm
@@ -28,32 +25,34 @@ import javax.inject.Singleton
 @Singleton
 class AlarmNotificationHelper @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val resources: NotificationResources,
+    private val channelFactory: NotificationChannelFactory,
+    private val mainActivityIntentFactory: MainActivityIntentFactory,
 ) : NotificationPort {
 
     private val contentBuilder = AlarmNotificationContentBuilder(
-        defaultAlarmLabel = safeGetString(R.string.notification_default_alarm_label, "Music Alarm"),
-        unknownArtist = safeGetString(R.string.notification_unknown_artist, "Unknown artist"),
-        playingFormat = safeGetString(R.string.notification_playing_format, "Playing: %1\$s - %2\$s"),
-        stop = safeGetString(R.string.stop, "Stop"),
-        pause = safeGetString(R.string.pause, "Pause"),
-        resume = safeGetString(R.string.resume, "Resume"),
-        extend = safeGetString(R.string.notification_extend, "Extend ▼"),
-        extendMinutesFormat = safeGetString(R.string.notification_extend_minutes, "Extend %d min"),
-        toSongEnd = safeGetString(R.string.notification_to_song_end, "To song end"),
-        alarmPausedTitle = safeGetString(R.string.notification_alarm_paused, "Alarm Paused"),
-        playbackPausedText = safeGetString(R.string.notification_playback_paused, "Playback has been paused"),
+        defaultAlarmLabel = resources.getString(R.string.notification_default_alarm_label, "Music Alarm"),
+        unknownArtist = resources.getString(R.string.notification_unknown_artist, "Unknown artist"),
+        playingFormat = resources.getString(R.string.notification_playing_format, "Playing: %1\$s - %2\$s"),
+        stop = resources.getString(R.string.stop, "Stop"),
+        pause = resources.getString(R.string.pause, "Pause"),
+        resume = resources.getString(R.string.resume, "Resume"),
+        extend = resources.getString(R.string.notification_extend, "Extend ▼"),
+        extendMinutesFormat = resources.getString(R.string.notification_extend_minutes, "Extend %d min"),
+        toSongEnd = resources.getString(R.string.notification_to_song_end, "To song end"),
+        alarmPausedTitle = resources.getString(R.string.notification_alarm_paused, "Alarm Paused"),
+        playbackPausedText = resources.getString(R.string.notification_playback_paused, "Playback has been paused"),
     )
 
-    private fun safeGetString(@androidx.annotation.StringRes resId: Int, fallback: String): String {
-        return try {
-            context.getString(resId)
-        } catch (_: android.content.res.Resources.NotFoundException) {
-            fallback
-        }
-    }
-
     override fun showAlarmPlaying(alarm: Alarm, song: Song) {
-        createChannel()
+        channelFactory.ensureChannel(
+            channelId = CHANNEL_ID,
+            nameRes = R.string.notification_channel_name,
+            nameFallback = "Music Alarm",
+            descRes = R.string.notification_alarm_channel_desc,
+            descFallback = "Music alarm notifications",
+            importance = NotificationManager.IMPORTANCE_HIGH
+        )
         val content = contentBuilder.buildPlaying(alarm.label, song.title, song.artist)
         val notification = renderNotification(content, alarm.id)
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
@@ -79,7 +78,14 @@ class AlarmNotificationHelper @Inject constructor(
     }
 
     override fun showError(notificationId: Int, title: String, message: String) {
-        createChannel()
+        channelFactory.ensureChannel(
+            channelId = CHANNEL_ID,
+            nameRes = R.string.notification_channel_name,
+            nameFallback = "Music Alarm",
+            descRes = R.string.notification_alarm_channel_desc,
+            descFallback = "Music alarm notifications",
+            importance = NotificationManager.IMPORTANCE_HIGH
+        )
         val content = contentBuilder.buildError(title, message)
         val notification = renderNotification(content, alarmId = notificationId.toLong())
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
@@ -88,41 +94,8 @@ class AlarmNotificationHelper @Inject constructor(
         Timber.d("Error notification shown: $message")
     }
 
-    private fun createChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channelName = try {
-                context.getString(R.string.notification_channel_name)
-            } catch (e: android.content.res.Resources.NotFoundException) {
-                "Music Alarm"
-            }
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                channelName,
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = try {
-                        context.getString(R.string.notification_alarm_channel_desc)
-                    } catch (e: android.content.res.Resources.NotFoundException) {
-                        "Music alarm notifications"
-                    }
-                setShowBadge(false)
-            }
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
-                as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-            Timber.d("Alarm notification channel created")
-        }
-    }
-
     private fun renderNotification(content: AlarmNotificationContent, alarmId: Long): Notification {
-        val contentIntent = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val contentIntent = mainActivityIntentFactory.create(0)
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_small)
