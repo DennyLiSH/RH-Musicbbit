@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -39,8 +40,6 @@ import androidx.compose.ui.res.stringResource
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.navigation.Player
 
-private const val DURATION_MS = 300
-
 @Composable
 fun MiniPlayer(
     navController: NavHostController,
@@ -54,11 +53,11 @@ fun MiniPlayer(
     AnimatedVisibility(
         visible = currentSong != null,
         enter = slideInVertically(
-            animationSpec = tween(DURATION_MS, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            animationSpec = tween(MotionTokens.DurationLong, easing = MotionTokens.EasingEmphasized),
             initialOffsetY = { it }
         ),
         exit = slideOutVertically(
-            animationSpec = tween(DURATION_MS, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            animationSpec = tween(MotionTokens.DurationLong, easing = MotionTokens.EasingEmphasized),
             targetOffsetY = { it }
         )
     ) {

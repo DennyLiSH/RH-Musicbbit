@@ -57,12 +57,12 @@ import com.rabbithole.musicbbit.presentation.components.EmptyState
 import com.rabbithole.musicbbit.presentation.components.InfoBanner
 import com.rabbithole.musicbbit.presentation.components.LoadingState
 import com.rabbithole.musicbbit.presentation.components.performHapticSafe
+import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.filled.Delete
@@ -119,7 +119,7 @@ fun AlarmListScreen(
         ) {
             Crossfade(
                 targetState = uiState,
-                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                animationSpec = tween(durationMillis = MotionTokens.DurationLong, easing = MotionTokens.EasingEmphasized),
                 modifier = Modifier.fillMaxSize(),
                 label = "AlarmListState"
             ) { state ->
@@ -256,7 +256,7 @@ private fun SwipeableAlarmItem(
             IconButton(
                 onClick = {
                     scope.launch {
-                        offsetX.animateTo(0f, tween(durationMillis = 250, easing = FastOutSlowInEasing))
+                        offsetX.animateTo(0f, tween(durationMillis = MotionTokens.DurationMedium, easing = MotionTokens.EasingEmphasized))
                     }
                     onDelete()
                 }
@@ -281,7 +281,7 @@ private fun SwipeableAlarmItem(
                             scope.launch {
                                 val threshold = maxSwipePx * 0.3f
                                 val target = if (offsetX.value < -threshold) -maxSwipePx else 0f
-                                offsetX.animateTo(target, tween(durationMillis = 250, easing = FastOutSlowInEasing))
+                                offsetX.animateTo(target, tween(durationMillis = MotionTokens.DurationMedium, easing = MotionTokens.EasingEmphasized))
                             }
                         }
                     ) { change, dragAmount ->

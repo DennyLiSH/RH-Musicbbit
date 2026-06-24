@@ -2,7 +2,6 @@ package com.rabbithole.musicbbit.presentation.music
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -63,6 +62,7 @@ import com.rabbithole.musicbbit.presentation.player.PlayerViewModel
 import com.rabbithole.musicbbit.presentation.components.EmptyState
 import com.rabbithole.musicbbit.presentation.components.ErrorContent
 import com.rabbithole.musicbbit.presentation.components.LoadingState
+import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import com.rabbithole.musicbbit.presentation.player.components.AddToPlaylistBottomSheet
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
@@ -115,7 +115,7 @@ fun MusicBrowseScreen(
         ) {
             Crossfade(
                 targetState = uiState,
-                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                animationSpec = tween(durationMillis = MotionTokens.DurationLong, easing = MotionTokens.EasingEmphasized),
                 modifier = Modifier.fillMaxSize(),
                 label = "MusicBrowseState"
             ) { state ->

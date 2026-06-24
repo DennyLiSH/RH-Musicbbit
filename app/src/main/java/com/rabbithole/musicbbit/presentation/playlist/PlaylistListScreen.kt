@@ -2,7 +2,6 @@ package com.rabbithole.musicbbit.presentation.playlist
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,6 +54,7 @@ import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.presentation.components.EmptyState
 import com.rabbithole.musicbbit.presentation.components.ErrorContent
 import com.rabbithole.musicbbit.presentation.components.LoadingState
+import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.navigation.PlaylistDetail
 import java.text.SimpleDateFormat
@@ -102,7 +102,7 @@ fun PlaylistListScreen(
         ) {
             Crossfade(
                 targetState = uiState,
-                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                animationSpec = tween(durationMillis = MotionTokens.DurationLong, easing = MotionTokens.EasingEmphasized),
                 modifier = Modifier.fillMaxSize(),
                 label = "PlaylistListState"
             ) { state ->
