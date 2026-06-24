@@ -68,6 +68,7 @@ media3-session = { group = "androidx.media3", name = "media3-session", version.r
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+mockk-android = { module = "io.mockk:mockk-android", version.ref = "mockk" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar" }
 work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
