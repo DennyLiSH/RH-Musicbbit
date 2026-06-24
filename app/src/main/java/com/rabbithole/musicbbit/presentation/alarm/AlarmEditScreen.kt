@@ -56,6 +56,7 @@ import com.rabbithole.musicbbit.presentation.alarm.components.DayOfWeekSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.PlaylistSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.TimePickerDialog
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
+import com.rabbithole.musicbbit.ui.theme.timeDisplayStandard
 import timber.log.Timber
 
 private sealed interface AutoStopOption {
@@ -461,7 +462,7 @@ private fun TimeDisplay(
         ) {
             Text(
                 text = String.format("%02d:%02d", hour, minute),
-                style = MaterialTheme.typography.displayLarge,
+                style = timeDisplayStandard,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
             Spacer(modifier = Modifier.height(8.dp))

@@ -42,6 +42,7 @@ import com.rabbithole.musicbbit.LocaleHelper
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.service.AlarmActionReceiver
 import com.rabbithole.musicbbit.service.AlarmScheduler
+import com.rabbithole.musicbbit.ui.theme.timeDisplayLarge
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -193,7 +194,7 @@ private fun AlarmRingScreen(
         val currentTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
         Text(
             text = currentTime,
-            style = MaterialTheme.typography.displayLarge,
+            style = timeDisplayLarge,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
             textAlign = TextAlign.Center
         )
