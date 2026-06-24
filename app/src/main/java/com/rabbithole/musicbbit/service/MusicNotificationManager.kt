@@ -1,14 +1,11 @@
 package com.rabbithole.musicbbit.service
 
 import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import androidx.core.app.NotificationCompat
-import com.rabbithole.musicbbit.MainActivity
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.service.playback.MusicNotificationPort
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -24,6 +21,9 @@ import javax.inject.Singleton
 @Singleton
 class MusicNotificationManager @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val resources: NotificationResources,
+    private val channelFactory: NotificationChannelFactory,
+    private val mainActivityIntentFactory: MainActivityIntentFactory,
 ) : MusicNotificationPort {
     private val channelId = "music_playback_channel"
     private val notificationId = 1
@@ -31,27 +31,14 @@ class MusicNotificationManager @Inject constructor(
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
     override fun ensureChannelExists() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channelName = try {
-                context.getString(R.string.app_name)
-            } catch (e: android.content.res.Resources.NotFoundException) {
-                "MusicBbit"
-            }
-            val channel = NotificationChannel(
-                channelId,
-                channelName,
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = try {
-                    context.getString(R.string.notification_music_channel_desc)
-                } catch (e: android.content.res.Resources.NotFoundException) {
-                    "Music playback notification"
-                }
-                setShowBadge(false)
-            }
-            notificationManager.createNotificationChannel(channel)
-            Timber.i("Notification channel created")
-        }
+        channelFactory.ensureChannel(
+            channelId = channelId,
+            nameRes = R.string.app_name,
+            nameFallback = "MusicBbit",
+            descRes = R.string.notification_music_channel_desc,
+            descFallback = "Music playback notification",
+            importance = NotificationManager.IMPORTANCE_LOW
+        )
     }
 
     override fun buildAndNotify(state: PlaybackState) {
@@ -69,29 +56,15 @@ class MusicNotificationManager @Inject constructor(
     fun buildNotification(state: PlaybackState): Notification {
         val song = state.currentSong
 
-        val contentIntent = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val contentIntent = mainActivityIntentFactory.create(0)
 
-        val appName = try {
-            context.getString(R.string.app_name)
-        } catch (e: android.content.res.Resources.NotFoundException) {
-            "MusicBbit"
-        }
+        val appName = resources.getString(R.string.app_name, "MusicBbit")
+        val unknownArtist = resources.getString(R.string.notification_unknown_artist, "Unknown artist")
 
         val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification_small)
             .setContentTitle(song?.title ?: appName)
-            .setContentText(song?.artist ?: try {
-                context.getString(R.string.notification_unknown_artist)
-            } catch (e: android.content.res.Resources.NotFoundException) {
-                "Unknown artist"
-            })
+            .setContentText(song?.artist ?: unknownArtist)
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -100,19 +73,23 @@ class MusicNotificationManager @Inject constructor(
 
         builder.addAction(
             R.drawable.ic_notification_skip_previous,
-            try { context.getString(R.string.player_previous) } catch (_: android.content.res.Resources.NotFoundException) { "Previous" },
+            resources.getString(R.string.player_previous, "Previous"),
             createActionPendingIntent(MusicPlaybackService.ACTION_PREVIOUS)
         )
 
+        val playPauseLabel = if (state.isPlaying)
+            resources.getString(R.string.pause, "Pause")
+        else
+            resources.getString(R.string.notification_play, "Play")
         builder.addAction(
             if (state.isPlaying) R.drawable.ic_notification_pause else R.drawable.ic_notification_play,
-            if (state.isPlaying) try { context.getString(R.string.pause) } catch (_: android.content.res.Resources.NotFoundException) { "Pause" } else try { context.getString(R.string.notification_play) } catch (_: android.content.res.Resources.NotFoundException) { "Play" },
+            playPauseLabel,
             createActionPendingIntent(MusicPlaybackService.ACTION_TOGGLE_PLAY_PAUSE)
         )
 
         builder.addAction(
             R.drawable.ic_notification_skip_next,
-            try { context.getString(R.string.player_next) } catch (_: android.content.res.Resources.NotFoundException) { "Next" },
+            resources.getString(R.string.player_next, "Next"),
             createActionPendingIntent(MusicPlaybackService.ACTION_NEXT)
         )
 
