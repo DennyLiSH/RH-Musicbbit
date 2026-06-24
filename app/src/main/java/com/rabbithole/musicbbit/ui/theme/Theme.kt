@@ -16,8 +16,12 @@ private val DarkColorScheme = darkColorScheme(
     primary = Coral80,
     secondary = Slate80,
     tertiary = Amber80,
-    background = Color(0xFF1C1B1F),
-    surface = Color(0xFF1C1B1F),
+    background = BackgroundDark,
+    surface = SurfaceDark,
+    surfaceVariant = SurfaceVariantDark,
+    onSurfaceVariant = OnSurfaceVariantDark,
+    outline = OutlineDark,
+    outlineVariant = OutlineVariantDark,
     onPrimary = Color(0xFF3D0A00),
     onSecondary = Color(0xFF1C1B1F),
     onTertiary = Color(0xFF1C1B1F),
@@ -31,8 +35,12 @@ private val LightColorScheme = lightColorScheme(
     primary = Coral40,
     secondary = Slate40,
     tertiary = Amber40,
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+    background = BackgroundLight,
+    surface = SurfaceLight,
+    surfaceVariant = SurfaceVariantLight,
+    onSurfaceVariant = OnSurfaceVariantLight,
+    outline = OutlineLight,
+    outlineVariant = OutlineVariantLight,
     onPrimary = Color.White,
     onSecondary = Color.White,
     onTertiary = Color(0xFF1C1B1F),
@@ -45,8 +53,9 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun 音乐兔Theme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    // Dynamic color available on Android 12+, disabled by default to let brand Coral/Slate/Amber
+    // take precedence. Kept as parameter for future experimental opt-in or debug preview.
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
