@@ -56,7 +56,9 @@ import com.rabbithole.musicbbit.navigation.Player
 import com.rabbithole.musicbbit.navigation.ScanDirectorySettings
 import com.rabbithole.musicbbit.presentation.music.components.SongListItem
 import com.rabbithole.musicbbit.presentation.player.PlayerViewModel
+import com.rabbithole.musicbbit.presentation.components.EmptyState
 import com.rabbithole.musicbbit.presentation.components.ErrorContent
+import com.rabbithole.musicbbit.presentation.components.LoadingState
 import com.rabbithole.musicbbit.presentation.player.components.AddToPlaylistBottomSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -109,7 +111,7 @@ fun MusicBrowseScreen(
         ) {
             when (val state = uiState) {
                 is MusicUiState.Loading -> {
-                    LoadingContent()
+                    LoadingState()
                 }
 
                 is MusicUiState.Error -> {
@@ -127,7 +129,9 @@ fun MusicBrowseScreen(
                 }
 
                 is MusicUiState.Empty -> {
-                    EmptyContent()
+                    EmptyState(
+                        title = stringResource(R.string.music_browse_empty)
+                    )
                 }
 
                 is MusicUiState.Success -> {
@@ -147,16 +151,6 @@ fun MusicBrowseScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun LoadingContent() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator()
     }
 }
 
@@ -219,22 +213,6 @@ private fun NoScanDirectoryContent(
         Button(onClick = onNavigateToSettings) {
             Text(stringResource(R.string.music_browse_go_to_settings))
         }
-    }
-}
-
-@Composable
-private fun EmptyContent() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = stringResource(R.string.music_browse_empty),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(32.dp)
-        )
     }
 }
 

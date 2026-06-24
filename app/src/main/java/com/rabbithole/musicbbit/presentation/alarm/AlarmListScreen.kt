@@ -53,7 +53,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.presentation.components.ErrorContent
+import com.rabbithole.musicbbit.presentation.components.EmptyState
 import com.rabbithole.musicbbit.presentation.components.InfoBanner
+import com.rabbithole.musicbbit.presentation.components.LoadingState
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
@@ -110,7 +112,7 @@ fun AlarmListScreen(
         ) {
             when (val state = uiState) {
                 is AlarmListUiState.Loading -> {
-                    LoadingContent()
+                    LoadingState()
                 }
 
                 is AlarmListUiState.Error -> {
@@ -137,7 +139,11 @@ fun AlarmListScreen(
                             )
                         }
                         if (state.alarms.isEmpty()) {
-                            EmptyContent()
+                            EmptyState(
+                                icon = rememberVectorPainter(Icons.Default.Alarm),
+                                title = stringResource(R.string.alarm_empty_title),
+                                subtitle = stringResource(R.string.alarm_empty_subtitle)
+                            )
                         } else {
                             AlarmListContent(
                                 alarms = state.alarms,
@@ -176,48 +182,6 @@ private fun FullScreenIntentBanner(onClick: () -> Unit) {
         message = R.string.full_screen_intent_banner_message,
         onClick = onClick,
     )
-}
-
-@Composable
-private fun LoadingContent() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator()
-    }
-}
-
-@Composable
-private fun EmptyContent() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.Alarm,
-            contentDescription = null,
-            modifier = Modifier
-                .height(64.dp)
-                .padding(bottom = 16.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = stringResource(R.string.alarm_empty_title),
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.alarm_empty_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-    }
 }
 
 @Composable

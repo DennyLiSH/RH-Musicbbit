@@ -48,7 +48,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.presentation.components.EmptyState
 import com.rabbithole.musicbbit.presentation.components.ErrorContent
+import com.rabbithole.musicbbit.presentation.components.LoadingState
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.navigation.PlaylistDetail
 import java.text.SimpleDateFormat
@@ -96,7 +98,7 @@ fun PlaylistListScreen(
         ) {
             when (val state = uiState) {
                 is PlaylistListUiState.Loading -> {
-                    LoadingContent()
+                    LoadingState()
                 }
 
                 is PlaylistListUiState.Error -> {
@@ -109,7 +111,11 @@ fun PlaylistListScreen(
 
                 is PlaylistListUiState.Success -> {
                     if (state.playlists.isEmpty()) {
-                        EmptyContent()
+                        EmptyState(
+                            icon = rememberVectorPainter(Icons.AutoMirrored.Filled.PlaylistPlay),
+                            title = stringResource(R.string.playlist_list_empty_title),
+                            subtitle = stringResource(R.string.playlist_list_empty_subtitle)
+                        )
                     } else {
                         PlaylistListContent(
                             playlists = state.playlists,
@@ -134,48 +140,6 @@ fun PlaylistListScreen(
                 viewModel.onAction(PlaylistListAction.OnCreatePlaylist(name))
                 showCreateDialog = false
             }
-        )
-    }
-}
-
-@Composable
-private fun LoadingContent() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator()
-    }
-}
-
-@Composable
-private fun EmptyContent() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
-            contentDescription = null,
-            modifier = Modifier
-                .height(64.dp)
-            .padding(bottom = 16.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = stringResource(R.string.playlist_list_empty_title),
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.playlist_list_empty_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
         )
     }
 }
