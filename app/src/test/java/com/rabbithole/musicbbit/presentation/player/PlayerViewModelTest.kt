@@ -4,9 +4,9 @@ import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.service.PlayMode
 import com.rabbithole.musicbbit.service.PlaybackState
 import com.rabbithole.musicbbit.service.playback.PlaybackSession
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,9 +40,9 @@ class PlayerViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        playbackController = mockk(relaxed = true)
+        playbackController = mock()
 
-        every { playbackController.playbackState } returns playbackStateFlow
+        whenever(playbackController.playbackState).thenReturn(playbackStateFlow)
 
         if (Timber.treeCount == 0) {
             Timber.plant(Timber.DebugTree())
@@ -109,7 +109,7 @@ class PlayerViewModelTest {
 
         viewModel.play(song, playlistId = 42L)
 
-        verify { playbackController.play(song, 42L) }
+        verify(playbackController).play(song, 42L)
     }
 
     @Test
@@ -130,7 +130,7 @@ class PlayerViewModelTest {
 
         viewModel.playPlaylist(songs, startIndex = 0, playlistId = 10L)
 
-        verify { playbackController.playQueue(songs, 0, 10L) }
+        verify(playbackController).playQueue(songs, 0, 10L)
     }
 
     @Test
@@ -139,7 +139,7 @@ class PlayerViewModelTest {
 
         viewModel.pause()
 
-        verify { playbackController.pause() }
+        verify(playbackController).pause()
     }
 
     @Test
@@ -148,7 +148,7 @@ class PlayerViewModelTest {
 
         viewModel.resume()
 
-        verify { playbackController.resume() }
+        verify(playbackController).resume()
     }
 
     @Test
@@ -157,7 +157,7 @@ class PlayerViewModelTest {
 
         viewModel.stop()
 
-        verify { playbackController.stop() }
+        verify(playbackController).stop()
     }
 
     @Test
@@ -166,7 +166,7 @@ class PlayerViewModelTest {
 
         viewModel.next()
 
-        verify { playbackController.next() }
+        verify(playbackController).next()
     }
 
     @Test
@@ -175,7 +175,7 @@ class PlayerViewModelTest {
 
         viewModel.previous()
 
-        verify { playbackController.previous() }
+        verify(playbackController).previous()
     }
 
     @Test
@@ -184,7 +184,7 @@ class PlayerViewModelTest {
 
         viewModel.seekTo(30_000L)
 
-        verify { playbackController.seekTo(30_000L) }
+        verify(playbackController).seekTo(30_000L)
     }
 
     @Test
@@ -193,6 +193,6 @@ class PlayerViewModelTest {
 
         viewModel.setPlayMode(PlayMode.RANDOM)
 
-        verify { playbackController.setPlayMode(PlayMode.RANDOM) }
+        verify(playbackController).setPlayMode(PlayMode.RANDOM)
     }
 }
