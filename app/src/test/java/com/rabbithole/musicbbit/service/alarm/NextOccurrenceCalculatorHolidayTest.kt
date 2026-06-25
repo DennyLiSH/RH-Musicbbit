@@ -100,7 +100,7 @@ class NextOccurrenceCalculatorHolidayTest {
             set(2024, Calendar.JANUARY, 13, 8, 0, 0)
             set(Calendar.MILLISECOND, 0)
         }
-        // isWorkdayUseCase returns true for all dates (including Saturday)
+        // HolidayRepository.isWorkday returns true for all dates (including Saturday)
         val calculator = createCalculator(isWorkdayResult = true, now = now)
 
         // With excludeHolidays=true, Saturday as workday should ring
@@ -361,7 +361,7 @@ class NextOccurrenceCalculatorHolidayTest {
 
     @Test
     fun `nextOccurrence - fallback triggered when all days are non-workday`() = runTest {
-        // Simulate isWorkdayUseCase returning false for every date.
+        // Simulate HolidayRepository.isWorkday returning false for every date.
         // The while loop will iterate past year+1 and invoke the fallback path.
         val now = fixedNow(day = 15, hour = 8)
         val holidayRepository = mockk<HolidayRepository>()

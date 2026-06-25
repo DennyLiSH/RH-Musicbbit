@@ -124,7 +124,7 @@ class PlaylistDetailViewModelTest {
     }
 
     @Test
-    fun `add songs calls addSongToPlaylistUseCase`() = runTest {
+    fun `add songs calls playlistRepository addSongsToPlaylist`() = runTest {
         val playlist = Playlist(id = 1L, name = "Test", createdAt = 0L, updatedAt = 0L)
         val playlistWithSongs = PlaylistWithSongs(playlist, emptyList())
 
