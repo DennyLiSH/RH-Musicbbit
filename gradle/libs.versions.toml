@@ -22,7 +22,8 @@ kotlinxSerialization = "1.11.0"
 media3 = "1.10.1"
 timber = "5.0.1"
 robolectric = "4.16.1"
-mockk = "1.14.11"
+mockito = "5.23.0"
+mockitoKotlin = "6.3.0"
 turbine = "1.2.1"
 desugar = "2.1.5"
 work = "2.11.2"
@@ -67,8 +68,8 @@ media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", versi
 media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
-mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
-mockk-android = { module = "io.mockk:mockk-android", version.ref = "mockk" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+mockito-kotlin = { module = "org.mockito.kotlin:mockito-kotlin", version.ref = "mockitoKotlin" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar" }
 work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
