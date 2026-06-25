@@ -1,5 +1,6 @@
 package com.rabbithole.musicbbit.presentation.player
 
+import android.content.Context
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
@@ -7,6 +8,9 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.navigation.compose.rememberNavController
+import androidx.test.core.app.ApplicationProvider
+import androidx.work.Configuration
+import androidx.work.WorkManager
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.TestActivity
 import com.rabbithole.musicbbit.domain.model.Song
@@ -15,6 +19,7 @@ import dagger.hilt.android.testing.HiltTestApplication
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,6 +33,12 @@ import org.robolectric.annotation.Config
  * that block mockk-android's inline mocking on instrumented environment.
  * Mirrors SettingsScreenTest migration pattern (createAndroidComposeRule +
  * main source-set TestActivity so LocalActivity.current resolves).
+ *
+ * WorkManager is initialized in @Before so the HiltTestApplication-induced
+ * AlarmStartupReconciler coroutine (which calls scheduleIntegrityCheck) does
+ * not throw "WorkManager is not initialized" — preventing test pollution
+ * that would otherwise surface as UncaughtExceptionsBeforeTest in downstream
+ * tests.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33], application = HiltTestApplication::class)
@@ -35,6 +46,21 @@ class PlayerScreenTest {
 
     @get:Rule
     val composeTestRule = createAndroidComposeRule<TestActivity>()
+
+    @Before
+    fun initWorkManagerAndDrainPendingReconcile() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        try {
+            WorkManager.initialize(context, Configuration.Builder().build())
+        } catch (e: IllegalStateException) {
+            // Already initialized by a previous test class — safe to ignore.
+        }
+        // Give any background reconcile coroutine started by HiltTestApplication.onCreate
+        // a chance to complete before the next test method begins, so its
+        // scheduleIntegrityCheck does not cross the test boundary as an
+        // UncaughtExceptionsBeforeTest.
+        Thread.sleep(50)
+    }
 
     @Test
     fun playButtonVisibleWhenNotPlaying() {
