@@ -4,11 +4,12 @@ import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.service.PlaybackState
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.slot
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verifyBlocking
+import org.mockito.kotlin.whenever
+import org.mockito.kotlin.wheneverBlocking
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -58,13 +59,13 @@ class PlaybackProgressTrackerTest {
 
     @Before
     fun setUp() {
-        playerPort = mockk(relaxed = true)
-        repository = mockk(relaxed = true)
+        playerPort = mock()
+        repository = mock()
         fakeTimeMs = 1000L
         mutableState = PlaybackState()
 
-        every { playerPort.currentPositionMs() } returns 5000L
-        coEvery { repository.saveProgress(any()) } returns Result.success(Unit)
+        whenever(playerPort.currentPositionMs()).thenReturn(5000L)
+        wheneverBlocking { repository.saveProgress(any()) } doReturn Result.success(Unit)
 
         tracker = PlaybackProgressTracker(
             scope = testScope,
@@ -84,15 +85,15 @@ class PlaybackProgressTrackerTest {
                 currentSong = TEST_SONG,
                 currentPlaylistId = 99L,
             )
-            every { playerPort.currentPositionMs() } returns 12_345L
+            whenever(playerPort.currentPositionMs()).thenReturn(12_345L)
             fakeTimeMs = 9_999_000L
 
             tracker.saveProgress()
 
-            val progressSlot = slot<PlaybackProgress>()
-            coVerify { repository.saveProgress(capture(progressSlot)) }
+            val progressCaptor = argumentCaptor<PlaybackProgress>()
+            verifyBlocking(repository) { saveProgress(progressCaptor.capture()) }
 
-            val captured = progressSlot.captured
+            val captured = progressCaptor.firstValue
             assertEquals(42L, captured.songId)
             assertEquals(12_345L, captured.positionMs)
             assertEquals(99L, captured.playlistId)
@@ -107,7 +108,7 @@ class PlaybackProgressTrackerTest {
 
         tracker.saveProgress()
 
-        coVerify(exactly = 0) { repository.saveProgress(any()) }
+        verifyBlocking(repository, org.mockito.Mockito.never()) { saveProgress(any()) }
     }
 
     // ---- saveProgress() calls repository ----
@@ -121,10 +122,10 @@ class PlaybackProgressTrackerTest {
 
         tracker.saveProgress()
 
-        val progressSlot = slot<PlaybackProgress>()
-        coVerify(exactly = 1) { repository.saveProgress(capture(progressSlot)) }
+        val progressCaptor = argumentCaptor<PlaybackProgress>()
+        verifyBlocking(repository) { saveProgress(progressCaptor.capture()) }
 
-        assertEquals(TEST_SONG.id, progressSlot.captured.songId)
+        assertEquals(TEST_SONG.id, progressCaptor.firstValue.songId)
     }
 
     // ---- startSaveLoop() periodically calls saveProgress ----
@@ -141,19 +142,19 @@ class PlaybackProgressTrackerTest {
             tracker.startSaveLoop(intervalMs)
 
             // Initially no saves yet (delay comes first in the loop)
-            coVerify(exactly = 0) { repository.saveProgress(any()) }
+            verifyBlocking(repository, org.mockito.Mockito.never()) { saveProgress(any()) }
 
             advanceTimeBy(intervalMs)
             runCurrent()
-            coVerify(exactly = 1) { repository.saveProgress(any()) }
+            verifyBlocking(repository, org.mockito.Mockito.times(1)) { saveProgress(any()) }
 
             advanceTimeBy(intervalMs)
             runCurrent()
-            coVerify(exactly = 2) { repository.saveProgress(any()) }
+            verifyBlocking(repository, org.mockito.Mockito.times(2)) { saveProgress(any()) }
 
             advanceTimeBy(intervalMs)
             runCurrent()
-            coVerify(exactly = 3) { repository.saveProgress(any()) }
+            verifyBlocking(repository, org.mockito.Mockito.times(3)) { saveProgress(any()) }
 
             tracker.stopSaveLoop()
         }
@@ -172,13 +173,13 @@ class PlaybackProgressTrackerTest {
 
         advanceTimeBy(intervalMs)
         runCurrent()
-        coVerify(exactly = 1) { repository.saveProgress(any()) }
+        verifyBlocking(repository, org.mockito.Mockito.times(1)) { saveProgress(any()) }
 
         tracker.stopSaveLoop()
 
         advanceTimeBy(intervalMs * 3)
         runCurrent()
         // Still only 1 call — loop was cancelled
-        coVerify(exactly = 1) { repository.saveProgress(any()) }
+        verifyBlocking(repository, org.mockito.Mockito.times(1)) { saveProgress(any()) }
     }
 }
