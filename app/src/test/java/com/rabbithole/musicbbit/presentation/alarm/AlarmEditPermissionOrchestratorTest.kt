@@ -4,11 +4,11 @@ import android.content.Context
 import android.content.Intent
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.mockkObject
-import io.mockk.unmockkAll
-import io.mockk.verify
+import org.mockito.MockedStatic
+import org.mockito.Mockito.mockStatic
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -29,25 +29,29 @@ class AlarmEditPermissionOrchestratorTest {
     private lateinit var alarmScheduler: AlarmScheduler
     private lateinit var orchestrator: AlarmEditPermissionOrchestrator
 
+    private var fsiMock: MockedStatic<FullScreenIntentPermissionHelper>? = null
+    private var autostartMock: MockedStatic<AutostartHelper>? = null
+
     @Before
     fun setUp() {
         context = RuntimeEnvironment.getApplication()
-        alarmScheduler = mockk(relaxed = true)
+        alarmScheduler = mock()
         orchestrator = AlarmEditPermissionOrchestrator(context, alarmScheduler)
 
-        mockkObject(FullScreenIntentPermissionHelper)
-        mockkObject(AutostartHelper)
+        fsiMock = mockStatic(FullScreenIntentPermissionHelper::class.java)
+        autostartMock = mockStatic(AutostartHelper::class.java)
     }
 
     @After
     fun tearDown() {
-        unmockkAll()
+        fsiMock?.close()
+        autostartMock?.close()
     }
 
     @Test
     fun `checkPermissions returns AllGranted when both permissions granted`() {
-        every { alarmScheduler.canScheduleExactAlarms() } returns true
-        every { FullScreenIntentPermissionHelper.isGranted(any()) } returns true
+        whenever(alarmScheduler.canScheduleExactAlarms()).thenReturn(true)
+        fsiMock!!.`when`<Boolean> { FullScreenIntentPermissionHelper.isGranted(any()) }.thenReturn(true)
 
         val result = orchestrator.checkPermissions()
 
@@ -56,8 +60,8 @@ class AlarmEditPermissionOrchestratorTest {
 
     @Test
     fun `checkPermissions returns NeedsExactAlarm when exact alarm not granted`() {
-        every { alarmScheduler.canScheduleExactAlarms() } returns false
-        every { FullScreenIntentPermissionHelper.isGranted(any()) } returns true
+        whenever(alarmScheduler.canScheduleExactAlarms()).thenReturn(false)
+        fsiMock!!.`when`<Boolean> { FullScreenIntentPermissionHelper.isGranted(any()) }.thenReturn(true)
 
         val result = orchestrator.checkPermissions()
 
@@ -66,8 +70,8 @@ class AlarmEditPermissionOrchestratorTest {
 
     @Test
     fun `checkPermissions returns NeedsFullScreenIntent when fsi not granted`() {
-        every { alarmScheduler.canScheduleExactAlarms() } returns true
-        every { FullScreenIntentPermissionHelper.isGranted(any()) } returns false
+        whenever(alarmScheduler.canScheduleExactAlarms()).thenReturn(true)
+        fsiMock!!.`when`<Boolean> { FullScreenIntentPermissionHelper.isGranted(any()) }.thenReturn(false)
 
         val result = orchestrator.checkPermissions()
 
@@ -76,8 +80,8 @@ class AlarmEditPermissionOrchestratorTest {
 
     @Test
     fun `checkPermissions checks exact alarm before fsi`() {
-        every { alarmScheduler.canScheduleExactAlarms() } returns false
-        every { FullScreenIntentPermissionHelper.isGranted(any()) } returns false
+        whenever(alarmScheduler.canScheduleExactAlarms()).thenReturn(false)
+        fsiMock!!.`when`<Boolean> { FullScreenIntentPermissionHelper.isGranted(any()) }.thenReturn(false)
 
         val result = orchestrator.checkPermissions()
 
@@ -86,7 +90,7 @@ class AlarmEditPermissionOrchestratorTest {
 
     @Test
     fun `checkAutostartGuide returns NotApplicable on non-Chinese OEM`() {
-        every { AutostartHelper.isChineseOem() } returns false
+        autostartMock!!.`when`<Boolean> { AutostartHelper.isChineseOem() }.thenReturn(false)
 
         val result = orchestrator.checkAutostartGuide()
 
@@ -95,9 +99,10 @@ class AlarmEditPermissionOrchestratorTest {
 
     @Test
     fun `checkAutostartGuide returns Resolved when intent is resolved`() {
-        every { AutostartHelper.isChineseOem() } returns true
-        val mockIntent = mockk<Intent>(relaxed = true)
-        every { AutostartHelper.getAutostartResult(any()) } returns AutostartResult.Resolved(mockIntent)
+        autostartMock!!.`when`<Boolean> { AutostartHelper.isChineseOem() }.thenReturn(true)
+        val mockIntent = mock<Intent>()
+        autostartMock!!.`when`<AutostartResult> { AutostartHelper.getAutostartResult(any()) }
+            .thenReturn(AutostartResult.Resolved(mockIntent))
 
         val result = orchestrator.checkAutostartGuide()
 
@@ -108,8 +113,9 @@ class AlarmEditPermissionOrchestratorTest {
 
     @Test
     fun `checkAutostartGuide returns NeedsManualGuide when no intent resolved`() {
-        every { AutostartHelper.isChineseOem() } returns true
-        every { AutostartHelper.getAutostartResult(any()) } returns AutostartResult.NeedsManualGuide
+        autostartMock!!.`when`<Boolean> { AutostartHelper.isChineseOem() }.thenReturn(true)
+        autostartMock!!.`when`<AutostartResult> { AutostartHelper.getAutostartResult(any()) }
+            .thenReturn(AutostartResult.NeedsManualGuide)
 
         val result = orchestrator.checkAutostartGuide()
 
