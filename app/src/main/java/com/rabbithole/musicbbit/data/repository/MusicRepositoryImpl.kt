@@ -12,6 +12,7 @@ import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -31,12 +32,14 @@ class MusicRepositoryImpl @Inject constructor(
         return songDao.getAll()
             .map { entities -> entities.map { it.toDomain() } }
             .map { songs -> songSorter.sort(songs) }
+            .distinctUntilChanged()
     }
 
     override fun searchSongs(query: String): Flow<List<Song>> {
         return songDao.searchSongs(query)
             .map { entities -> entities.map { it.toDomain() } }
             .map { songs -> songSorter.sort(songs) }
+            .distinctUntilChanged()
     }
 
     override suspend fun refreshSongs(): Result<Unit> = withContext(ioDispatcher) {

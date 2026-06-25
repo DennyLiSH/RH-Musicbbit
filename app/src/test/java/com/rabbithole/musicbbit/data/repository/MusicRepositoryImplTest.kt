@@ -165,4 +165,35 @@ class MusicRepositoryImplTest {
             awaitComplete()
         }
     }
+
+    @Test
+    fun `getAllSongs does not re-emit when dao emits identical entity list`() = runTest(testDispatcher) {
+        val entities = listOf(
+            songEntity(id = 1L, title = "Apple"),
+            songEntity(id = 2L, title = "Zebra")
+        )
+        every { songDao.getAll() } returns flowOf(entities, entities)
+
+        repository.getAllSongs().test {
+            val first = awaitItem()
+            assertEquals(2, first.size)
+            // Second identical List is filtered by distinctUntilChanged(); flow goes straight to Complete
+            awaitComplete()
+        }
+    }
+
+    @Test
+    fun `searchSongs does not re-emit when dao emits identical entity list`() = runTest(testDispatcher) {
+        val entities = listOf(
+            songEntity(id = 1L, title = "Apple"),
+            songEntity(id = 2L, title = "Zebra")
+        )
+        every { songDao.searchSongs(any()) } returns flowOf(entities, entities)
+
+        repository.searchSongs("query").test {
+            val first = awaitItem()
+            assertEquals(2, first.size)
+            awaitComplete()
+        }
+    }
 }
