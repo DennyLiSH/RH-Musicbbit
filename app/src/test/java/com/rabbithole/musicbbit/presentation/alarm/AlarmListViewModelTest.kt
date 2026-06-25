@@ -7,12 +7,6 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.HolidayRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.unmockkAll
-import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -27,6 +21,11 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verifyBlocking
+import org.mockito.kotlin.whenever
+import org.mockito.kotlin.wheneverBlocking
 import java.time.DayOfWeek
 
 /**
@@ -51,28 +50,27 @@ class AlarmListViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        permissionPort = mockk {
-            every { isFullScreenIntentGranted() } returns true
-            every { isIgnoringBatteryOptimizations() } returns true
+        permissionPort = mock {
+            whenever(it.isFullScreenIntentGranted()).thenReturn(true)
+            whenever(it.isIgnoringBatteryOptimizations()).thenReturn(true)
         }
-        alarmRepository = mockk {
-            every { getAllAlarms() } returns flowOf(emptyList())
+        alarmRepository = mock {
+            whenever(it.getAllAlarms()).thenReturn(flowOf(emptyList()))
         }
-        holidayRepository = mockk(relaxed = true)
-        playlistRepository = mockk(relaxed = true)
+        holidayRepository = mock()
+        playlistRepository = mock()
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
-        unmockkAll()
     }
 
     // -------- FSI permission tests (existing) --------------------------------
 
     @Test
     fun `fullScreenIntentGranted is true when permission port returns true`() {
-        every { permissionPort.isFullScreenIntentGranted() } returns true
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
 
         val viewModel = createViewModel()
 
@@ -81,7 +79,7 @@ class AlarmListViewModelTest {
 
     @Test
     fun `fullScreenIntentGranted reflects permission port result granted`() {
-        every { permissionPort.isFullScreenIntentGranted() } returns true
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
 
         val viewModel = createViewModel()
 
@@ -90,7 +88,7 @@ class AlarmListViewModelTest {
 
     @Test
     fun `fullScreenIntentGranted reflects permission port result denied`() {
-        every { permissionPort.isFullScreenIntentGranted() } returns false
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(false)
 
         val viewModel = createViewModel()
 
@@ -99,13 +97,13 @@ class AlarmListViewModelTest {
 
     @Test
     fun `refreshFullScreenIntentStatus updates state`() {
-        every { permissionPort.isFullScreenIntentGranted() } returns false
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(false)
 
         val viewModel = createViewModel()
         assertFalse(viewModel.isFullScreenIntentGranted.value)
 
         // User grants permission in settings
-        every { permissionPort.isFullScreenIntentGranted() } returns true
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
         viewModel.refreshFullScreenIntentStatus()
 
         assertTrue(viewModel.isFullScreenIntentGranted.value)
@@ -140,10 +138,10 @@ class AlarmListViewModelTest {
             lastTriggeredAt = 1_700_000_000_000L
         )
 
-        every { alarmRepository.getAllAlarms() } returns flowOf(listOf(alarm1, alarm2))
-        coEvery { playlistRepository.getPlaylistById(10L) } returns Playlist(10L, "Workout Mix", 0L, 0L)
-        coEvery { playlistRepository.getPlaylistById(20L) } returns Playlist(20L, "Sleep Sounds", 0L, 0L)
-        every { permissionPort.isFullScreenIntentGranted() } returns true
+        whenever(alarmRepository.getAllAlarms()).thenReturn(flowOf(listOf(alarm1, alarm2)))
+        wheneverBlocking { playlistRepository.getPlaylistById(10L) } doReturn Playlist(10L, "Workout Mix", 0L, 0L)
+        wheneverBlocking { playlistRepository.getPlaylistById(20L) } doReturn Playlist(20L, "Sleep Sounds", 0L, 0L)
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -164,8 +162,8 @@ class AlarmListViewModelTest {
 
     @Test
     fun `empty alarm list emits Success with empty list`() = runTest {
-        every { alarmRepository.getAllAlarms() } returns flowOf(emptyList())
-        every { permissionPort.isFullScreenIntentGranted() } returns true
+        whenever(alarmRepository.getAllAlarms()).thenReturn(flowOf(emptyList()))
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -192,15 +190,15 @@ class AlarmListViewModelTest {
             autoStop = null,
             lastTriggeredAt = null
         )
-        every { alarmRepository.getAllAlarms() } returns flowOf(listOf(alarm))
-        coEvery { alarmRepository.deleteAlarm(alarm) } returns Result.success(Unit)
-        coEvery { playlistRepository.getPlaylistById(10L) } returns Playlist(10L, "Test Playlist", 0L, 0L)
-        every { permissionPort.isFullScreenIntentGranted() } returns true
+        whenever(alarmRepository.getAllAlarms()).thenReturn(flowOf(listOf(alarm)))
+        wheneverBlocking { alarmRepository.deleteAlarm(alarm) } doReturn Result.success(Unit)
+        wheneverBlocking { playlistRepository.getPlaylistById(10L) } doReturn Playlist(10L, "Test Playlist", 0L, 0L)
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
 
         val viewModel = createViewModel()
         viewModel.onAction(AlarmListAction.OnDeleteAlarm(alarm))
 
-        coVerify { alarmRepository.deleteAlarm(alarm) }
+        verifyBlocking(alarmRepository) { deleteAlarm(alarm) }
     }
 
     // -------- Toggle enabled test --------------------------------------------
@@ -219,15 +217,15 @@ class AlarmListViewModelTest {
             autoStop = null,
             lastTriggeredAt = null
         )
-        every { alarmRepository.getAllAlarms() } returns flowOf(listOf(alarm))
-        coEvery { alarmRepository.enableAlarm(1L, false) } returns Result.success(Unit)
-        coEvery { playlistRepository.getPlaylistById(10L) } returns Playlist(10L, "Test Playlist", 0L, 0L)
-        every { permissionPort.isFullScreenIntentGranted() } returns true
+        whenever(alarmRepository.getAllAlarms()).thenReturn(flowOf(listOf(alarm)))
+        wheneverBlocking { alarmRepository.enableAlarm(1L, false) } doReturn Result.success(Unit)
+        wheneverBlocking { playlistRepository.getPlaylistById(10L) } doReturn Playlist(10L, "Test Playlist", 0L, 0L)
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
 
         val viewModel = createViewModel()
         viewModel.onAction(AlarmListAction.OnToggleEnabled(alarmId = 1L, enabled = false))
 
-        coVerify { alarmRepository.enableAlarm(1L, false) }
+        verifyBlocking(alarmRepository) { enableAlarm(1L, false) }
     }
 
     // -------- Retry test -----------------------------------------------------
@@ -235,15 +233,15 @@ class AlarmListViewModelTest {
     @Test
     fun `retry reloads alarms after error`() = runTest {
         val errorFlow = kotlinx.coroutines.flow.flow<List<Alarm>> { throw RuntimeException("DB error") }
-        every { alarmRepository.getAllAlarms() } returns errorFlow
-        every { permissionPort.isFullScreenIntentGranted() } returns true
+        whenever(alarmRepository.getAllAlarms()).thenReturn(errorFlow)
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
 
         val viewModel = createViewModel()
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value is AlarmListUiState.Error)
 
-        every { alarmRepository.getAllAlarms() } returns flowOf(emptyList())
+        whenever(alarmRepository.getAllAlarms()).thenReturn(flowOf(emptyList()))
         viewModel.retry()
         advanceUntilIdle()
 

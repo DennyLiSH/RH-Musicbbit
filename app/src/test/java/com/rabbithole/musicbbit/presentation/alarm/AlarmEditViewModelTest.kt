@@ -10,11 +10,6 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.unmockkAll
-import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
@@ -24,7 +19,6 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -33,6 +27,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verifyBlocking
+import org.mockito.kotlin.whenever
+import org.mockito.kotlin.wheneverBlocking
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
@@ -65,24 +65,21 @@ class AlarmEditViewModelTest {
     @Before
     fun setUp() {
         context = RuntimeEnvironment.getApplication()
-        alarmRepository = mockk(relaxed = true)
-        playlistRepository = mockk(relaxed = true)
-        alarmRingSettingsRepository = mockk(relaxed = true)
-        permissionOrchestrator = mockk(relaxed = true)
-        every { permissionOrchestrator.checkPermissions() } returns
+        alarmRepository = mock()
+        playlistRepository = mock()
+        alarmRingSettingsRepository = mock()
+        permissionOrchestrator = mock()
+        whenever(permissionOrchestrator.checkPermissions()).thenReturn(
             AlarmEditPermissionOrchestrator.PermissionCheckResult.AllGranted
-        every { permissionOrchestrator.checkAutostartGuide() } returns
+        )
+        whenever(permissionOrchestrator.checkAutostartGuide()).thenReturn(
             AlarmEditPermissionOrchestrator.AutostartGuideResult.NotApplicable
-    }
-
-    @After
-    fun tearDown() {
-        unmockkAll()
+        )
     }
 
     @Test
     fun `new alarm has default state`() {
-        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
         val viewModel = createViewModel(savedStateHandle)
@@ -119,9 +116,9 @@ class AlarmEditViewModelTest {
             lastTriggeredAt = 1_700_000_000_000L
         )
 
-        io.mockk.coEvery { alarmRepository.getAlarmById(1L) } returns existingAlarm
-        every { playlistRepository.getAllPlaylists() } returns flowOf(
-            listOf(Playlist(10L, "Work Mix", 0L, 0L))
+        wheneverBlocking { alarmRepository.getAlarmById(1L) } doReturn existingAlarm
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(
+            flowOf(listOf(Playlist(10L, "Work Mix", 0L, 0L)))
         )
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 1L))
@@ -146,8 +143,8 @@ class AlarmEditViewModelTest {
 
     @Test
     fun `load non-existent alarm shows error state`() = runTest {
-        io.mockk.coEvery { alarmRepository.getAlarmById(999L) } returns null
-        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
+        wheneverBlocking { alarmRepository.getAlarmById(999L) } doReturn null
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 999L))
         val viewModel = createViewModel(savedStateHandle)
@@ -162,7 +159,7 @@ class AlarmEditViewModelTest {
 
     @Test
     fun `save validation fails when no playlist selected`() = runTest {
-        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
         val viewModel = createViewModel(savedStateHandle)
@@ -185,7 +182,7 @@ class AlarmEditViewModelTest {
 
     @Test
     fun `clearError clears error message resId after a prior validation failure`() = runTest {
-        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
         val viewModel = createViewModel(savedStateHandle)
@@ -207,7 +204,7 @@ class AlarmEditViewModelTest {
 
     @Test
     fun `screen first shown has no error message (no proactive validation)`() {
-        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
         val viewModel = createViewModel(savedStateHandle)
@@ -224,10 +221,10 @@ class AlarmEditViewModelTest {
 
     @Test
     fun `save failure sets saveFailedMessageResId and stays on page`() = runTest {
-        every { playlistRepository.getAllPlaylists() } returns flowOf(
-            listOf(Playlist(10L, "Morning Mix", 0L, 0L))
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(
+            flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
         )
-        io.mockk.coEvery { alarmRepository.saveAlarm(any()) } returns
+        wheneverBlocking { alarmRepository.saveAlarm(any()) } doReturn
             Result.failure(RuntimeException("DB write failed"))
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
@@ -250,10 +247,10 @@ class AlarmEditViewModelTest {
 
     @Test
     fun `save success sets saveCompleted true`() = runTest {
-        every { playlistRepository.getAllPlaylists() } returns flowOf(
-            listOf(Playlist(10L, "Morning Mix", 0L, 0L))
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(
+            flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
         )
-        io.mockk.coEvery { alarmRepository.saveAlarm(any()) } returns Result.success(1L)
+        wheneverBlocking { alarmRepository.saveAlarm(any()) } doReturn Result.success(1L)
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
         val viewModel = createViewModel(savedStateHandle)
@@ -272,16 +269,17 @@ class AlarmEditViewModelTest {
         assertFalse("isSaving should be false after save", state.isSaving)
         assertNull("errorMessageResId should be null on success", state.errorMessageResId)
 
-        io.mockk.coVerify { alarmRepository.saveAlarm(any()) }
+        verifyBlocking(alarmRepository) { saveAlarm(any()) }
     }
 
     @Test
     fun `save emits permission event when exact alarm permission needed`() = runTest {
-        every { playlistRepository.getAllPlaylists() } returns flowOf(
-            listOf(Playlist(10L, "Morning Mix", 0L, 0L))
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(
+            flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
         )
-        every { permissionOrchestrator.checkPermissions() } returns
+        whenever(permissionOrchestrator.checkPermissions()).thenReturn(
             AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsExactAlarm
+        )
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
         val viewModel = createViewModel(savedStateHandle)
@@ -296,11 +294,12 @@ class AlarmEditViewModelTest {
 
     @Test
     fun `save emits fsi event when fsi permission needed`() = runTest {
-        every { playlistRepository.getAllPlaylists() } returns flowOf(
-            listOf(Playlist(10L, "Morning Mix", 0L, 0L))
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(
+            flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
         )
-        every { permissionOrchestrator.checkPermissions() } returns
+        whenever(permissionOrchestrator.checkPermissions()).thenReturn(
             AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsFullScreenIntent
+        )
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
         val viewModel = createViewModel(savedStateHandle)
@@ -315,13 +314,14 @@ class AlarmEditViewModelTest {
 
     @Test
     fun `save success emits autostart guide event when resolved`() = runTest {
-        val mockIntent = mockk<android.content.Intent>(relaxed = true)
-        every { playlistRepository.getAllPlaylists() } returns flowOf(
-            listOf(Playlist(10L, "Morning Mix", 0L, 0L))
+        val mockIntent = mock<android.content.Intent>()
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(
+            flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
         )
-        io.mockk.coEvery { alarmRepository.saveAlarm(any()) } returns Result.success(1L)
-        every { permissionOrchestrator.checkAutostartGuide() } returns
+        wheneverBlocking { alarmRepository.saveAlarm(any()) } doReturn Result.success(1L)
+        whenever(permissionOrchestrator.checkAutostartGuide()).thenReturn(
             AlarmEditPermissionOrchestrator.AutostartGuideResult.Resolved(mockIntent)
+        )
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
         val viewModel = createViewModel(savedStateHandle)
@@ -339,12 +339,13 @@ class AlarmEditViewModelTest {
 
     @Test
     fun `save success emits manual guide event when needed`() = runTest {
-        every { playlistRepository.getAllPlaylists() } returns flowOf(
-            listOf(Playlist(10L, "Morning Mix", 0L, 0L))
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(
+            flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
         )
-        io.mockk.coEvery { alarmRepository.saveAlarm(any()) } returns Result.success(1L)
-        every { permissionOrchestrator.checkAutostartGuide() } returns
+        wheneverBlocking { alarmRepository.saveAlarm(any()) } doReturn Result.success(1L)
+        whenever(permissionOrchestrator.checkAutostartGuide()).thenReturn(
             AlarmEditPermissionOrchestrator.AutostartGuideResult.NeedsManualGuide
+        )
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
         val viewModel = createViewModel(savedStateHandle)
@@ -361,10 +362,10 @@ class AlarmEditViewModelTest {
 
     @Test
     fun `save with repeat days persists correctly`() = runTest {
-        every { playlistRepository.getAllPlaylists() } returns flowOf(
-            listOf(Playlist(10L, "Morning Mix", 0L, 0L))
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(
+            flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
         )
-        io.mockk.coEvery { alarmRepository.saveAlarm(any()) } returns Result.success(1L)
+        wheneverBlocking { alarmRepository.saveAlarm(any()) } doReturn Result.success(1L)
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
         val viewModel = createViewModel(savedStateHandle)
@@ -387,8 +388,8 @@ class AlarmEditViewModelTest {
 
     @Test
     fun `volume ramp duration is loaded from repository into uiState`() {
-        every { alarmRingSettingsRepository.getVolumeRampDurationSeconds() } returns flowOf(10)
-        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
+        whenever(alarmRingSettingsRepository.getVolumeRampDurationSeconds()).thenReturn(flowOf(10))
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
         val viewModel = createViewModel(savedStateHandle)
@@ -402,9 +403,10 @@ class AlarmEditViewModelTest {
 
     @Test
     fun `volume ramp duration falls back to zero on repository error`() {
-        every { alarmRingSettingsRepository.getVolumeRampDurationSeconds() } returns
+        whenever(alarmRingSettingsRepository.getVolumeRampDurationSeconds()).thenReturn(
             flow { throw RuntimeException("DataStore error") }
-        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
+        )
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
         val viewModel = createViewModel(savedStateHandle)

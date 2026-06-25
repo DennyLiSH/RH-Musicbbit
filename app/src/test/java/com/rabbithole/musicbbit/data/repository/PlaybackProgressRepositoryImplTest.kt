@@ -3,9 +3,6 @@ package com.rabbithole.musicbbit.data.repository
 import com.rabbithole.musicbbit.data.local.dao.PlaybackProgressDao
 import com.rabbithole.musicbbit.data.local.model.PlaybackProgressEntity
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -14,11 +11,17 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argThat
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verifyBlocking
+import org.mockito.kotlin.wheneverBlocking
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaybackProgressRepositoryImplTest {
 
-    private val playbackProgressDao: PlaybackProgressDao = mockk()
+    private val playbackProgressDao: PlaybackProgressDao = mock()
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var repository: PlaybackProgressRepositoryImpl
 
@@ -62,18 +65,20 @@ class PlaybackProgressRepositoryImplTest {
     @Test
     fun `saveProgress inserts entity and returns success`() = runTest(testDispatcher) {
         val progress = progressDomain(songId = 5L, positionMs = 60000L, playlistId = 2L)
-        coEvery { playbackProgressDao.insert(any()) } returns Unit
+        wheneverBlocking { playbackProgressDao.insert(any()) } doReturn Unit
 
         val result = repository.saveProgress(progress)
 
         assertTrue(result.isSuccess)
-        coVerify { playbackProgressDao.insert(match { it.songId == 5L && it.positionMs == 60000L && it.playlistId == 2L }) }
+        verifyBlocking(playbackProgressDao) {
+            insert(argThat { songId == 5L && positionMs == 60000L && playlistId == 2L })
+        }
     }
 
     @Test
     fun `getProgress returns mapped domain object`() = runTest(testDispatcher) {
         val entity = progressEntity(songId = 3L, positionMs = 45000L, playlistId = 7L)
-        coEvery { playbackProgressDao.getBySongIdAndPlaylistId(3L, 7L) } returns entity
+        wheneverBlocking { playbackProgressDao.getBySongIdAndPlaylistId(3L, 7L) } doReturn entity
 
         val result = repository.getProgress(3L, 7L)
 
@@ -86,7 +91,7 @@ class PlaybackProgressRepositoryImplTest {
 
     @Test
     fun `getProgress returns null when not found`() = runTest(testDispatcher) {
-        coEvery { playbackProgressDao.getBySongIdAndPlaylistId(99L, 88L) } returns null
+        wheneverBlocking { playbackProgressDao.getBySongIdAndPlaylistId(99L, 88L) } doReturn null
 
         val result = repository.getProgress(99L, 88L)
 
@@ -96,22 +101,22 @@ class PlaybackProgressRepositoryImplTest {
 
     @Test
     fun `deleteProgress delegates to DAO`() = runTest(testDispatcher) {
-        coEvery { playbackProgressDao.deleteBySongIdAndPlaylistId(5L, 10L) } returns Unit
+        wheneverBlocking { playbackProgressDao.deleteBySongIdAndPlaylistId(5L, 10L) } doReturn Unit
 
         val result = repository.deleteProgress(5L, 10L)
 
         assertTrue(result.isSuccess)
-        coVerify { playbackProgressDao.deleteBySongIdAndPlaylistId(5L, 10L) }
+        verifyBlocking(playbackProgressDao) { deleteBySongIdAndPlaylistId(5L, 10L) }
     }
 
     @Test
     fun `deleteAllProgressForPlaylist delegates to DAO`() = runTest(testDispatcher) {
-        coEvery { playbackProgressDao.deleteByPlaylistId(20L) } returns Unit
+        wheneverBlocking { playbackProgressDao.deleteByPlaylistId(20L) } doReturn Unit
 
         val result = repository.deleteAllProgressForPlaylist(20L)
 
         assertTrue(result.isSuccess)
-        coVerify { playbackProgressDao.deleteByPlaylistId(20L) }
+        verifyBlocking(playbackProgressDao) { deleteByPlaylistId(20L) }
     }
 
     @Test
@@ -120,7 +125,7 @@ class PlaybackProgressRepositoryImplTest {
             progressEntity(songId = 1L, positionMs = 10000L, playlistId = 5L),
             progressEntity(songId = 2L, positionMs = 20000L, playlistId = 5L)
         )
-        coEvery { playbackProgressDao.getByPlaylistId(5L) } returns entities
+        wheneverBlocking { playbackProgressDao.getByPlaylistId(5L) } doReturn entities
 
         val result = repository.getProgressForPlaylist(5L)
 

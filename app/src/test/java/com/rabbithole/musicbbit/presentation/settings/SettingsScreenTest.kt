@@ -22,9 +22,10 @@ import com.rabbithole.musicbbit.navigation.PermissionDiagnostics
 import com.rabbithole.musicbbit.navigation.ScanDirectorySettings
 import com.rabbithole.musicbbit.navigation.Settings
 import dagger.hilt.android.testing.HiltTestApplication
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
+import org.mockito.Mockito.times
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Before
 import org.junit.Rule
@@ -52,14 +53,18 @@ class SettingsScreenTest {
 
     @Before
     fun setUp() {
-        themeViewModel = mockk<ThemeViewModel>(relaxed = true).also {
-            every { it.uiState } returns MutableStateFlow(
-                ThemeViewModel.ThemeUiState(themeMode = ThemeMode.SYSTEM)
+        themeViewModel = mock<ThemeViewModel>().also {
+            whenever(it.uiState).thenReturn(
+                MutableStateFlow(
+                    ThemeViewModel.ThemeUiState(themeMode = ThemeMode.SYSTEM)
+                )
             )
         }
-        alarmRingViewModel = mockk<AlarmRingSettingsViewModel>(relaxed = true).also {
-            every { it.uiState } returns MutableStateFlow(
-                AlarmRingSettingsViewModel.AlarmRingSettingsUiState()
+        alarmRingViewModel = mock<AlarmRingSettingsViewModel>().also {
+            whenever(it.uiState).thenReturn(
+                MutableStateFlow(
+                    AlarmRingSettingsViewModel.AlarmRingSettingsUiState()
+                )
             )
         }
     }
@@ -144,7 +149,7 @@ class SettingsScreenTest {
             .filterToOne(hasClickAction())
             .performClick()
 
-        verify(exactly = 1) { themeViewModel.setThemeMode(ThemeMode.DARK) }
+        verify(themeViewModel, times(1)).setThemeMode(ThemeMode.DARK)
     }
 
     @Test
@@ -159,7 +164,7 @@ class SettingsScreenTest {
             .filterToOne(hasClickAction())
             .performClick()
 
-        verify(exactly = 1) { alarmRingViewModel.setVolumeRampDuration(0) }
+        verify(alarmRingViewModel, times(1)).setVolumeRampDuration(0)
     }
 
     @Test

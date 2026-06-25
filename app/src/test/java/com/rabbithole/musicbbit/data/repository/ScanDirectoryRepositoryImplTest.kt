@@ -6,10 +6,6 @@ import com.rabbithole.musicbbit.data.local.dao.SongDao
 import com.rabbithole.musicbbit.data.local.model.ScanDirectoryEntity
 import com.rabbithole.musicbbit.data.local.model.SongEntity
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -18,12 +14,20 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argThat
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.doThrow
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verifyBlocking
+import org.mockito.kotlin.whenever
+import org.mockito.kotlin.wheneverBlocking
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ScanDirectoryRepositoryImplTest {
 
-    private val scanDirectoryDao: ScanDirectoryDao = mockk()
-    private val songDao: SongDao = mockk()
+    private val scanDirectoryDao: ScanDirectoryDao = mock()
+    private val songDao: SongDao = mock()
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var repository: ScanDirectoryRepositoryImpl
 
@@ -67,7 +71,7 @@ class ScanDirectoryRepositoryImplTest {
             scanDirEntity(id = 1L, path = "/storage/Music", name = "Music"),
             scanDirEntity(id = 2L, path = "/storage/Downloads", name = "Downloads")
         )
-        every { scanDirectoryDao.getAll() } returns flowOf(entities)
+        whenever(scanDirectoryDao.getAll()).thenReturn(flowOf(entities))
 
         repository.getAll().test {
             val result = awaitItem()
@@ -82,54 +86,58 @@ class ScanDirectoryRepositoryImplTest {
     @Test
     fun `add inserts and returns id`() = runTest(testDispatcher) {
         val directory = ScanDirectory(id = 0L, path = "/storage/Music", name = "Music", addedAt = 1000L)
-        coEvery { scanDirectoryDao.insert(any()) } returns 5L
+        wheneverBlocking { scanDirectoryDao.insert(any()) } doReturn 5L
 
         val result = repository.add(directory)
 
         assertTrue(result.isSuccess)
         assertEquals(5L, result.getOrNull())
-        coVerify { scanDirectoryDao.insert(match { it.path == "/storage/Music" && it.name == "Music" }) }
+        verifyBlocking(scanDirectoryDao) {
+            insert(argThat { path == "/storage/Music" && name == "Music" })
+        }
     }
 
     @Test
     fun `remove cascades songs under directory path`() = runTest(testDispatcher) {
         val dir = scanDirEntity(id = 1L, path = "/storage/Music")
-        coEvery { scanDirectoryDao.getById(1L) } returns dir
-        every { songDao.getAll() } returns flowOf(
-            listOf(
-                songEntity(id = 10L, path = "/storage/Music/song1.mp3"),
-                songEntity(id = 20L, path = "/storage/Music/sub/song2.mp3"),
-                songEntity(id = 30L, path = "/storage/Other/song3.mp3")
+        wheneverBlocking { scanDirectoryDao.getById(1L) } doReturn dir
+        whenever(songDao.getAll()).thenReturn(
+            flowOf(
+                listOf(
+                    songEntity(id = 10L, path = "/storage/Music/song1.mp3"),
+                    songEntity(id = 20L, path = "/storage/Music/sub/song2.mp3"),
+                    songEntity(id = 30L, path = "/storage/Other/song3.mp3")
+                )
             )
         )
-        coEvery { songDao.delete(any()) } returns Unit
-        coEvery { scanDirectoryDao.delete(any()) } returns Unit
+        wheneverBlocking { songDao.delete(any()) } doReturn Unit
+        wheneverBlocking { scanDirectoryDao.delete(any()) } doReturn Unit
 
         val result = repository.remove(1L)
 
         assertTrue(result.isSuccess)
-        coVerify(exactly = 2) { songDao.delete(any()) }
-        coVerify { songDao.delete(match { it.id == 10L }) }
-        coVerify { songDao.delete(match { it.id == 20L }) }
-        coVerify(exactly = 0) { songDao.delete(match { it.id == 30L }) }
-        coVerify { scanDirectoryDao.delete(dir) }
+        verifyBlocking(songDao, org.mockito.Mockito.times(2)) { delete(any()) }
+        verifyBlocking(songDao) { delete(argThat { id == 10L }) }
+        verifyBlocking(songDao) { delete(argThat { id == 20L }) }
+        verifyBlocking(songDao, org.mockito.Mockito.never()) { delete(argThat { id == 30L }) }
+        verifyBlocking(scanDirectoryDao) { delete(dir) }
     }
 
     @Test
     fun `remove does nothing for non-existent directory`() = runTest(testDispatcher) {
-        coEvery { scanDirectoryDao.getById(99L) } returns null
+        wheneverBlocking { scanDirectoryDao.getById(99L) } doReturn null
 
         val result = repository.remove(99L)
 
         assertTrue(result.isSuccess)
-        coVerify(exactly = 0) { songDao.delete(any()) }
-        coVerify(exactly = 0) { scanDirectoryDao.delete(any()) }
+        verifyBlocking(songDao, org.mockito.Mockito.never()) { delete(any()) }
+        verifyBlocking(scanDirectoryDao, org.mockito.Mockito.never()) { delete(any()) }
     }
 
     @Test
     fun `add returns failure on DAO exception`() = runTest(testDispatcher) {
         val directory = ScanDirectory(id = 0L, path = "/storage/Music", name = "Music", addedAt = 1000L)
-        coEvery { scanDirectoryDao.insert(any()) } throws android.database.sqlite.SQLiteException("disk full")
+        wheneverBlocking { scanDirectoryDao.insert(any()) } doThrow android.database.sqlite.SQLiteException("disk full")
 
         val result = repository.add(directory)
 

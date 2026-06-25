@@ -6,20 +6,21 @@ import android.content.Context
 import com.rabbithole.musicbbit.MainActivity
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.service.alarm.NextOccurrenceCalculator
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
-import io.mockk.unmockkAll
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verifyBlocking
+import org.mockito.kotlin.wheneverBlocking
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -37,13 +38,8 @@ class AlarmSchedulerTest {
     @Before
     fun setUp() {
         context = RuntimeEnvironment.getApplication()
-        nextOccurrenceCalculator = mockk()
+        nextOccurrenceCalculator = mock()
         alarmScheduler = AlarmScheduler(context, nextOccurrenceCalculator)
-    }
-
-    @After
-    fun tearDown() {
-        unmockkAll()
     }
 
     private fun enabledAlarm(
@@ -92,9 +88,9 @@ class AlarmSchedulerTest {
         val triggerTime = System.currentTimeMillis() + 60_000L
         val allDays = java.time.DayOfWeek.entries.toSet()
 
-        coEvery {
+        wheneverBlocking {
             nextOccurrenceCalculator.nextOccurrence(7, 30, allDays, false)
-        } returns triggerTime
+        } doReturn triggerTime
 
         alarmScheduler.schedule(enabledAlarm())
 
@@ -107,16 +103,16 @@ class AlarmSchedulerTest {
     fun `schedule disabled alarm cancels instead`() = runTest {
         alarmScheduler.schedule(disabledAlarm(id = 42L))
 
-        coVerify(exactly = 0) {
-            nextOccurrenceCalculator.nextOccurrence(any(), any(), any(), any())
+        verifyBlocking(nextOccurrenceCalculator, times(0)) {
+            nextOccurrence(any(), any(), any(), any())
         }
     }
 
     @Test
     fun `cancel removes pending intent from alarmManager`() = runTest {
-        coEvery {
+        wheneverBlocking {
             nextOccurrenceCalculator.nextOccurrence(any(), any(), any(), any())
-        } returns System.currentTimeMillis() + 60_000
+        } doReturn System.currentTimeMillis() + 60_000
 
         alarmScheduler.schedule(enabledAlarm(id = 99L))
         assertNotNull("Alarm should be scheduled before cancel", getNextAlarmClock())
@@ -129,9 +125,9 @@ class AlarmSchedulerTest {
     @Test
     fun `rescheduleAll cancels all then schedules all`() = runTest {
         val triggerTime = System.currentTimeMillis() + 60_000L
-        coEvery {
+        wheneverBlocking {
             nextOccurrenceCalculator.nextOccurrence(any(), any(), any(), any())
-        } returns triggerTime
+        } doReturn triggerTime
 
         val alarms = listOf(
             enabledAlarm(id = 1L, hour = 7, minute = 30),
@@ -140,8 +136,8 @@ class AlarmSchedulerTest {
 
         alarmScheduler.rescheduleAll(alarms)
 
-        coVerify(exactly = 2) {
-            nextOccurrenceCalculator.nextOccurrence(any(), any(), any(), any())
+        verifyBlocking(nextOccurrenceCalculator, times(2)) {
+            nextOccurrence(any(), any(), any(), any())
         }
         assertNotNull("Expected alarm clock after rescheduleAll", getNextAlarmClock())
     }
@@ -155,9 +151,9 @@ class AlarmSchedulerTest {
 
     @Test
     fun `alarm clock show intent targets MainActivity`() = runTest {
-        coEvery {
+        wheneverBlocking {
             nextOccurrenceCalculator.nextOccurrence(any(), any(), any(), any())
-        } returns System.currentTimeMillis() + 60_000L
+        } doReturn System.currentTimeMillis() + 60_000L
 
         alarmScheduler.schedule(enabledAlarm())
 
@@ -187,9 +183,9 @@ class AlarmSchedulerTest {
         val repeatDays = bitmaskToDays(0b0110011)
         val excludeHolidays = true
 
-        coEvery {
+        wheneverBlocking {
             nextOccurrenceCalculator.nextOccurrence(hour, minute, repeatDays, excludeHolidays)
-        } returns System.currentTimeMillis() + 120_000L
+        } doReturn System.currentTimeMillis() + 120_000L
 
         alarmScheduler.schedule(enabledAlarm(
             hour = hour,
@@ -198,8 +194,8 @@ class AlarmSchedulerTest {
             excludeHolidays = excludeHolidays,
         ))
 
-        coVerify(exactly = 1) {
-            nextOccurrenceCalculator.nextOccurrence(hour, minute, repeatDays, excludeHolidays)
+        verifyBlocking(nextOccurrenceCalculator, times(1)) {
+            nextOccurrence(hour, minute, repeatDays, excludeHolidays)
         }
     }
 }

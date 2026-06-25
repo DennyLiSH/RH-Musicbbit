@@ -7,10 +7,6 @@ import com.rabbithole.musicbbit.data.local.model.PlaylistEntity
 import com.rabbithole.musicbbit.data.local.model.PlaylistWithSongsEntity
 import com.rabbithole.musicbbit.data.local.model.SongEntity
 import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -22,12 +18,20 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argThat
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verifyBlocking
+import org.mockito.kotlin.whenever
+import org.mockito.kotlin.wheneverBlocking
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistRepositoryImplTest {
 
-    private val playlistDao: PlaylistDao = mockk()
-    private val playlistSongDao: PlaylistSongDao = mockk()
+    private val playlistDao: PlaylistDao = mock()
+    private val playlistSongDao: PlaylistSongDao = mock()
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var repository: PlaylistRepositoryImpl
 
@@ -83,12 +87,17 @@ class PlaylistRepositoryImplTest {
         val song1 = songEntity(id = 10L, title = "Song A")
         val song2 = songEntity(id = 20L, title = "Song B")
 
-        every { playlistDao.getAll() } returns flowOf(listOf(playlist))
-        every { playlistSongDao.getByPlaylistId(1L) } returns flowOf(
-            listOf(playlistSongEntity(playlistId = 1L, songId = 10L, sortOrder = 0),
-                playlistSongEntity(playlistId = 1L, songId = 20L, sortOrder = 1))
+        whenever(playlistDao.getAll()).thenReturn(flowOf(listOf(playlist)))
+        whenever(playlistSongDao.getByPlaylistId(1L)).thenReturn(
+            flowOf(
+                listOf(
+                    playlistSongEntity(playlistId = 1L, songId = 10L, sortOrder = 0),
+                    playlistSongEntity(playlistId = 1L, songId = 20L, sortOrder = 1)
+                )
+            )
         )
-        coEvery { playlistDao.getPlaylistWithSongs(1L) } returns PlaylistWithSongsEntity(playlist, listOf(song1, song2))
+        wheneverBlocking { playlistDao.getPlaylistWithSongs(1L) } doReturn
+            PlaylistWithSongsEntity(playlist, listOf(song1, song2))
 
         repository.getPlaylistWithSongs(1L).test {
             val result = awaitItem()
@@ -109,9 +118,10 @@ class PlaylistRepositoryImplTest {
     fun `playlist exists with no songs - returns PlaylistWithSongs with empty songs list`() = runTest(testDispatcher) {
         val playlist = playlistEntity(id = 2L, name = "Empty Playlist")
 
-        every { playlistDao.getAll() } returns flowOf(listOf(playlist))
-        every { playlistSongDao.getByPlaylistId(2L) } returns flowOf(emptyList())
-        coEvery { playlistDao.getPlaylistWithSongs(2L) } returns PlaylistWithSongsEntity(playlist, emptyList())
+        whenever(playlistDao.getAll()).thenReturn(flowOf(listOf(playlist)))
+        whenever(playlistSongDao.getByPlaylistId(2L)).thenReturn(flowOf(emptyList()))
+        wheneverBlocking { playlistDao.getPlaylistWithSongs(2L) } doReturn
+            PlaylistWithSongsEntity(playlist, emptyList())
 
         repository.getPlaylistWithSongs(2L).test {
             val result = awaitItem()
@@ -128,8 +138,8 @@ class PlaylistRepositoryImplTest {
 
     @Test
     fun `playlist does not exist - emits null`() = runTest(testDispatcher) {
-        every { playlistDao.getAll() } returns flowOf(emptyList())
-        every { playlistSongDao.getByPlaylistId(99L) } returns flowOf(emptyList())
+        whenever(playlistDao.getAll()).thenReturn(flowOf(emptyList()))
+        whenever(playlistSongDao.getByPlaylistId(99L)).thenReturn(flowOf(emptyList()))
 
         repository.getPlaylistWithSongs(99L).test {
             val result = awaitItem()
@@ -147,11 +157,12 @@ class PlaylistRepositoryImplTest {
         val playlist = playlistEntity(id = 3L, name = "Partial Playlist")
         val existingSong = songEntity(id = 30L, title = "Still Here")
 
-        every { playlistDao.getAll() } returns flowOf(listOf(playlist))
-        every { playlistSongDao.getByPlaylistId(3L) } returns flowOf(
-            listOf(playlistSongEntity(playlistId = 3L, songId = 30L, sortOrder = 0))
+        whenever(playlistDao.getAll()).thenReturn(flowOf(listOf(playlist)))
+        whenever(playlistSongDao.getByPlaylistId(3L)).thenReturn(
+            flowOf(listOf(playlistSongEntity(playlistId = 3L, songId = 30L, sortOrder = 0)))
         )
-        coEvery { playlistDao.getPlaylistWithSongs(3L) } returns PlaylistWithSongsEntity(playlist, listOf(existingSong))
+        wheneverBlocking { playlistDao.getPlaylistWithSongs(3L) } doReturn
+            PlaylistWithSongsEntity(playlist, listOf(existingSong))
 
         repository.getPlaylistWithSongs(3L).test {
             val result = awaitItem()
@@ -173,12 +184,13 @@ class PlaylistRepositoryImplTest {
 
         val playlistFlow = MutableStateFlow(listOf(playlistV1))
 
-        every { playlistDao.getAll() } returns playlistFlow
-        every { playlistSongDao.getByPlaylistId(4L) } returns flowOf(emptyList())
-        coEvery { playlistDao.getPlaylistWithSongs(4L) } returnsMany listOf(
+        whenever(playlistDao.getAll()).thenReturn(playlistFlow)
+        whenever(playlistSongDao.getByPlaylistId(4L)).thenReturn(flowOf(emptyList()))
+        val playlist4Responses = listOf(
             PlaylistWithSongsEntity(playlistV1, emptyList()),
             PlaylistWithSongsEntity(playlistV2, emptyList())
-        )
+        ).iterator()
+        wheneverBlocking { playlistDao.getPlaylistWithSongs(4L) } doAnswer { playlist4Responses.next() }
 
         repository.getPlaylistWithSongs(4L).test {
             val first = awaitItem()
@@ -199,19 +211,21 @@ class PlaylistRepositoryImplTest {
 
     @Test
     fun `addSongsToPlaylist - inserts all new songs with correct sortOrder`() = runTest(testDispatcher) {
-        every { playlistSongDao.getByPlaylistId(1L) } returns flowOf(emptyList())
-        coEvery { playlistSongDao.insertAll(any()) } returns Unit
+        whenever(playlistSongDao.getByPlaylistId(1L)).thenReturn(flowOf(emptyList()))
+        wheneverBlocking { playlistSongDao.insertAll(any()) } doReturn Unit
 
         val result = repository.addSongsToPlaylist(1L, listOf(10L, 20L, 30L))
 
         assertTrue(result.isSuccess)
-        coVerify {
-            playlistSongDao.insertAll(match { entities: List<PlaylistSongEntity> ->
-                entities.size == 3 &&
-                entities[0].playlistId == 1L && entities[0].songId == 10L && entities[0].sortOrder == 0 &&
-                entities[1].playlistId == 1L && entities[1].songId == 20L && entities[1].sortOrder == 1 &&
-                entities[2].playlistId == 1L && entities[2].songId == 30L && entities[2].sortOrder == 2
-            })
+        verifyBlocking(playlistSongDao) {
+            insertAll(
+                argThat<List<PlaylistSongEntity>> {
+                    size == 3 &&
+                        this[0].playlistId == 1L && this[0].songId == 10L && this[0].sortOrder == 0 &&
+                        this[1].playlistId == 1L && this[1].songId == 20L && this[1].sortOrder == 1 &&
+                        this[2].playlistId == 1L && this[2].songId == 30L && this[2].sortOrder == 2
+                }
+            )
         }
     }
 
@@ -224,18 +238,20 @@ class PlaylistRepositoryImplTest {
         val existingSongs = listOf(
             playlistSongEntity(playlistId = 1L, songId = 10L, sortOrder = 0)
         )
-        every { playlistSongDao.getByPlaylistId(1L) } returns flowOf(existingSongs)
-        coEvery { playlistSongDao.insertAll(any()) } returns Unit
+        whenever(playlistSongDao.getByPlaylistId(1L)).thenReturn(flowOf(existingSongs))
+        wheneverBlocking { playlistSongDao.insertAll(any()) } doReturn Unit
 
         val result = repository.addSongsToPlaylist(1L, listOf(10L, 20L, 30L))
 
         assertTrue(result.isSuccess)
-        coVerify {
-            playlistSongDao.insertAll(match { entities: List<PlaylistSongEntity> ->
-                entities.size == 2 &&
-                entities[0].songId == 20L && entities[0].sortOrder == 1 &&
-                entities[1].songId == 30L && entities[1].sortOrder == 2
-            })
+        verifyBlocking(playlistSongDao) {
+            insertAll(
+                argThat<List<PlaylistSongEntity>> {
+                    size == 2 &&
+                        this[0].songId == 20L && this[0].sortOrder == 1 &&
+                        this[1].songId == 30L && this[1].sortOrder == 2
+                }
+            )
         }
     }
 
@@ -248,7 +264,7 @@ class PlaylistRepositoryImplTest {
         val result = repository.addSongsToPlaylist(1L, emptyList())
 
         assertTrue(result.isSuccess)
-        coVerify(exactly = 0) { playlistSongDao.insertAll(any()) }
+        verifyBlocking(playlistSongDao, org.mockito.Mockito.never()) { insertAll(any()) }
     }
 
     // ------------------------------------------------------------------
@@ -264,13 +280,14 @@ class PlaylistRepositoryImplTest {
         val playlistFlow = MutableStateFlow(listOf(playlist))
         val junctionFlow = MutableStateFlow(emptyList<PlaylistSongEntity>())
 
-        every { playlistDao.getAll() } returns playlistFlow
-        every { playlistSongDao.getByPlaylistId(5L) } returns junctionFlow
-        coEvery { playlistDao.getPlaylistWithSongs(5L) } returnsMany listOf(
+        whenever(playlistDao.getAll()).thenReturn(playlistFlow)
+        whenever(playlistSongDao.getByPlaylistId(5L)).thenReturn(junctionFlow)
+        val playlist5Responses = listOf(
             PlaylistWithSongsEntity(playlist, emptyList()),
             PlaylistWithSongsEntity(playlist, listOf(song1)),
             PlaylistWithSongsEntity(playlist, listOf(song1, song2))
-        )
+        ).iterator()
+        wheneverBlocking { playlistDao.getPlaylistWithSongs(5L) } doAnswer { playlist5Responses.next() }
 
         repository.getPlaylistWithSongs(5L).test {
             // Initial emission: no songs in junction table
@@ -287,10 +304,12 @@ class PlaylistRepositoryImplTest {
             assertEquals("First Song", second.songs[0].title)
 
             // Simulate adding another song
-            junctionFlow.emit(listOf(
-                playlistSongEntity(playlistId = 5L, songId = 50L, sortOrder = 0),
-                playlistSongEntity(playlistId = 5L, songId = 51L, sortOrder = 1)
-            ))
+            junctionFlow.emit(
+                listOf(
+                    playlistSongEntity(playlistId = 5L, songId = 50L, sortOrder = 0),
+                    playlistSongEntity(playlistId = 5L, songId = 51L, sortOrder = 1)
+                )
+            )
 
             val third = awaitItem()
             assertNotNull(third)
@@ -312,19 +331,20 @@ class PlaylistRepositoryImplTest {
         val songA = songEntity(id = 61L, title = "Song A")
         val songB = songEntity(id = 62L, title = "Song B")
 
-        every { playlistDao.getAll() } returns flowOf(listOf(playlist))
+        whenever(playlistDao.getAll()).thenReturn(flowOf(listOf(playlist)))
         // Junction table defines order: songA=0, songB=1, songC=2
-        every { playlistSongDao.getByPlaylistId(6L) } returns flowOf(
-            listOf(
-                playlistSongEntity(playlistId = 6L, songId = 61L, sortOrder = 0),
-                playlistSongEntity(playlistId = 6L, songId = 62L, sortOrder = 1),
-                playlistSongEntity(playlistId = 6L, songId = 60L, sortOrder = 2)
+        whenever(playlistSongDao.getByPlaylistId(6L)).thenReturn(
+            flowOf(
+                listOf(
+                    playlistSongEntity(playlistId = 6L, songId = 61L, sortOrder = 0),
+                    playlistSongEntity(playlistId = 6L, songId = 62L, sortOrder = 1),
+                    playlistSongEntity(playlistId = 6L, songId = 60L, sortOrder = 2)
+                )
             )
         )
         // Room returns songs in different order than desired sort
-        coEvery { playlistDao.getPlaylistWithSongs(6L) } returns PlaylistWithSongsEntity(
-            playlist, listOf(songC, songA, songB)
-        )
+        wheneverBlocking { playlistDao.getPlaylistWithSongs(6L) } doReturn
+            PlaylistWithSongsEntity(playlist, listOf(songC, songA, songB))
 
         repository.getPlaylistWithSongs(6L).test {
             val result = awaitItem()

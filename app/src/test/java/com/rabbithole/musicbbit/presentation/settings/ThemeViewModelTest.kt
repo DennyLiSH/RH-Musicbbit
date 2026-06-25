@@ -3,9 +3,6 @@ package com.rabbithole.musicbbit.presentation.settings
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ThemeMode
 import com.rabbithole.musicbbit.domain.repository.ThemeRepository
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -19,6 +16,10 @@ import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Test
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
+import org.mockito.kotlin.wheneverBlocking
 import timber.log.Timber
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -42,7 +43,7 @@ class ThemeViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        themeRepository = mockk()
+        themeRepository = mock()
     }
 
     @After
@@ -52,7 +53,7 @@ class ThemeViewModelTest {
 
     @Test
     fun `load theme mode from repository updates uiState`() = runTest {
-        every { themeRepository.getThemeMode() } returns flowOf(ThemeMode.DARK)
+        whenever(themeRepository.getThemeMode()).thenReturn(flowOf(ThemeMode.DARK))
 
         val viewModel = ThemeViewModel(themeRepository)
 
@@ -61,8 +62,8 @@ class ThemeViewModelTest {
 
     @Test
     fun `set theme mode success does not set error`() = runTest {
-        every { themeRepository.getThemeMode() } returns flowOf(ThemeMode.SYSTEM)
-        coEvery { themeRepository.setThemeMode(ThemeMode.LIGHT) } returns Result.success(Unit)
+        whenever(themeRepository.getThemeMode()).thenReturn(flowOf(ThemeMode.SYSTEM))
+        wheneverBlocking { themeRepository.setThemeMode(ThemeMode.LIGHT) } doReturn Result.success(Unit)
 
         val viewModel = ThemeViewModel(themeRepository)
         testDispatcher.scheduler.advanceUntilIdle()
@@ -75,8 +76,8 @@ class ThemeViewModelTest {
 
     @Test
     fun `set theme mode failure sets error`() = runTest {
-        every { themeRepository.getThemeMode() } returns flowOf(ThemeMode.SYSTEM)
-        coEvery { themeRepository.setThemeMode(ThemeMode.LIGHT) } returns Result.failure(RuntimeException("Failed"))
+        whenever(themeRepository.getThemeMode()).thenReturn(flowOf(ThemeMode.SYSTEM))
+        wheneverBlocking { themeRepository.setThemeMode(ThemeMode.LIGHT) } doReturn Result.failure(RuntimeException("Failed"))
 
         val viewModel = ThemeViewModel(themeRepository)
         testDispatcher.scheduler.advanceUntilIdle()

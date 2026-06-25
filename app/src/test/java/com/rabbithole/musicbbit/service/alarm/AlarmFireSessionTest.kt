@@ -32,9 +32,12 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
+import org.mockito.ArgumentMatchers
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -120,16 +123,30 @@ class AlarmFireSessionTest {
         notificationPort = FakeNotificationPort()
         volumeRampPort = FakeVolumeRampPort()
         clock = FakeClock(NOW_MS)
-        playbackSession = mockk(relaxed = true)
+        playbackSession = mock()
         fakeControls = FakePlaybackControls()
-        every { playbackSession.playbackState } returns fakeControls.playbackState
-        every { playbackSession.playbackTransitions } returns fakeControls.playbackTransitions
-        every { playbackSession.stop() } answers { fakeControls.stop() }
-        every { playbackSession.playAlarmQueue(any(), any(), any(), any(), any()) } answers {
-            fakeControls.playAlarmQueue(arg(0), arg(1), arg(2), arg(3), arg(4))
+        whenever(playbackSession.playbackState).thenReturn(fakeControls.playbackState)
+        whenever(playbackSession.playbackTransitions).thenReturn(fakeControls.playbackTransitions)
+        whenever(playbackSession.stop()).thenAnswer { fakeControls.stop() }
+        whenever(
+            playbackSession.playAlarmQueue(
+                any<List<Song>>(),
+                any<Int>(),
+                any<Long>(),
+                any<Long>(),
+                ArgumentMatchers.nullable(String::class.java),
+            )
+        ).thenAnswer { invocation ->
+            fakeControls.playAlarmQueue(
+                invocation.getArgument(0),
+                invocation.getArgument(1),
+                invocation.getArgument(2),
+                invocation.getArgument(3),
+                invocation.getArgument(4),
+            )
         }
-        every { playbackSession.preloadFirstSong(any()) } answers {
-            fakeControls.preloadFirstSong(arg(0))
+        whenever(playbackSession.preloadFirstSong(any<String>())).thenAnswer { invocation ->
+            fakeControls.preloadFirstSong(invocation.getArgument(0))
         }
 
         val alarmPlaybackResolver = AlarmPlaybackResolver(
@@ -307,14 +324,14 @@ class AlarmFireSessionTest {
 
         val state = session.state.value
         assertTrue("expected Paused, was $state", state is AlarmFireState.Paused)
-        verify { playbackSession.pause() }
+        verify(playbackSession).pause()
         assertEquals(1, notificationPort.pauseCount)
     }
 
     @Test
     fun `pause while Idle is a no-op`() {
         session.pause()
-        verify(exactly = 0) { playbackSession.pause() }
+        verify(playbackSession, times(0)).pause()
         assertEquals(0, notificationPort.pauseCount)
         assertTrue(session.state.value is AlarmFireState.Idle)
     }
@@ -328,13 +345,13 @@ class AlarmFireSessionTest {
         session.resume()
 
         assertTrue(session.state.value is AlarmFireState.Playing)
-        verify { playbackSession.resume() }
+        verify(playbackSession).resume()
     }
 
     @Test
     fun `resume while not Paused is a no-op`() {
         session.resume()
-        verify(exactly = 0) { playbackSession.resume() }
+        verify(playbackSession, times(0)).resume()
     }
 
     @Test
@@ -343,7 +360,7 @@ class AlarmFireSessionTest {
 
         session.stop()
 
-        verify { playbackSession.stop() }
+        verify(playbackSession).stop()
     }
 
     // -------- autoStop / extend ---------------------------------------------
@@ -355,11 +372,11 @@ class AlarmFireSessionTest {
 
         session.fire(alarmId = 14L, isAlarmTrigger = true)
         runCurrent()
-        verify(exactly = 0) { playbackSession.stop() }
+        verify(playbackSession, times(0)).stop()
 
         advanceTimeBy(30L * 60_000L + 1L)
 
-        verify { playbackSession.stop() }
+        verify(playbackSession).stop()
     }
 
     @Test
@@ -376,17 +393,17 @@ class AlarmFireSessionTest {
 
         // Original 10-minute deadline (5 more min) should NOT trigger stop.
         advanceTimeBy(6L * 60_000L)
-        verify(exactly = 0) { playbackSession.stop() }
+        verify(playbackSession, times(0)).stop()
 
         // The fresh 20-minute deadline should fire.
         advanceTimeBy(15L * 60_000L)
-        verify { playbackSession.stop() }
+        verify(playbackSession).stop()
     }
 
     @Test
     fun `extendAutoStop is a no-op when no timer is in flight`() {
         session.extendAutoStop(5)
-        verify(exactly = 0) { playbackSession.stop() }
+        verify(playbackSession, times(0)).stop()
     }
 
     @Test
@@ -411,7 +428,7 @@ class AlarmFireSessionTest {
 
         session.fire(alarmId = 30L, isAlarmTrigger = true)
         runCurrent()
-        verify(exactly = 0) { playbackSession.stop() }
+        verify(playbackSession, times(0)).stop()
 
         session.setExtendToEnd(true)
 
@@ -419,7 +436,7 @@ class AlarmFireSessionTest {
         fakeControls.emitPlaybackTransition(PlaybackTransition.SongCompleted(songId = 101L))
         runCurrent()
 
-        verify { playbackSession.stop() }
+        verify(playbackSession).stop()
     }
 
     @Test
@@ -438,7 +455,7 @@ class AlarmFireSessionTest {
         // No equivalent event for SEEK — nothing to emit, nothing should happen.
         runCurrent()
 
-        verify(exactly = 0) { playbackSession.stop() }
+        verify(playbackSession, times(0)).stop()
     }
 
     @Test
@@ -456,7 +473,7 @@ class AlarmFireSessionTest {
         fakeControls.emitPlaybackTransition(PlaybackTransition.QueueEnded)
         runCurrent()
 
-        verify { playbackSession.stop() }
+        verify(playbackSession).stop()
     }
 
     // -------- playbackTransitions subscription ------------------------------------
@@ -510,14 +527,14 @@ class AlarmFireSessionTest {
         session.fire(alarmId = 17L, isAlarmTrigger = true)
         runCurrent()
         advanceTimeBy(70_000L)
-        verify { playbackSession.stop() }
+        verify(playbackSession).stop()
 
         // Controller responds to stop by emitting PlaybackStopped, which triggers onPlaybackStopped
         fakeControls.emitPlaybackTransition(PlaybackTransition.PlaybackStopped)
         runCurrent()
 
         // No additional stop call from session-side.
-        verify(exactly = 1) { playbackSession.stop() }
+        verify(playbackSession, times(1)).stop()
         assertTrue(session.state.value is AlarmFireState.Stopped)
     }
 

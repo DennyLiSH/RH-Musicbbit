@@ -5,8 +5,6 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import app.cash.turbine.test
-import io.mockk.every
-import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -14,6 +12,8 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AlarmRingSettingsRepositoryImplTest {
@@ -31,16 +31,14 @@ class AlarmRingSettingsRepositoryImplTest {
     private val prefsFlow = MutableStateFlow(createMockPrefs())
 
     private fun createMockPrefs(): Preferences {
-        val prefs = mockk<Preferences>(relaxed = true)
-        every { prefs[breathingEnabledKey] } answers { prefsMap["breathing_enabled"] as? Boolean ?: true }
-        every { prefs[breathingPeriodMsKey] } answers { prefsMap["breathing_period_ms"] as? Long ?: 3500L }
-        every { prefs.get(breathingEnabledKey) } answers { prefsMap["breathing_enabled"] as? Boolean ?: true }
-        every { prefs.get(breathingPeriodMsKey) } answers { prefsMap["breathing_period_ms"] as? Long ?: 3500L }
+        val prefs = mock<Preferences>()
+        whenever(prefs[breathingEnabledKey]).thenAnswer { prefsMap["breathing_enabled"] as? Boolean ?: true }
+        whenever(prefs[breathingPeriodMsKey]).thenAnswer { prefsMap["breathing_period_ms"] as? Long ?: 3500L }
         return prefs
     }
 
-    private val dataStore: DataStore<Preferences> = mockk(relaxed = true) {
-        every { data } returns prefsFlow
+    private val dataStore: DataStore<Preferences> = mock<DataStore<Preferences>>().also {
+        whenever(it.data).thenReturn(prefsFlow)
     }
 
     private lateinit var repository: AlarmRingSettingsRepositoryImpl

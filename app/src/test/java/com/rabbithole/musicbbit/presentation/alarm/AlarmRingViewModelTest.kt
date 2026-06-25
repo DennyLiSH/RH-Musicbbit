@@ -7,14 +7,15 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
 import com.rabbithole.musicbbit.service.alarm.AlarmFireState
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
+import org.mockito.kotlin.wheneverBlocking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -58,13 +59,13 @@ class AlarmRingViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
 
-        alarmFireSession = mockk(relaxed = true)
-        alarmRepository = mockk()
-        alarmRingSettingsRepository = mockk()
+        alarmFireSession = mock()
+        alarmRepository = mock()
+        alarmRingSettingsRepository = mock()
 
-        every { alarmFireSession.state } returns alarmFireStateFlow
-        every { alarmRingSettingsRepository.isBreathingEnabled() } returns breathingEnabledFlow
-        every { alarmRingSettingsRepository.getBreathingPeriodMs() } returns breathingPeriodMsFlow
+        whenever(alarmFireSession.state).thenReturn(alarmFireStateFlow)
+        whenever(alarmRingSettingsRepository.isBreathingEnabled()).thenReturn(breathingEnabledFlow)
+        whenever(alarmRingSettingsRepository.getBreathingPeriodMs()).thenReturn(breathingPeriodMsFlow)
     }
 
     @After
@@ -277,7 +278,7 @@ class AlarmRingViewModelTest {
 
         viewModel.pause()
 
-        verify { alarmFireSession.pause() }
+        verify(alarmFireSession).pause()
     }
 
     // ------------------------------------------------------------------
@@ -290,7 +291,7 @@ class AlarmRingViewModelTest {
 
         viewModel.resume()
 
-        verify { alarmFireSession.resume() }
+        verify(alarmFireSession).resume()
     }
 
     // ------------------------------------------------------------------
@@ -303,7 +304,7 @@ class AlarmRingViewModelTest {
 
         viewModel.stop()
 
-        verify { alarmFireSession.stop() }
+        verify(alarmFireSession).stop()
     }
 
     // ------------------------------------------------------------------
@@ -338,8 +339,9 @@ class AlarmRingViewModelTest {
 
     @Test
     fun `breathing settings error sets errorMessageResId`() = runTest {
-        every { alarmRingSettingsRepository.isBreathingEnabled() } returns
+        whenever(alarmRingSettingsRepository.isBreathingEnabled()).thenReturn(
             kotlinx.coroutines.flow.flow { throw RuntimeException("DataStore error") }
+        )
 
         val viewModel = createViewModel()
 
@@ -352,7 +354,7 @@ class AlarmRingViewModelTest {
 
     @Test
     fun `alarm label resolved from repository when Playing state has alarmId`() = runTest {
-        coEvery { alarmRepository.getAlarmById(42L) } returns testAlarm
+        wheneverBlocking { alarmRepository.getAlarmById(42L) } doReturn testAlarm
 
         alarmFireStateFlow.value = AlarmFireState.Playing(
             alarmId = 42L,
@@ -367,7 +369,7 @@ class AlarmRingViewModelTest {
 
     @Test
     fun `alarm label resolved when Paused state has alarmId`() = runTest {
-        coEvery { alarmRepository.getAlarmById(42L) } returns testAlarm
+        wheneverBlocking { alarmRepository.getAlarmById(42L) } doReturn testAlarm
 
         alarmFireStateFlow.value = AlarmFireState.Paused(
             alarmId = 42L,
@@ -384,7 +386,7 @@ class AlarmRingViewModelTest {
     @Test
     fun `alarm label is empty string when alarm has null label`() = runTest {
         val alarmWithNullLabel = testAlarm.copy(label = null)
-        coEvery { alarmRepository.getAlarmById(42L) } returns alarmWithNullLabel
+        wheneverBlocking { alarmRepository.getAlarmById(42L) } doReturn alarmWithNullLabel
 
         alarmFireStateFlow.value = AlarmFireState.Playing(
             alarmId = 42L,
@@ -399,7 +401,7 @@ class AlarmRingViewModelTest {
 
     @Test
     fun `alarm label is empty string when repository returns null alarm`() = runTest {
-        coEvery { alarmRepository.getAlarmById(99L) } returns null
+        wheneverBlocking { alarmRepository.getAlarmById(99L) } doReturn null
 
         alarmFireStateFlow.value = AlarmFireState.Playing(
             alarmId = 99L,
@@ -414,7 +416,7 @@ class AlarmRingViewModelTest {
 
     @Test
     fun `alarm label is empty string when repository throws`() = runTest {
-        coEvery { alarmRepository.getAlarmById(42L) } throws RuntimeException("DB error")
+        wheneverBlocking { alarmRepository.getAlarmById(42L) }.thenThrow(RuntimeException("DB error"))
 
         alarmFireStateFlow.value = AlarmFireState.Playing(
             alarmId = 42L,
@@ -436,7 +438,7 @@ class AlarmRingViewModelTest {
 
         assertEquals("", viewModel.uiState.value.alarmLabel)
         // getAlarmById should never be called since alarmIdOrNull is null for Idle
-        coEvery { alarmRepository.getAlarmById(any()) } answers {
+        wheneverBlocking { alarmRepository.getAlarmById(org.mockito.kotlin.any()) } doAnswer {
             throw AssertionError("Should not be called")
         }
     }
@@ -457,7 +459,7 @@ class AlarmRingViewModelTest {
 
     @Test
     fun `full state transition sequence reflects in uiState`() = runTest {
-        coEvery { alarmRepository.getAlarmById(42L) } returns testAlarm
+        wheneverBlocking { alarmRepository.getAlarmById(42L) } doReturn testAlarm
 
         // Start with Idle
         alarmFireStateFlow.value = AlarmFireState.Idle

@@ -1,9 +1,12 @@
 package com.rabbithole.musicbbit.service.alarm
 
 import com.rabbithole.musicbbit.domain.repository.HolidayRepository
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.mockk
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
+import org.mockito.kotlin.wheneverBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -31,14 +34,14 @@ class NextOccurrenceCalculatorProductionTest {
         nonWorkdayDates: List<String> = emptyList(),
         now: Calendar = fixedNow()
     ): NextOccurrenceCalculator {
-        val holidayRepository = mockk<HolidayRepository>()
-        coEvery { holidayRepository.maybeRefreshHolidays(any()) } returns Unit
-        coEvery { holidayRepository.isWorkday(any()) } answers {
-            firstArg<String>() !in nonWorkdayDates
+        val holidayRepository = mock<HolidayRepository>()
+        wheneverBlocking { holidayRepository.maybeRefreshHolidays(any()) } doReturn Unit
+        wheneverBlocking { holidayRepository.isWorkday(any()) } doAnswer {
+            it.getArgument<String>(0) !in nonWorkdayDates
         }
 
-        val clock = mockk<Clock>()
-        every { clock.nowMs() } returns now.timeInMillis
+        val clock = mock<Clock>()
+        whenever(clock.nowMs()).thenReturn(now.timeInMillis)
 
         return NextOccurrenceCalculator(holidayRepository, clock)
     }

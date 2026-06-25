@@ -4,8 +4,6 @@ import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
-import io.mockk.every
-import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -20,6 +18,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MusicBrowseViewModelTest {
@@ -32,8 +32,8 @@ class MusicBrowseViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        musicRepository = mockk(relaxed = true)
-        scanDirectoryRepository = mockk(relaxed = true)
+        musicRepository = mock()
+        scanDirectoryRepository = mock()
     }
 
     @After
@@ -43,8 +43,8 @@ class MusicBrowseViewModelTest {
 
     @Test
     fun `load with no scan directories emits NoScanDirectory`() = runTest(testDispatcher) {
-        every { scanDirectoryRepository.getAll() } returns flowOf(emptyList())
-        every { musicRepository.getAllSongs() } returns flowOf(emptyList())
+        whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(emptyList()))
+        whenever(musicRepository.getAllSongs()).thenReturn(flowOf(emptyList()))
 
         val viewModel = MusicBrowseViewModel(musicRepository, scanDirectoryRepository)
         advanceUntilIdle()
@@ -54,10 +54,10 @@ class MusicBrowseViewModelTest {
 
     @Test
     fun `load with directories and empty songs emits Empty`() = runTest(testDispatcher) {
-        every { scanDirectoryRepository.getAll() } returns flowOf(
+        whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(
             listOf(ScanDirectory(id = 1L, path = "/music", name = "Music", addedAt = 0L))
-        )
-        every { musicRepository.getAllSongs() } returns flowOf(emptyList())
+        ))
+        whenever(musicRepository.getAllSongs()).thenReturn(flowOf(emptyList()))
 
         val viewModel = MusicBrowseViewModel(musicRepository, scanDirectoryRepository)
         advanceUntilIdle()
@@ -71,10 +71,10 @@ class MusicBrowseViewModelTest {
             Song(id = 1L, path = "/a.mp3", title = "Song A", artist = null, album = null, durationMs = 1000L, dateAdded = 0L, coverUri = null),
             Song(id = 2L, path = "/b.mp3", title = "Song B", artist = null, album = null, durationMs = 2000L, dateAdded = 0L, coverUri = null)
         )
-        every { scanDirectoryRepository.getAll() } returns flowOf(
+        whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(
             listOf(ScanDirectory(id = 1L, path = "/music", name = "Music", addedAt = 0L))
-        )
-        every { musicRepository.getAllSongs() } returns flowOf(songs)
+        ))
+        whenever(musicRepository.getAllSongs()).thenReturn(flowOf(songs))
 
         val viewModel = MusicBrowseViewModel(musicRepository, scanDirectoryRepository)
         advanceUntilIdle()
@@ -87,20 +87,20 @@ class MusicBrowseViewModelTest {
     @Test
     fun `retry reloads after error`() = runTest(testDispatcher) {
         val errorFlow = kotlinx.coroutines.flow.flow<List<ScanDirectory>> { throw RuntimeException("DB error") }
-        every { scanDirectoryRepository.getAll() } returns errorFlow
-        every { musicRepository.getAllSongs() } returns flowOf(emptyList())
+        whenever(scanDirectoryRepository.getAll()).thenReturn(errorFlow)
+        whenever(musicRepository.getAllSongs()).thenReturn(flowOf(emptyList()))
 
         val viewModel = MusicBrowseViewModel(musicRepository, scanDirectoryRepository)
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value is MusicUiState.Error)
 
-        every { scanDirectoryRepository.getAll() } returns flowOf(
+        whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(
             listOf(ScanDirectory(id = 1L, path = "/music", name = "Music", addedAt = 0L))
-        )
-        every { musicRepository.getAllSongs() } returns flowOf(
+        ))
+        whenever(musicRepository.getAllSongs()).thenReturn(flowOf(
             listOf(Song(id = 1L, path = "/a.mp3", title = "Song A", artist = null, album = null, durationMs = 1000L, dateAdded = 0L, coverUri = null))
-        )
+        ))
         viewModel.retry()
         advanceUntilIdle()
 

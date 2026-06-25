@@ -3,9 +3,6 @@ package com.rabbithole.musicbbit.service.alarm
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.service.AlarmScheduler
-import io.mockk.coVerify
-import io.mockk.verify
-import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -17,6 +14,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Test
+import org.mockito.Mockito.never
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyBlocking
 import timber.log.Timber
 import java.time.DayOfWeek
 
@@ -56,7 +58,7 @@ class AlarmStartupReconcilerTest {
     @Before
     fun setUp() {
         fakeRepository = FakeAlarmRepository()
-        alarmScheduler = mockk(relaxed = true)
+        alarmScheduler = mock()
         reconciler = AlarmStartupReconciler(
             alarmRepository = fakeRepository,
             alarmScheduler = alarmScheduler,
@@ -84,7 +86,7 @@ class AlarmStartupReconcilerTest {
         val updated = fakeRepository.getAlarmById(1L)
         assertNotNull(updated)
         assertFalse(updated!!.isEnabled)
-        coVerify(exactly = 0) { alarmScheduler.rescheduleAll(any()) }
+        verifyBlocking(alarmScheduler, never()) { rescheduleAll(any<List<Alarm>>()) }
     }
 
     @Test
@@ -104,7 +106,7 @@ class AlarmStartupReconcilerTest {
 
         reconciler.reconcileInternal()
 
-        coVerify { alarmScheduler.rescheduleAll(any<List<Alarm>>()) }
+        verifyBlocking(alarmScheduler) { rescheduleAll(any<List<Alarm>>()) }
         val unchanged = fakeRepository.getAlarmById(2L)
         assertNotNull(unchanged)
         assertTrue(unchanged!!.isEnabled)
@@ -131,8 +133,8 @@ class AlarmStartupReconcilerTest {
         val unchanged = fakeRepository.getAlarmById(3L)
         assertNotNull(unchanged)
         assertTrue(unchanged!!.isEnabled)
-        coVerify { alarmScheduler.schedule(alarm) }
-        coVerify(exactly = 0) { alarmScheduler.rescheduleAll(any()) }
+        verify(alarmScheduler).schedule(alarm)
+        verifyBlocking(alarmScheduler, never()) { rescheduleAll(any<List<Alarm>>()) }
     }
 
     @Test
@@ -141,7 +143,7 @@ class AlarmStartupReconcilerTest {
         reconciler.reconcile()
 
         // With UnconfinedTestDispatcher the launched coroutine executes eagerly
-        verify { alarmScheduler.scheduleIntegrityCheck() }
+        verify(alarmScheduler).scheduleIntegrityCheck()
     }
 
     // -------------------------------------------------------------------------

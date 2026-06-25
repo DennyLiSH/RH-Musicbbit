@@ -2,10 +2,6 @@ package com.rabbithole.musicbbit.presentation.playlist
 
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -20,6 +16,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verifyBlocking
+import org.mockito.kotlin.whenever
+import org.mockito.kotlin.wheneverBlocking
 import timber.log.Timber
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -43,7 +46,7 @@ class PlaylistListViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        playlistRepository = mockk(relaxed = true)
+        playlistRepository = mock()
     }
 
     @After
@@ -57,7 +60,7 @@ class PlaylistListViewModelTest {
             Playlist(id = 1L, name = "Favorites", createdAt = 0L, updatedAt = 0L),
             Playlist(id = 2L, name = "Workout", createdAt = 0L, updatedAt = 0L)
         )
-        every { playlistRepository.getAllPlaylists() } returns flowOf(playlists)
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(playlists))
 
         val viewModel = PlaylistListViewModel(playlistRepository)
 
@@ -69,7 +72,7 @@ class PlaylistListViewModelTest {
 
     @Test
     fun `uiState becomes Success with empty list when repository emits empty`() = runTest {
-        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
 
         val viewModel = PlaylistListViewModel(playlistRepository)
 
@@ -79,8 +82,8 @@ class PlaylistListViewModelTest {
 
     @Test
     fun `create playlist success does not set error`() = runTest {
-        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
-        coEvery { playlistRepository.createPlaylist("New") } coAnswers { Result.success(3L) }
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+        wheneverBlocking { playlistRepository.createPlaylist("New") } doAnswer { Result.success(3L) }
 
         val viewModel = PlaylistListViewModel(playlistRepository)
 
@@ -93,8 +96,8 @@ class PlaylistListViewModelTest {
 
     @Test
     fun `create playlist failure sets error in Success state`() = runTest {
-        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
-        coEvery { playlistRepository.createPlaylist("New") } returns Result.failure(RuntimeException("Failed"))
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+        wheneverBlocking { playlistRepository.createPlaylist("New") } doReturn Result.failure(RuntimeException("Failed"))
 
         val viewModel = PlaylistListViewModel(playlistRepository)
         testDispatcher.scheduler.advanceUntilIdle()
@@ -108,8 +111,8 @@ class PlaylistListViewModelTest {
 
     @Test
     fun `delete playlist calls repository deletePlaylist`() = runTest {
-        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
-        coEvery { playlistRepository.deletePlaylist(any()) } returns Result.success(Unit)
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+        wheneverBlocking { playlistRepository.deletePlaylist(any()) } doReturn Result.success(Unit)
 
         val viewModel = PlaylistListViewModel(playlistRepository)
 
@@ -117,19 +120,19 @@ class PlaylistListViewModelTest {
         viewModel.onAction(PlaylistListAction.OnDeletePlaylist(playlist))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { playlistRepository.deletePlaylist(playlist) }
+        verifyBlocking(playlistRepository) { deletePlaylist(playlist) }
     }
 
     @Test
     fun `retry reloads playlists after error`() = runTest {
         val errorFlow = kotlinx.coroutines.flow.flow<List<Playlist>> { throw RuntimeException("DB error") }
-        every { playlistRepository.getAllPlaylists() } returns errorFlow
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(errorFlow)
 
         val viewModel = PlaylistListViewModel(playlistRepository)
         testDispatcher.scheduler.advanceUntilIdle()
         assertTrue(viewModel.uiState.value is PlaylistListUiState.Error)
 
-        every { playlistRepository.getAllPlaylists() } returns flowOf(emptyList())
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
         viewModel.retry()
         testDispatcher.scheduler.advanceUntilIdle()
 

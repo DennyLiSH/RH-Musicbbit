@@ -7,12 +7,15 @@ import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.service.PlayMode
 import com.rabbithole.musicbbit.service.PlaybackSource
 import com.rabbithole.musicbbit.service.PlaybackState
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.slot
-import io.mockk.coVerify
-import io.mockk.verify
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyBlocking
+import org.mockito.kotlin.whenever
+import org.mockito.kotlin.wheneverBlocking
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -82,14 +85,14 @@ class PlaybackSessionTest {
 
     @Before
     fun setUp() {
-        playerPort = mockk(relaxed = true)
-        playbackProgressRepository = mockk(relaxed = true)
-        musicNotificationPort = mockk(relaxed = true)
-        serviceStarter = mockk(relaxed = true)
-        audioFocusPort = mockk(relaxed = true)
-        every { playerPort.events } returns playerEvents
+        playerPort = mock()
+        playbackProgressRepository = mock()
+        musicNotificationPort = mock()
+        serviceStarter = mock()
+        audioFocusPort = mock()
+        whenever(playerPort.events).thenReturn(playerEvents)
 
-        coEvery { playbackProgressRepository.saveProgress(any()) } returns Result.success(Unit)
+        wheneverBlocking { playbackProgressRepository.saveProgress(any()) } doReturn Result.success(Unit)
 
         session = PlaybackSession(
             playerPort = playerPort,
@@ -127,14 +130,14 @@ class PlaybackSessionTest {
 
     @Test
     fun `play requests focus starts service sets queue and plays`() {
-        every { audioFocusPort.requestFocus() } returns true
+        whenever(audioFocusPort.requestFocus()).thenReturn(true)
 
         session.play(SONG_1, playlistId = 10L)
 
-        verify { audioFocusPort.requestFocus() }
-        verify { serviceStarter.startService() }
-        verify { playerPort.setQueue(any(), 0, 0L) }
-        verify { playerPort.play() }
+        verify(audioFocusPort).requestFocus()
+        verify(serviceStarter).startService()
+        verify(playerPort).setQueue(any(), eq(0), eq(0L))
+        verify(playerPort).play()
 
         val state = session.playbackState.value
         assertEquals(SONG_1, state.currentSong)
@@ -146,14 +149,14 @@ class PlaybackSessionTest {
 
     @Test
     fun `play does nothing when focus request fails`() {
-        every { audioFocusPort.requestFocus() } returns false
+        whenever(audioFocusPort.requestFocus()).thenReturn(false)
 
         session.play(SONG_1, playlistId = 10L)
 
-        verify { audioFocusPort.requestFocus() }
-        verify(exactly = 0) { serviceStarter.startService() }
-        verify(exactly = 0) { playerPort.setQueue(any(), any(), any()) }
-        verify(exactly = 0) { playerPort.play() }
+        verify(audioFocusPort).requestFocus()
+        verify(serviceStarter, org.mockito.Mockito.never()).startService()
+        verify(playerPort, org.mockito.Mockito.never()).setQueue(any(), any(), any())
+        verify(playerPort, org.mockito.Mockito.never()).play()
 
         val state = session.playbackState.value
         assertNull(state.currentSong)
@@ -165,45 +168,45 @@ class PlaybackSessionTest {
     fun `pause pauses the player`() {
         session.pause()
 
-        verify { playerPort.pause() }
+        verify(playerPort).pause()
     }
 
     // -------- resume() --------------------------------------------------------
 
     @Test
     fun `resume requests focus and plays when not playing`() {
-        every { audioFocusPort.requestFocus() } returns true
-        every { playerPort.isPlaying() } returns false
+        whenever(audioFocusPort.requestFocus()).thenReturn(true)
+        whenever(playerPort.isPlaying()).thenReturn(false)
 
         session.resume()
 
-        verify { audioFocusPort.requestFocus() }
-        verify { playerPort.play() }
+        verify(audioFocusPort).requestFocus()
+        verify(playerPort).play()
     }
 
     @Test
     fun `resume does nothing when focus request fails`() {
-        every { audioFocusPort.requestFocus() } returns false
+        whenever(audioFocusPort.requestFocus()).thenReturn(false)
 
         session.resume()
 
-        verify { audioFocusPort.requestFocus() }
-        verify(exactly = 0) { playerPort.play() }
+        verify(audioFocusPort).requestFocus()
+        verify(playerPort, org.mockito.Mockito.never()).play()
     }
 
     // -------- stop() ----------------------------------------------------------
 
     @Test
     fun `stop abandons focus stops player clears queue and stops service`() {
-        every { audioFocusPort.requestFocus() } returns true
+        whenever(audioFocusPort.requestFocus()).thenReturn(true)
         session.play(SONG_1, playlistId = 10L)
 
         session.stop()
 
-        verify { audioFocusPort.abandonFocus() }
-        verify { playerPort.stop() }
-        verify { playerPort.clearQueue() }
-        verify { serviceStarter.stopService() }
+        verify(audioFocusPort).abandonFocus()
+        verify(playerPort).stop()
+        verify(playerPort).clearQueue()
+        verify(serviceStarter).stopService()
 
         val state = session.playbackState.value
         assertFalse(state.isPlaying)
@@ -219,8 +222,8 @@ class PlaybackSessionTest {
 
     @Test
     fun `playAlarmQueue sets source to ALARM and alarmId`() = runBlocking {
-        every { audioFocusPort.requestFocus() } returns true
-        coEvery { playbackProgressRepository.getProgress(any(), any()) } returns Result.success(null)
+        whenever(audioFocusPort.requestFocus()).thenReturn(true)
+        wheneverBlocking { playbackProgressRepository.getProgress(any(), any()) } doReturn Result.success(null)
 
         session.playAlarmQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 20L, alarmId = 99L)
 
@@ -236,10 +239,10 @@ class PlaybackSessionTest {
 
     @Test
     fun `IsPlayingChanged true updates state and starts save loop`() {
-        every { audioFocusPort.requestFocus() } returns true
+        whenever(audioFocusPort.requestFocus()).thenReturn(true)
         session.play(SONG_1, playlistId = 10L)
 
-        every { playerPort.currentPositionMs() } returns 5_000L
+        whenever(playerPort.currentPositionMs()).thenReturn(5_000L)
 
         playerEvents.tryEmit(PlayerEvent.IsPlayingChanged(true))
 
@@ -292,40 +295,40 @@ class PlaybackSessionTest {
 
     @Test
     fun `QueueEnded with USER source calls stop`() {
-        every { audioFocusPort.requestFocus() } returns true
+        whenever(audioFocusPort.requestFocus()).thenReturn(true)
         session.play(SONG_1, playlistId = 10L)
 
         playerEvents.tryEmit(PlayerEvent.QueueEnded)
 
-        verify { playerPort.stop() }
-        verify { playerPort.clearQueue() }
-        verify { serviceStarter.stopService() }
+        verify(playerPort).stop()
+        verify(playerPort).clearQueue()
+        verify(serviceStarter).stopService()
     }
 
     @Test
     fun `QueueEnded with ALARM source does not call stop`() = runBlocking {
-        every { audioFocusPort.requestFocus() } returns true
-        coEvery { playbackProgressRepository.getProgress(any(), any()) } returns Result.success(null)
+        whenever(audioFocusPort.requestFocus()).thenReturn(true)
+        wheneverBlocking { playbackProgressRepository.getProgress(any(), any()) } doReturn Result.success(null)
 
         session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, alarmId = 42L)
 
         playerEvents.tryEmit(PlayerEvent.QueueEnded)
 
         // stop should NOT be called for ALARM source
-        verify(exactly = 0) { playerPort.stop() }
+        verify(playerPort, org.mockito.Mockito.never()).stop()
     }
 
     @Test
     fun `QueueEnded with ALARM source clears playlist progress`() = runBlocking {
-        every { audioFocusPort.requestFocus() } returns true
-        coEvery { playbackProgressRepository.getProgress(any(), any()) } returns Result.success(null)
-        coEvery { playbackProgressRepository.deleteAllProgressForPlaylist(any()) } returns Result.success(Unit)
+        whenever(audioFocusPort.requestFocus()).thenReturn(true)
+        wheneverBlocking { playbackProgressRepository.getProgress(any(), any()) } doReturn Result.success(null)
+        wheneverBlocking { playbackProgressRepository.deleteAllProgressForPlaylist(any()) } doReturn Result.success(Unit)
 
         session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, alarmId = 42L)
 
         playerEvents.tryEmit(PlayerEvent.QueueEnded)
 
-        coVerify { playbackProgressRepository.deleteAllProgressForPlaylist(10L) }
+        verifyBlocking(playbackProgressRepository) { deleteAllProgressForPlaylist(10L) }
     }
 
     // -------- setPlayMode() ---------------------------------------------------
@@ -334,8 +337,8 @@ class PlaybackSessionTest {
     fun `setPlayMode RANDOM enables shuffle`() {
         session.setPlayMode(PlayMode.RANDOM)
 
-        verify { playerPort.setShuffleEnabled(true) }
-        verify { playerPort.setRepeatMode(PlayerRepeatMode.OFF) }
+        verify(playerPort).setShuffleEnabled(true)
+        verify(playerPort).setRepeatMode(PlayerRepeatMode.OFF)
 
         assertEquals(PlayMode.RANDOM, session.playbackState.value.playMode)
     }
@@ -344,8 +347,8 @@ class PlaybackSessionTest {
     fun `setPlayMode REPEAT_ONE sets repeat one`() {
         session.setPlayMode(PlayMode.REPEAT_ONE)
 
-        verify { playerPort.setShuffleEnabled(false) }
-        verify { playerPort.setRepeatMode(PlayerRepeatMode.ONE) }
+        verify(playerPort).setShuffleEnabled(false)
+        verify(playerPort).setRepeatMode(PlayerRepeatMode.ONE)
 
         assertEquals(PlayMode.REPEAT_ONE, session.playbackState.value.playMode)
     }
@@ -354,8 +357,8 @@ class PlaybackSessionTest {
     fun `setPlayMode SEQUENTIAL disables shuffle and repeat`() {
         session.setPlayMode(PlayMode.SEQUENTIAL)
 
-        verify { playerPort.setShuffleEnabled(false) }
-        verify { playerPort.setRepeatMode(PlayerRepeatMode.OFF) }
+        verify(playerPort).setShuffleEnabled(false)
+        verify(playerPort).setRepeatMode(PlayerRepeatMode.OFF)
 
         assertEquals(PlayMode.SEQUENTIAL, session.playbackState.value.playMode)
     }
@@ -364,38 +367,38 @@ class PlaybackSessionTest {
 
     @Test
     fun `next delegates to playerPort when hasNext is true`() {
-        every { playerPort.hasNext() } returns true
+        whenever(playerPort.hasNext()).thenReturn(true)
 
         session.next()
 
-        verify { playerPort.next() }
+        verify(playerPort).next()
     }
 
     @Test
     fun `next does nothing when hasNext is false`() {
-        every { playerPort.hasNext() } returns false
+        whenever(playerPort.hasNext()).thenReturn(false)
 
         session.next()
 
-        verify(exactly = 0) { playerPort.next() }
+        verify(playerPort, org.mockito.Mockito.never()).next()
     }
 
     @Test
     fun `previous delegates to playerPort when hasPrevious is true`() {
-        every { playerPort.hasPrevious() } returns true
+        whenever(playerPort.hasPrevious()).thenReturn(true)
 
         session.previous()
 
-        verify { playerPort.previous() }
+        verify(playerPort).previous()
     }
 
     @Test
     fun `previous does nothing when hasPrevious is false`() {
-        every { playerPort.hasPrevious() } returns false
+        whenever(playerPort.hasPrevious()).thenReturn(false)
 
         session.previous()
 
-        verify(exactly = 0) { playerPort.previous() }
+        verify(playerPort, org.mockito.Mockito.never()).previous()
     }
 
     // -------- seekTo() --------------------------------------------------------
@@ -404,7 +407,7 @@ class PlaybackSessionTest {
     fun `seekTo delegates to playerPort and updates state`() {
         session.seekTo(45_000L)
 
-        verify { playerPort.seekTo(45_000L) }
+        verify(playerPort).seekTo(45_000L)
         assertEquals(45_000L, session.playbackState.value.positionMs)
     }
 
@@ -414,25 +417,25 @@ class PlaybackSessionTest {
     fun `preloadFirstSong sets queue with single item`() {
         session.preloadFirstSong("/tmp/preload.mp3")
 
-        val slot = slot<List<PlayItem>>()
-        verify { playerPort.setQueue(capture(slot), 0, 0L) }
-        assertEquals(1, slot.captured.size)
-        assertEquals("/tmp/preload.mp3", slot.captured[0].uri)
+        val queueCaptor = argumentCaptor<List<PlayItem>>()
+        verify(playerPort).setQueue(queueCaptor.capture(), eq(0), eq(0L))
+        assertEquals(1, queueCaptor.firstValue.size)
+        assertEquals("/tmp/preload.mp3", queueCaptor.firstValue[0].uri)
     }
 
     // -------- playQueue() -----------------------------------------------------
 
     @Test
     fun `playQueue requests focus and plays queue`() = runBlocking {
-        every { audioFocusPort.requestFocus() } returns true
-        coEvery { playbackProgressRepository.getProgress(SONG_1.id, 10L) } returns Result.success(null)
+        whenever(audioFocusPort.requestFocus()).thenReturn(true)
+        wheneverBlocking { playbackProgressRepository.getProgress(SONG_1.id, 10L) } doReturn Result.success(null)
 
         session.playQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L)
 
-        verify { audioFocusPort.requestFocus() }
-        verify { serviceStarter.startService() }
-        verify { playerPort.setQueue(any(), 0, 0L) }
-        verify { playerPort.play() }
+        verify(audioFocusPort).requestFocus()
+        verify(serviceStarter).startService()
+        verify(playerPort).setQueue(any(), eq(0), eq(0L))
+        verify(playerPort).play()
 
         val state = session.playbackState.value
         assertEquals(SONG_1, state.currentSong)
@@ -443,31 +446,31 @@ class PlaybackSessionTest {
 
     @Test
     fun `playQueue restores progress when available`() = runBlocking {
-        every { audioFocusPort.requestFocus() } returns true
+        whenever(audioFocusPort.requestFocus()).thenReturn(true)
         val progress = PlaybackProgress(
             songId = SONG_1.id,
             positionMs = 30_000L,
             updatedAt = 0L,
             playlistId = 10L,
         )
-        coEvery { playbackProgressRepository.getProgress(SONG_1.id, 10L) } returns Result.success(progress)
+        wheneverBlocking { playbackProgressRepository.getProgress(SONG_1.id, 10L) } doReturn Result.success(progress)
 
         session.playQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L)
 
-        verify { playerPort.seekTo(30_000L) }
+        verify(playerPort).seekTo(30_000L)
     }
 
     @Test
     fun `playQueue returns early when focus request fails`() = runBlocking {
-        every { audioFocusPort.requestFocus() } returns false
-        coEvery { playbackProgressRepository.getProgress(SONG_1.id, 10L) } returns Result.success(null)
+        whenever(audioFocusPort.requestFocus()).thenReturn(false)
+        wheneverBlocking { playbackProgressRepository.getProgress(SONG_1.id, 10L) } doReturn Result.success(null)
 
         session.playQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
 
-        verify { audioFocusPort.requestFocus() }
-        verify(exactly = 0) { serviceStarter.startService() }
-        verify(exactly = 0) { playerPort.setQueue(any(), 0, 0L) }
-        verify(exactly = 0) { playerPort.play() }
+        verify(audioFocusPort).requestFocus()
+        verify(serviceStarter, org.mockito.Mockito.never()).startService()
+        verify(playerPort, org.mockito.Mockito.never()).setQueue(any(), 0, 0L)
+        verify(playerPort, org.mockito.Mockito.never()).play()
 
         val state = session.playbackState.value
         assertNull(state.currentSong)
@@ -477,53 +480,47 @@ class PlaybackSessionTest {
     fun `playQueue returns early for empty list`() {
         session.playQueue(emptyList(), startIndex = 0, playlistId = 10L)
 
-        verify(exactly = 0) { audioFocusPort.requestFocus() }
-        verify(exactly = 0) { playerPort.setQueue(any(), any(), any()) }
+        verify(audioFocusPort, org.mockito.Mockito.never()).requestFocus()
+        verify(playerPort, org.mockito.Mockito.never()).setQueue(any(), any(), any())
     }
 
     // -------- audio focus callbacks -------------------------------------------
 
     @Test
     fun `focus loss pauses playback when playing`() {
-        every { audioFocusPort.requestFocus() } returns true
+        whenever(audioFocusPort.requestFocus()).thenReturn(true)
         session.play(SONG_1, playlistId = 10L)
 
         // Playback must actually be playing for focus loss to trigger pause
         playerEvents.tryEmit(PlayerEvent.IsPlayingChanged(true))
 
-        val focusLossSlot = slot<() -> Unit>()
-        verify { audioFocusPort.registerCallbacks(capture(focusLossSlot), any(), any()) }
+        val focusLossCaptor = argumentCaptor<() -> Unit>()
+        verify(audioFocusPort).registerCallbacks(focusLossCaptor.capture(), any(), any())
 
-        focusLossSlot.captured.invoke()
+        focusLossCaptor.firstValue.invoke()
 
-        verify { playerPort.pause() }
+        verify(playerPort).pause()
     }
 
     @Test
     fun `focus gain resumes playback when previously paused by focus loss`() {
-        every { audioFocusPort.requestFocus() } returns true
-        every { playerPort.isPlaying() } returns false
+        whenever(audioFocusPort.requestFocus()).thenReturn(true)
+        whenever(playerPort.isPlaying()).thenReturn(false)
         session.play(SONG_1, playlistId = 10L)
 
-        val focusLossSlot = slot<() -> Unit>()
-        val focusGainSlot = slot<() -> Unit>()
-        verify {
-            audioFocusPort.registerCallbacks(
-                capture(focusLossSlot),
-                any(),
-                capture(focusGainSlot)
-            )
-        }
+        val focusLossCaptor = argumentCaptor<() -> Unit>()
+        val focusGainCaptor = argumentCaptor<() -> Unit>()
+        verify(audioFocusPort).registerCallbacks(focusLossCaptor.capture(), any(), focusGainCaptor.capture())
 
         // Start playing
         playerEvents.tryEmit(PlayerEvent.IsPlayingChanged(true))
         // Lose focus -> wasPausedByFocusLoss = true, pause()
-        focusLossSlot.captured.invoke()
+        focusLossCaptor.firstValue.invoke()
         // Player reports it's no longer playing -> isPlaying = false
         playerEvents.tryEmit(PlayerEvent.IsPlayingChanged(false))
         // Regain focus -> resume()
-        focusGainSlot.captured.invoke()
+        focusGainCaptor.firstValue.invoke()
 
-        verify(atLeast = 1) { playerPort.play() }
+        verify(playerPort, org.mockito.Mockito.atLeast(1)).play()
     }
 }

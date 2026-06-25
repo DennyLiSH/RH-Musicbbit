@@ -5,9 +5,9 @@ import android.app.Service
 import android.content.Intent
 import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
 import com.rabbithole.musicbbit.service.playback.PlaybackSession
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import dagger.hilt.android.testing.HiltAndroidRule
@@ -93,7 +93,7 @@ class MusicPlaybackServiceTest {
     fun `onStartCommand with ACTION_PLAY_ALARM calls alarmFireSession fire`() {
         service.onCreate()
 
-        val mockAlarmFireSession = mockk<AlarmFireSession>(relaxed = true)
+        val mockAlarmFireSession = mock<AlarmFireSession>()
         service.javaClass.getDeclaredField("alarmFireSession").apply {
             isAccessible = true
             set(service, mockAlarmFireSession)
@@ -108,15 +108,15 @@ class MusicPlaybackServiceTest {
 
         val result = service.onStartCommand(intent, 0, 0)
         assertEquals("Should return START_STICKY", Service.START_STICKY, result)
-        verify { mockAlarmFireSession.fire(alarmId, true) }
+        verify(mockAlarmFireSession).fire(alarmId, true)
     }
 
     @Test
     fun `onStartCommand with ACTION_PREVIOUS calls playbackSession previous`() {
         service.onCreate()
 
-        val mockPlaybackSession = mockk<PlaybackSession>(relaxed = true)
-        every { mockPlaybackSession.playbackState } returns MutableStateFlow(PlaybackState())
+        val mockPlaybackSession = mock<PlaybackSession>()
+        whenever(mockPlaybackSession.playbackState).thenReturn(MutableStateFlow(PlaybackState()))
         service.javaClass.getDeclaredField("playbackSession").apply {
             isAccessible = true
             set(service, mockPlaybackSession)
@@ -127,15 +127,15 @@ class MusicPlaybackServiceTest {
         }
         service.onStartCommand(intent, 0, 0)
 
-        verify { mockPlaybackSession.previous() }
+        verify(mockPlaybackSession).previous()
     }
 
     @Test
     fun `onStartCommand with ACTION_NEXT calls playbackSession next`() {
         service.onCreate()
 
-        val mockPlaybackSession = mockk<PlaybackSession>(relaxed = true)
-        every { mockPlaybackSession.playbackState } returns MutableStateFlow(PlaybackState())
+        val mockPlaybackSession = mock<PlaybackSession>()
+        whenever(mockPlaybackSession.playbackState).thenReturn(MutableStateFlow(PlaybackState()))
         service.javaClass.getDeclaredField("playbackSession").apply {
             isAccessible = true
             set(service, mockPlaybackSession)
@@ -146,16 +146,16 @@ class MusicPlaybackServiceTest {
         }
         service.onStartCommand(intent, 0, 0)
 
-        verify { mockPlaybackSession.next() }
+        verify(mockPlaybackSession).next()
     }
 
     @Test
     fun `onStartCommand with ACTION_TOGGLE_PLAY_PAUSE toggles playback`() {
         service.onCreate()
 
-        val mockPlaybackSession = mockk<PlaybackSession>(relaxed = true)
+        val mockPlaybackSession = mock<PlaybackSession>()
         val stateFlow = MutableStateFlow(PlaybackState(isPlaying = true))
-        every { mockPlaybackSession.playbackState } returns stateFlow
+        whenever(mockPlaybackSession.playbackState).thenReturn(stateFlow)
         service.javaClass.getDeclaredField("playbackSession").apply {
             isAccessible = true
             set(service, mockPlaybackSession)
@@ -166,16 +166,16 @@ class MusicPlaybackServiceTest {
         }
         service.onStartCommand(intent, 0, 0)
 
-        verify { mockPlaybackSession.pause() }
+        verify(mockPlaybackSession).pause()
     }
 
     @Test
     fun `onStartCommand with ACTION_TOGGLE_PLAY_PAUSE resumes when paused`() {
         service.onCreate()
 
-        val mockPlaybackSession = mockk<PlaybackSession>(relaxed = true)
+        val mockPlaybackSession = mock<PlaybackSession>()
         val stateFlow = MutableStateFlow(PlaybackState(isPlaying = false))
-        every { mockPlaybackSession.playbackState } returns stateFlow
+        whenever(mockPlaybackSession.playbackState).thenReturn(stateFlow)
         service.javaClass.getDeclaredField("playbackSession").apply {
             isAccessible = true
             set(service, mockPlaybackSession)
@@ -186,7 +186,7 @@ class MusicPlaybackServiceTest {
         }
         service.onStartCommand(intent, 0, 0)
 
-        verify { mockPlaybackSession.resume() }
+        verify(mockPlaybackSession).resume()
     }
 
     @Test

@@ -6,10 +6,12 @@ import com.rabbithole.musicbbit.domain.model.PlaylistWithSongs
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verifyBlocking
+import org.mockito.kotlin.whenever
+import org.mockito.kotlin.wheneverBlocking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -47,8 +49,8 @@ class PlaylistDetailViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        playlistRepository = mockk(relaxed = true)
-        musicRepository = mockk(relaxed = true)
+        playlistRepository = mock()
+        musicRepository = mock()
     }
 
     @After
@@ -65,8 +67,8 @@ class PlaylistDetailViewModelTest {
         )
         val playlistWithSongs = PlaylistWithSongs(playlist, songs)
 
-        every { playlistRepository.getPlaylistWithSongs(1L) } returns flowOf(playlistWithSongs)
-        every { musicRepository.getAllSongs() } returns flowOf(emptyList())
+        whenever(playlistRepository.getPlaylistWithSongs(1L)).thenReturn(flowOf(playlistWithSongs))
+        whenever(musicRepository.getAllSongs()).thenReturn(flowOf(emptyList()))
 
         val viewModel = createViewModel()
 
@@ -83,16 +85,16 @@ class PlaylistDetailViewModelTest {
         )
         val playlistWithSongs = PlaylistWithSongs(playlist, songs)
 
-        every { playlistRepository.getPlaylistWithSongs(1L) } returns flowOf(playlistWithSongs)
-        every { musicRepository.getAllSongs() } returns flowOf(emptyList())
-        coEvery { playlistRepository.removeSongFromPlaylist(1L, 1L) } returns Result.success(Unit)
+        whenever(playlistRepository.getPlaylistWithSongs(1L)).thenReturn(flowOf(playlistWithSongs))
+        whenever(musicRepository.getAllSongs()).thenReturn(flowOf(emptyList()))
+        wheneverBlocking { playlistRepository.removeSongFromPlaylist(1L, 1L) } doReturn Result.success(Unit)
 
         val viewModel = createViewModel()
 
         viewModel.onAction(PlaylistDetailAction.OnRemoveSong(1L))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { playlistRepository.removeSongFromPlaylist(1L, 1L) }
+        verifyBlocking(playlistRepository) { removeSongFromPlaylist(1L, 1L) }
     }
 
     @Test
@@ -105,9 +107,9 @@ class PlaylistDetailViewModelTest {
         )
         val playlistWithSongs = PlaylistWithSongs(playlist, songs)
 
-        every { playlistRepository.getPlaylistWithSongs(1L) } returns flowOf(playlistWithSongs)
-        every { musicRepository.getAllSongs() } returns flowOf(emptyList())
-        coEvery { playlistRepository.reorderPlaylistSongs(1L, any()) } returns Result.success(Unit)
+        whenever(playlistRepository.getPlaylistWithSongs(1L)).thenReturn(flowOf(playlistWithSongs))
+        whenever(musicRepository.getAllSongs()).thenReturn(flowOf(emptyList()))
+        wheneverBlocking { playlistRepository.reorderPlaylistSongs(1L, any()) } doReturn Result.success(Unit)
 
         val viewModel = createViewModel()
 
@@ -120,7 +122,7 @@ class PlaylistDetailViewModelTest {
         assertEquals("Song C", state.playlistWithSongs.songs[1].title)
         assertEquals("Song A", state.playlistWithSongs.songs[2].title)
 
-        coVerify { playlistRepository.reorderPlaylistSongs(1L, listOf(2L, 3L, 1L)) }
+        verifyBlocking(playlistRepository) { reorderPlaylistSongs(1L, listOf(2L, 3L, 1L)) }
     }
 
     @Test
@@ -128,23 +130,23 @@ class PlaylistDetailViewModelTest {
         val playlist = Playlist(id = 1L, name = "Test", createdAt = 0L, updatedAt = 0L)
         val playlistWithSongs = PlaylistWithSongs(playlist, emptyList())
 
-        every { playlistRepository.getPlaylistWithSongs(1L) } returns flowOf(playlistWithSongs)
-        every { musicRepository.getAllSongs() } returns flowOf(emptyList())
-        coEvery { playlistRepository.addSongsToPlaylist(1L, listOf(1L, 2L)) } returns Result.success(Unit)
+        whenever(playlistRepository.getPlaylistWithSongs(1L)).thenReturn(flowOf(playlistWithSongs))
+        whenever(musicRepository.getAllSongs()).thenReturn(flowOf(emptyList()))
+        wheneverBlocking { playlistRepository.addSongsToPlaylist(1L, listOf(1L, 2L)) } doReturn Result.success(Unit)
 
         val viewModel = createViewModel()
 
         viewModel.onAction(PlaylistDetailAction.OnAddSongs(listOf(1L, 2L)))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { playlistRepository.addSongsToPlaylist(1L, listOf(1L, 2L)) }
+        verifyBlocking(playlistRepository) { addSongsToPlaylist(1L, listOf(1L, 2L)) }
     }
 
     @Test
     fun `retry reloads playlist after error`() = runTest {
         val errorFlow = kotlinx.coroutines.flow.flow<PlaylistWithSongs?> { throw RuntimeException("DB error") }
-        every { playlistRepository.getPlaylistWithSongs(1L) } returns errorFlow
-        every { musicRepository.getAllSongs() } returns flowOf(emptyList())
+        whenever(playlistRepository.getPlaylistWithSongs(1L)).thenReturn(errorFlow)
+        whenever(musicRepository.getAllSongs()).thenReturn(flowOf(emptyList()))
 
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
@@ -152,7 +154,7 @@ class PlaylistDetailViewModelTest {
         assertTrue(viewModel.uiState.value is PlaylistDetailUiState.Error)
 
         val playlist = Playlist(id = 1L, name = "Test", createdAt = 0L, updatedAt = 0L)
-        every { playlistRepository.getPlaylistWithSongs(1L) } returns flowOf(PlaylistWithSongs(playlist, emptyList()))
+        whenever(playlistRepository.getPlaylistWithSongs(1L)).thenReturn(flowOf(PlaylistWithSongs(playlist, emptyList())))
         viewModel.retry()
         testDispatcher.scheduler.advanceUntilIdle()
 

@@ -9,10 +9,6 @@ import com.rabbithole.musicbbit.data.local.model.SongEntity
 import com.rabbithole.musicbbit.data.local.sync.SongDiff
 import com.rabbithole.musicbbit.data.local.sync.SongSyncEngine
 import com.rabbithole.musicbbit.domain.model.Song
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -21,14 +17,21 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argThat
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verifyBlocking
+import org.mockito.kotlin.whenever
+import org.mockito.kotlin.wheneverBlocking
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MusicRepositoryImplTest {
 
-    private val songDao: SongDao = mockk()
-    private val scanDirectoryDao: ScanDirectoryDao = mockk()
-    private val musicScanner: MusicScanner = mockk()
-    private val songSyncEngine: SongSyncEngine = mockk()
+    private val songDao: SongDao = mock()
+    private val scanDirectoryDao: ScanDirectoryDao = mock()
+    private val musicScanner: MusicScanner = mock()
+    private val songSyncEngine: SongSyncEngine = mock()
     private val songSorter: SongSorter = SongSorter()
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var repository: MusicRepositoryImpl
@@ -86,14 +89,14 @@ class MusicRepositoryImplTest {
 
     @Test
     fun `refreshSongs with no directories clears all songs`() = runTest(testDispatcher) {
-        every { scanDirectoryDao.getAll() } returns flowOf(emptyList())
-        coEvery { songDao.deleteAll() } returns Unit
+        whenever(scanDirectoryDao.getAll()).thenReturn(flowOf(emptyList()))
+        wheneverBlocking { songDao.deleteAll() } doReturn Unit
 
         val result = repository.refreshSongs()
 
         assertTrue(result.isSuccess)
-        coVerify { songDao.deleteAll() }
-        coVerify(exactly = 0) { songDao.insertAll(any()) }
+        verifyBlocking(songDao) { deleteAll() }
+        verifyBlocking(songDao, org.mockito.Mockito.never()) { insertAll(any()) }
     }
 
     @Test
@@ -101,22 +104,26 @@ class MusicRepositoryImplTest {
         val dir = scanDirEntity(path = "/storage/Music")
         val newSong = songEntity(id = 0L, path = "/storage/Music/new.mp3", title = "New Song")
 
-        every { scanDirectoryDao.getAll() } returns flowOf(listOf(dir))
-        every { musicScanner.scanDirectories(listOf("/storage/Music")) } returns listOf(
-            songDomain(id = 0L, path = "/storage/Music/new.mp3", title = "New Song")
+        whenever(scanDirectoryDao.getAll()).thenReturn(flowOf(listOf(dir)))
+        whenever(musicScanner.scanDirectories(listOf("/storage/Music"))).thenReturn(
+            listOf(songDomain(id = 0L, path = "/storage/Music/new.mp3", title = "New Song"))
         )
-        every { songDao.getAll() } returns flowOf(emptyList())
-        every { songSyncEngine.computeDiff(any(), any()) } returns SongDiff(
-            toInsert = listOf(newSong),
-            toDelete = emptyList(),
-            toUpdate = emptyList()
+        whenever(songDao.getAll()).thenReturn(flowOf(emptyList()))
+        whenever(songSyncEngine.computeDiff(any(), any())).thenReturn(
+            SongDiff(
+                toInsert = listOf(newSong),
+                toDelete = emptyList(),
+                toUpdate = emptyList()
+            )
         )
-        coEvery { songDao.insertAll(any()) } returns emptyList()
+        wheneverBlocking { songDao.insertAll(any()) } doReturn emptyList()
 
         val result = repository.refreshSongs()
 
         assertTrue(result.isSuccess)
-        coVerify { songDao.insertAll(match { it.size == 1 && it[0].path == "/storage/Music/new.mp3" }) }
+        verifyBlocking(songDao) {
+            insertAll(argThat { size == 1 && this[0].path == "/storage/Music/new.mp3" })
+        }
     }
 
     @Test
@@ -124,25 +131,29 @@ class MusicRepositoryImplTest {
         val dir = scanDirEntity(path = "/storage/Music")
         val existingSong = songEntity(id = 10L, path = "/storage/Music/old.mp3", title = "Old Song")
 
-        every { scanDirectoryDao.getAll() } returns flowOf(listOf(dir))
-        every { musicScanner.scanDirectories(listOf("/storage/Music")) } returns emptyList()
-        every { songDao.getAll() } returns flowOf(listOf(existingSong))
-        every { songSyncEngine.computeDiff(any(), any()) } returns SongDiff(
-            toInsert = emptyList(),
-            toDelete = listOf(existingSong),
-            toUpdate = emptyList()
+        whenever(scanDirectoryDao.getAll()).thenReturn(flowOf(listOf(dir)))
+        whenever(musicScanner.scanDirectories(listOf("/storage/Music"))).thenReturn(emptyList())
+        whenever(songDao.getAll()).thenReturn(flowOf(listOf(existingSong)))
+        whenever(songSyncEngine.computeDiff(any(), any())).thenReturn(
+            SongDiff(
+                toInsert = emptyList(),
+                toDelete = listOf(existingSong),
+                toUpdate = emptyList()
+            )
         )
-        coEvery { songDao.delete(any()) } returns Unit
+        wheneverBlocking { songDao.delete(any()) } doReturn Unit
 
         val result = repository.refreshSongs()
 
         assertTrue(result.isSuccess)
-        coVerify { songDao.delete(match { it.id == 10L && it.path == "/storage/Music/old.mp3" }) }
+        verifyBlocking(songDao) {
+            delete(argThat { id == 10L && path == "/storage/Music/old.mp3" })
+        }
     }
 
     @Test
     fun `refreshSongs returns failure on exception`() = runTest(testDispatcher) {
-        every { scanDirectoryDao.getAll() } throws RuntimeException("DB error")
+        whenever(scanDirectoryDao.getAll()).thenThrow(RuntimeException("DB error"))
 
         val result = repository.refreshSongs()
 
@@ -155,7 +166,7 @@ class MusicRepositoryImplTest {
             songEntity(id = 1L, title = "Hello World", artist = "Artist A"),
             songEntity(id = 2L, title = "Hello Again", artist = "Artist B")
         )
-        every { songDao.searchSongs("hello") } returns flowOf(songs)
+        whenever(songDao.searchSongs("hello")).thenReturn(flowOf(songs))
 
         repository.searchSongs("hello").test {
             val results = awaitItem()
@@ -172,7 +183,7 @@ class MusicRepositoryImplTest {
             songEntity(id = 1L, title = "Apple"),
             songEntity(id = 2L, title = "Zebra")
         )
-        every { songDao.getAll() } returns flowOf(entities, entities)
+        whenever(songDao.getAll()).thenReturn(flowOf(entities, entities))
 
         repository.getAllSongs().test {
             val first = awaitItem()
@@ -188,7 +199,7 @@ class MusicRepositoryImplTest {
             songEntity(id = 1L, title = "Apple"),
             songEntity(id = 2L, title = "Zebra")
         )
-        every { songDao.searchSongs(any()) } returns flowOf(entities, entities)
+        whenever(songDao.searchSongs(any())).thenReturn(flowOf(entities, entities))
 
         repository.searchSongs("query").test {
             val first = awaitItem()

@@ -3,9 +3,6 @@ package com.rabbithole.musicbbit.presentation.player.components
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -19,6 +16,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Test
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
+import org.mockito.kotlin.wheneverBlocking
 import timber.log.Timber
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -42,7 +43,7 @@ class AddToPlaylistBottomSheetViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        playlistRepository = mockk(relaxed = true)
+        playlistRepository = mock()
     }
 
     @After
@@ -56,7 +57,7 @@ class AddToPlaylistBottomSheetViewModelTest {
             Playlist(id = 1L, name = "Favorites", createdAt = 0L, updatedAt = 0L),
             Playlist(id = 2L, name = "Workout", createdAt = 0L, updatedAt = 0L)
         )
-        every { playlistRepository.getAllPlaylists() } returns flowOf(playlists)
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(playlists))
 
         val viewModel = AddToPlaylistBottomSheetViewModel(playlistRepository)
 
@@ -68,7 +69,7 @@ class AddToPlaylistBottomSheetViewModelTest {
     @Test
     fun `load playlists error emits Error`() = runTest {
         val errorFlow = kotlinx.coroutines.flow.flow<List<Playlist>> { throw RuntimeException("DB error") }
-        every { playlistRepository.getAllPlaylists() } returns errorFlow
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(errorFlow)
 
         val viewModel = AddToPlaylistBottomSheetViewModel(playlistRepository)
         testDispatcher.scheduler.advanceUntilIdle()
@@ -79,15 +80,15 @@ class AddToPlaylistBottomSheetViewModelTest {
     @Test
     fun `retry reloads after error`() = runTest {
         val errorFlow = kotlinx.coroutines.flow.flow<List<Playlist>> { throw RuntimeException("DB error") }
-        every { playlistRepository.getAllPlaylists() } returns errorFlow
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(errorFlow)
 
         val viewModel = AddToPlaylistBottomSheetViewModel(playlistRepository)
         testDispatcher.scheduler.advanceUntilIdle()
         assertTrue(viewModel.uiState.value is AddToPlaylistUiState.Error)
 
-        every { playlistRepository.getAllPlaylists() } returns flowOf(
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(
             listOf(Playlist(id = 1L, name = "Favorites", createdAt = 0L, updatedAt = 0L))
-        )
+        ))
         viewModel.retry()
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -98,8 +99,8 @@ class AddToPlaylistBottomSheetViewModelTest {
     @Test
     fun `onPlaylistSelected failure sets error message in Success state`() = runTest {
         val playlists = listOf(Playlist(id = 1L, name = "Favorites", createdAt = 0L, updatedAt = 0L))
-        every { playlistRepository.getAllPlaylists() } returns flowOf(playlists)
-        coEvery { playlistRepository.addSongToPlaylist(1L, 10L) } returns Result.failure(RuntimeException("Failed"))
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(playlists))
+        wheneverBlocking { playlistRepository.addSongToPlaylist(1L, 10L) } doReturn Result.failure(RuntimeException("Failed"))
 
         val viewModel = AddToPlaylistBottomSheetViewModel(playlistRepository)
         testDispatcher.scheduler.advanceUntilIdle()

@@ -6,9 +6,6 @@ import androidx.work.ListenableWorker
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.service.AlarmScheduler
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -16,6 +13,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verifyBlocking
+import org.mockito.kotlin.whenever
 import timber.log.Timber
 import java.time.DayOfWeek
 
@@ -47,10 +49,10 @@ class AlarmIntegrityWorkerTest {
 
     @Before
     fun setUp() {
-        alarmRepository = mockk(relaxed = true)
-        alarmScheduler = mockk(relaxed = true)
-        val context = mockk<Context>(relaxed = true)
-        val workerParams = mockk<WorkerParameters>(relaxed = true)
+        alarmRepository = mock()
+        alarmScheduler = mock()
+        val context = mock<Context>()
+        val workerParams = mock<WorkerParameters>()
 
         worker = AlarmIntegrityWorker(
             appContext = context,
@@ -63,14 +65,14 @@ class AlarmIntegrityWorkerTest {
     @Test
     fun `no enabled alarms returns success without rescheduling`() = runTest {
         // Given
-        coEvery { alarmRepository.getEnabledAlarms() } returns flowOf(emptyList())
+        whenever(alarmRepository.getEnabledAlarms()).thenReturn(flowOf(emptyList()))
 
         // When
         val result = worker.doWork()
 
         // Then
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify(exactly = 0) { alarmScheduler.rescheduleAll(any<List<Alarm>>()) }
+        verifyBlocking(alarmScheduler, times(0)) { rescheduleAll(any<List<Alarm>>()) }
     }
 
     @Test
@@ -89,26 +91,26 @@ class AlarmIntegrityWorkerTest {
                 lastTriggeredAt = null,
             )
         )
-        coEvery { alarmRepository.getEnabledAlarms() } returns flowOf(alarms)
+        whenever(alarmRepository.getEnabledAlarms()).thenReturn(flowOf(alarms))
 
         // When
         val result = worker.doWork()
 
         // Then
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify(exactly = 1) { alarmScheduler.rescheduleAll(alarms) }
+        verifyBlocking(alarmScheduler, times(1)) { rescheduleAll(alarms) }
     }
 
     @Test
     fun `exception during execution returns retry`() = runTest {
         // Given
-        coEvery { alarmRepository.getEnabledAlarms() } throws RuntimeException("DB error")
+        whenever(alarmRepository.getEnabledAlarms()).thenThrow(RuntimeException("DB error"))
 
         // When
         val result = worker.doWork()
 
         // Then
         assertEquals(ListenableWorker.Result.retry(), result)
-        coVerify(exactly = 0) { alarmScheduler.rescheduleAll(any<List<Alarm>>()) }
+        verifyBlocking(alarmScheduler, times(0)) { rescheduleAll(any<List<Alarm>>()) }
     }
 }

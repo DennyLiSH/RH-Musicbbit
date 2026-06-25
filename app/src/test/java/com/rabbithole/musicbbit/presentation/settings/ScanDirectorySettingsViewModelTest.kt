@@ -4,10 +4,6 @@ import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -22,6 +18,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verifyBlocking
+import org.mockito.kotlin.whenever
+import org.mockito.kotlin.wheneverBlocking
 import timber.log.Timber
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -46,8 +49,8 @@ class ScanDirectorySettingsViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        scanDirectoryRepository = mockk(relaxed = true)
-        musicRepository = mockk(relaxed = true)
+        scanDirectoryRepository = mock()
+        musicRepository = mock()
     }
 
     @After
@@ -61,7 +64,7 @@ class ScanDirectorySettingsViewModelTest {
             ScanDirectory(id = 1L, path = "/music", name = "Music", addedAt = 0L),
             ScanDirectory(id = 2L, path = "/download", name = "Downloads", addedAt = 0L)
         )
-        every { scanDirectoryRepository.getAll() } returns flowOf(directories)
+        whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(directories))
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
@@ -75,9 +78,9 @@ class ScanDirectorySettingsViewModelTest {
 
     @Test
     fun `add directory success clears pendingDirectory`() = runTest {
-        every { scanDirectoryRepository.getAll() } returns flowOf(emptyList())
-        coEvery { scanDirectoryRepository.add(any()) } coAnswers { Result.success(1L) }
-        coEvery { musicRepository.refreshSongs() } returns Result.success(Unit)
+        whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(emptyList()))
+        wheneverBlocking { scanDirectoryRepository.add(any()) } doAnswer { Result.success(1L) }
+        wheneverBlocking { musicRepository.refreshSongs() } doReturn Result.success(Unit)
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
@@ -97,8 +100,8 @@ class ScanDirectorySettingsViewModelTest {
 
     @Test
     fun `add directory failure sets error`() = runTest {
-        every { scanDirectoryRepository.getAll() } returns flowOf(emptyList())
-        coEvery { scanDirectoryRepository.add(any()) } returns Result.failure(RuntimeException("Failed"))
+        whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(emptyList()))
+        wheneverBlocking { scanDirectoryRepository.add(any()) } doReturn Result.failure(RuntimeException("Failed"))
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
@@ -119,8 +122,8 @@ class ScanDirectorySettingsViewModelTest {
 
     @Test
     fun `remove directory calls repository remove`() = runTest {
-        every { scanDirectoryRepository.getAll() } returns flowOf(emptyList())
-        coEvery { scanDirectoryRepository.remove(any()) } returns Result.success(Unit)
+        whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(emptyList()))
+        wheneverBlocking { scanDirectoryRepository.remove(any()) } doReturn Result.success(Unit)
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,
@@ -130,13 +133,13 @@ class ScanDirectorySettingsViewModelTest {
         viewModel.onAction(ScanDirectorySettingsAction.OnRemoveDirectory(1L))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { scanDirectoryRepository.remove(1L) }
+        verifyBlocking(scanDirectoryRepository) { remove(1L) }
     }
 
     @Test
     fun `retry reloads directories after error`() = runTest {
         val errorFlow = kotlinx.coroutines.flow.flow<List<ScanDirectory>> { throw RuntimeException("DB error") }
-        every { scanDirectoryRepository.getAll() } returns errorFlow
+        whenever(scanDirectoryRepository.getAll()).thenReturn(errorFlow)
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository, musicRepository
@@ -145,9 +148,9 @@ class ScanDirectorySettingsViewModelTest {
 
         assertTrue(viewModel.uiState.value is ScanDirectorySettingsUiState.Error)
 
-        every { scanDirectoryRepository.getAll() } returns flowOf(
+        whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(
             listOf(ScanDirectory(id = 1L, path = "/music", name = "Music", addedAt = 0L))
-        )
+        ))
         viewModel.retry()
         testDispatcher.scheduler.advanceUntilIdle()
 

@@ -16,8 +16,8 @@ import com.rabbithole.musicbbit.TestActivity
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.service.PlaybackState
 import dagger.hilt.android.testing.HiltTestApplication
-import io.mockk.every
-import io.mockk.mockk
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Before
 import org.junit.Rule
@@ -148,9 +148,9 @@ class PlayerScreenTest {
     }
 
     private fun createMockViewModel(playbackState: PlaybackState): PlayerViewModel {
-        val viewModel = mockk<PlayerViewModel>(relaxed = true)
-        every { viewModel.playbackState } returns MutableStateFlow(playbackState)
-        every { viewModel.alarmLabel } returns MutableStateFlow(null)
+        val viewModel = mock<PlayerViewModel>()
+        whenever(viewModel.playbackState).thenReturn(MutableStateFlow(playbackState))
+        whenever(viewModel.alarmLabel).thenReturn(MutableStateFlow(null))
         return viewModel
     }
 }

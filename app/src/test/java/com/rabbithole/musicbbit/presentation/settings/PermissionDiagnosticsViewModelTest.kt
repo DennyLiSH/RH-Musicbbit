@@ -1,9 +1,11 @@
 package com.rabbithole.musicbbit.presentation.settings
 
 import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
+import org.mockito.kotlin.any
+import org.mockito.kotlin.atLeast
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -25,23 +27,23 @@ class PermissionDiagnosticsViewModelTest {
 
     @Before
     fun setUp() {
-        permissionPort = mockk(relaxed = true)
+        permissionPort = mock()
     }
 
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
 
-    private fun allGrantedPort(): PermissionPort = mockk {
-        every { canScheduleExactAlarms() } returns true
-        every { checkPermission(any()) } returns true
-        every { isFullScreenIntentGranted() } returns true
+    private fun allGrantedPort(): PermissionPort = mock<PermissionPort>().apply {
+        whenever(canScheduleExactAlarms()).thenReturn(true)
+        whenever(checkPermission(any())).thenReturn(true)
+        whenever(isFullScreenIntentGranted()).thenReturn(true)
     }
 
-    private fun allDeniedPort(): PermissionPort = mockk {
-        every { canScheduleExactAlarms() } returns false
-        every { checkPermission(any()) } returns false
-        every { isFullScreenIntentGranted() } returns false
+    private fun allDeniedPort(): PermissionPort = mock<PermissionPort>().apply {
+        whenever(canScheduleExactAlarms()).thenReturn(false)
+        whenever(checkPermission(any())).thenReturn(false)
+        whenever(isFullScreenIntentGranted()).thenReturn(false)
     }
 
     // ------------------------------------------------------------------
@@ -156,18 +158,18 @@ class PermissionDiagnosticsViewModelTest {
         // Re-configure the port to return granted (but the viewModel captured the port reference)
         // Since the port is captured at construction, we use a different approach:
         // Create a new viewModel with a port that changes behavior
-        val mutablePort = mockk<PermissionPort> {
-            every { canScheduleExactAlarms() } returns false
-            every { checkPermission(any()) } returns false
-            every { isFullScreenIntentGranted() } returns false
+        val mutablePort = mock<PermissionPort>().apply {
+            whenever(canScheduleExactAlarms()).thenReturn(false)
+            whenever(checkPermission(any())).thenReturn(false)
+            whenever(isFullScreenIntentGranted()).thenReturn(false)
         }
         val vm = PermissionDiagnosticsViewModel(mutablePort)
         assertFalse(vm.uiState.value.allGranted)
 
         // Change the port behavior
-        every { mutablePort.canScheduleExactAlarms() } returns true
-        every { mutablePort.checkPermission(any()) } returns true
-        every { mutablePort.isFullScreenIntentGranted() } returns true
+        whenever(mutablePort.canScheduleExactAlarms()).thenReturn(true)
+        whenever(mutablePort.checkPermission(any())).thenReturn(true)
+        whenever(mutablePort.isFullScreenIntentGranted()).thenReturn(true)
 
         vm.refreshPermissions()
 
@@ -182,8 +184,8 @@ class PermissionDiagnosticsViewModelTest {
         viewModel.refreshPermissions()
 
         // Verify the port was queried
-        verify(atLeast = 1) { port.checkPermission(any()) }
-        verify(atLeast = 1) { port.isFullScreenIntentGranted() }
+        verify(port, atLeast(1)).checkPermission(any())
+        verify(port, atLeast(1)).isFullScreenIntentGranted()
     }
 
     // ------------------------------------------------------------------
@@ -192,10 +194,10 @@ class PermissionDiagnosticsViewModelTest {
 
     @Test
     fun `full screen intent permission reflects port return value`() {
-        val port = mockk<PermissionPort> {
-            every { canScheduleExactAlarms() } returns true
-            every { checkPermission(any()) } returns true
-            every { isFullScreenIntentGranted() } returns false
+        val port = mock<PermissionPort>().apply {
+            whenever(canScheduleExactAlarms()).thenReturn(true)
+            whenever(checkPermission(any())).thenReturn(true)
+            whenever(isFullScreenIntentGranted()).thenReturn(false)
         }
         val viewModel = PermissionDiagnosticsViewModel(port)
 
