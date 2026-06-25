@@ -48,6 +48,7 @@ object AutostartHelper {
         "com.vivo.abe" to "com.vivo.applicationbehaviorengine.ui.ExcessivePowerManager",
     )
 
+    @JvmStatic
     fun isChineseOem(): Boolean {
         val manufacturer = android.os.Build.MANUFACTURER.lowercase()
         val result = CHINESE_OEMS.any { manufacturer.contains(it) }
@@ -55,6 +56,7 @@ object AutostartHelper {
         return result
     }
 
+    @JvmStatic
     fun getAutostartResult(context: Context): AutostartResult {
         val candidates = getIntentCandidatesForOem()
         if (candidates.isEmpty()) {
@@ -82,6 +84,7 @@ object AutostartHelper {
         return AutostartResult.NeedsManualGuide
     }
 
+    @JvmStatic
     fun getManualGuideSettingsIntent(): Intent {
         return Intent(Settings.ACTION_SETTINGS).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

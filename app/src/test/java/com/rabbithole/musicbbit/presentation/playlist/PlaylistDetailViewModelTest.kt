@@ -8,6 +8,7 @@ import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verifyBlocking
 import org.mockito.kotlin.whenever
@@ -109,7 +110,7 @@ class PlaylistDetailViewModelTest {
 
         whenever(playlistRepository.getPlaylistWithSongs(1L)).thenReturn(flowOf(playlistWithSongs))
         whenever(musicRepository.getAllSongs()).thenReturn(flowOf(emptyList()))
-        wheneverBlocking { playlistRepository.reorderPlaylistSongs(1L, any()) } doReturn Result.success(Unit)
+        wheneverBlocking { playlistRepository.reorderPlaylistSongs(eq(1L), any()) } doReturn Result.success(Unit)
 
         val viewModel = createViewModel()
 

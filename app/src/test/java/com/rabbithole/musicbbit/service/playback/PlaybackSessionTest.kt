@@ -469,7 +469,7 @@ class PlaybackSessionTest {
 
         verify(audioFocusPort).requestFocus()
         verify(serviceStarter, org.mockito.Mockito.never()).startService()
-        verify(playerPort, org.mockito.Mockito.never()).setQueue(any(), 0, 0L)
+        verify(playerPort, org.mockito.Mockito.never()).setQueue(any(), eq(0), eq(0L))
         verify(playerPort, org.mockito.Mockito.never()).play()
 
         val state = session.playbackState.value

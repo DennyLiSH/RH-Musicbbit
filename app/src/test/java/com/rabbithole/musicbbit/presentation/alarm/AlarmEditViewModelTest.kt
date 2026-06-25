@@ -2,6 +2,9 @@ package com.rabbithole.musicbbit.presentation.alarm
 
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
+import androidx.test.core.app.ApplicationProvider
+import androidx.work.Configuration
+import androidx.work.WorkManager
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.AutoStop
@@ -65,6 +68,18 @@ class AlarmEditViewModelTest {
     @Before
     fun setUp() {
         context = RuntimeEnvironment.getApplication()
+        // WorkManager is initialized in @Before so any leaked AlarmStartupReconciler
+        // coroutine from a previous test class (e.g., HiltTestApplication-induced)
+        // does not throw "WorkManager is not initialized" — preventing test pollution
+        // that would otherwise surface as UncaughtExceptionsBeforeTest.
+        try {
+            WorkManager.initialize(
+                ApplicationProvider.getApplicationContext(),
+                Configuration.Builder().build()
+            )
+        } catch (e: IllegalStateException) {
+            // Already initialized by a previous test class — safe to ignore.
+        }
         alarmRepository = mock()
         playlistRepository = mock()
         alarmRingSettingsRepository = mock()

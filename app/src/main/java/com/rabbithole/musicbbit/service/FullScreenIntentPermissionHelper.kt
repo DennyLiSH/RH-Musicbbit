@@ -23,6 +23,7 @@ object FullScreenIntentPermissionHelper {
      * @return true on API < 34 unconditionally; on API 34+ defers to
      *         [NotificationManager.canUseFullScreenIntent].
      */
+    @JvmStatic
     fun isGranted(context: Context): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             return true
@@ -36,6 +37,7 @@ object FullScreenIntentPermissionHelper {
      * Open the system Settings page where the user can grant
      * USE_FULL_SCREEN_INTENT for this app. No-op on API < 34.
      */
+    @JvmStatic
     fun openSettings(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             Timber.d("openSettings called on API < 34, noop")
