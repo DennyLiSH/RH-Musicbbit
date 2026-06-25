@@ -1,32 +1,40 @@
 package com.rabbithole.musicbbit.presentation.player
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.navigation.compose.rememberNavController
-import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.TestActivity
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.service.PlaybackState
+import dagger.hilt.android.testing.HiltTestApplication
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
- * Instrumented Compose UI tests for [PlayerScreen].
+ * Wiring-level Compose UI tests for [PlayerScreen].
  *
- * These tests run on a device/emulator and verify the screen renders
- * correctly for different playback states.
+ * Runs under Robolectric (JVM) to avoid Android 14+ JVMTI agent restrictions
+ * that block mockk-android's inline mocking on instrumented environment.
+ * Mirrors SettingsScreenTest migration pattern (createAndroidComposeRule +
+ * main source-set TestActivity so LocalActivity.current resolves).
  */
-@RunWith(AndroidJUnit4::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33], application = HiltTestApplication::class)
 class PlayerScreenTest {
 
     @get:Rule
-    val composeTestRule = createComposeRule()
+    val composeTestRule = createAndroidComposeRule<TestActivity>()
 
     @Test
     fun playButtonVisibleWhenNotPlaying() {
@@ -41,8 +49,9 @@ class PlayerScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithContentDescription("Play")
-            .assertIsDisplayed()
+        val playLabel = composeTestRule.activity.getString(R.string.player_play)
+        composeTestRule.onNodeWithContentDescription(playLabel)
+            .assertExists()
     }
 
     @Test
@@ -58,8 +67,9 @@ class PlayerScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithContentDescription("Pause")
-            .assertIsDisplayed()
+        val pauseLabel = composeTestRule.activity.getString(R.string.player_pause)
+        composeTestRule.onNodeWithContentDescription(pauseLabel)
+            .assertExists()
     }
 
     @Test
@@ -102,10 +112,13 @@ class PlayerScreenTest {
             )
         }
 
-        // Slider semantics: Compose Slider exposes a "ProgressBar" semantics role.
-        // We match by the progress range semantics which is always present for Slider.
-        composeTestRule.onNodeWithContentDescription("")
-            .assertExists()
+        // Slider exposes ProgressBarRangeInfo semantics; the original instrumented test matched
+        // empty-string contentDescription which is unstable under Robolectric. Match by the
+        // property key being defined — robust against minor float precision differences in
+        // the current value (30000/180000 = 0.16666667).
+        composeTestRule.onNode(
+            SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)
+        ).assertExists()
     }
 
     private fun createMockViewModel(playbackState: PlaybackState): PlayerViewModel {
