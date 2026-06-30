@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -47,7 +46,6 @@ fun MiniPlayer(
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
-    val alarmLabel by viewModel.alarmLabel.collectAsStateWithLifecycle()
     val currentSong = playbackState.currentSong
 
     AnimatedVisibility(
@@ -61,29 +59,12 @@ fun MiniPlayer(
             targetOffsetY = { it }
         )
     ) {
-        val isAlarmMode = playbackState.alarmId != null
-        val containerColor = if (isAlarmMode) {
-            MaterialTheme.colorScheme.errorContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHighest
-        }
-        val albumContainerColor = if (isAlarmMode) {
-            MaterialTheme.colorScheme.error
-        } else {
-            MaterialTheme.colorScheme.primaryContainer
-        }
-        val albumContentColor = if (isAlarmMode) {
-            MaterialTheme.colorScheme.onError
-        } else {
-            MaterialTheme.colorScheme.onPrimaryContainer
-        }
-
         Row(
             modifier = modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 4.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(containerColor)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 .clickable(enabled = currentSong != null) {
                     navController.navigate(Player)
                 }
@@ -91,18 +72,18 @@ fun MiniPlayer(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Album art placeholder (alarm mode shows alarm icon with error color)
+            // Album art placeholder
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(albumContainerColor),
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (isAlarmMode) Icons.Default.Alarm else Icons.Default.MusicNote,
+                    imageVector = Icons.Default.MusicNote,
                     contentDescription = null,
-                    tint = albumContentColor
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
 
@@ -110,35 +91,19 @@ fun MiniPlayer(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                if (isAlarmMode) {
-                    Text(
-                        text = alarmLabel ?: stringResource(R.string.alarm_default_label),
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = currentSong?.title ?: stringResource(R.string.alarm_active_banner_title),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                } else {
-                    Text(
-                        text = currentSong?.title ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = currentSong?.artist ?: "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                Text(
+                    text = currentSong?.title ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = currentSong?.artist ?: "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
 
             // Controls

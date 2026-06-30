@@ -9,8 +9,6 @@ import com.rabbithole.musicbbit.service.playback.PlaybackSession
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import timber.log.Timber
 import javax.inject.Inject
@@ -32,11 +30,6 @@ class PlayerViewModel @Inject constructor(
 
     val playbackState: StateFlow<PlaybackState> = playbackController.playbackState
         .stateIn(viewModelScope, SharingStarted.Eagerly, PlaybackState())
-
-    val alarmLabel: StateFlow<String?> = playbackState
-        .map { it.alarmLabel }
-        .distinctUntilChanged()
-        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     init {
         Timber.d("PlayerViewModel created")

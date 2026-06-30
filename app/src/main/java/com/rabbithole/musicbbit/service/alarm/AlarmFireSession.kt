@@ -3,10 +3,11 @@ package com.rabbithole.musicbbit.service.alarm
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.di.MainDispatcher
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
+import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
-import com.rabbithole.musicbbit.service.playback.PlaybackSession
+import com.rabbithole.musicbbit.service.playback.AlarmPlaybackSession
 import com.rabbithole.musicbbit.service.playback.PlaybackTransition
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -31,11 +32,11 @@ import timber.log.Timber
  * [com.rabbithole.musicbbit.service.AlarmActionReceiver], and
  * [com.rabbithole.musicbbit.presentation.alarm.AlarmRingViewModel]:
  *
- *  - Loading the alarm + playlist (delegated to [AlarmPlaybackResolver])
- *  - Acquiring the wake lock and scheduling the auto-stop timer (delegated to [AutoStopController])
- *  - Driving playback through [PlaybackSession]
- *  - Showing / cancelling the alarm notification
- *  - Exposing observable [AlarmFireState] for UI
+ *   - Loading the alarm + playlist (delegated to [AlarmPlaybackResolver])
+ *   - Acquiring the wake lock and scheduling the auto-stop timer (delegated to [AutoStopController])
+ *   - Driving playback through [AlarmPlaybackSession]
+ *   - Showing / cancelling the alarm notification
+ *   - Exposing observable [AlarmFireState] for UI
  *
  * State machine: `Idle → Loading → Playing → (Paused) → Stopped`. Errors transition to
  * [AlarmFireState.Error]; the session waits for the next [fire] call before progressing.
@@ -44,10 +45,12 @@ import timber.log.Timber
 class AlarmFireSession @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val alarmPlaybackResolver: AlarmPlaybackResolver,
+    private val playbackProgressRepository: PlaybackProgressRepository,
     private val wakeLockPort: WakeLockPort,
     private val notificationPort: NotificationPort,
     private val volumeRampPort: VolumeRampPort,
-    private val playbackController: PlaybackSession,
+    private val alarmPlaybackSession: AlarmPlaybackSession,
+    private val autoStopController: AutoStopController,
     @MainDispatcher private val mainDispatcher: CoroutineDispatcher,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
@@ -59,18 +62,47 @@ class AlarmFireSession @Inject constructor(
     private val _state = MutableStateFlow<AlarmFireState>(AlarmFireState.Idle)
     val state: StateFlow<AlarmFireState> = _state.asStateFlow()
 
-    private val autoStopController = AutoStopController(sessionScope)
-    private val transitionRouter = AlarmFireTransitionRouter(autoStopController)
-
     init {
         // Subscribe to playback transitions for auto-stop, extend-to-end, and external stop
         sessionScope.launch {
-            playbackController.playbackTransitions.collect { transition ->
-                when (val action = transitionRouter.route(_state.value, transition)) {
-                    is AlarmFireTransitionRouter.Action.StopPlayback -> playbackController.stop()
-                    is AlarmFireTransitionRouter.Action.PlaybackFullyStopped -> onPlaybackStopped()
-                    is AlarmFireTransitionRouter.Action.Ignore -> { /* no-op */ }
+            alarmPlaybackSession.playbackTransitions.collect { transition ->
+                handlePlaybackTransition(transition)
+            }
+        }
+    }
+
+    private fun handlePlaybackTransition(transition: PlaybackTransition) {
+        val current = _state.value
+        if (current !is AlarmFireState.Playing) return
+
+        when (transition) {
+            is PlaybackTransition.SongCompleted -> {
+                val shouldStop = autoStopController.onSongCompleted() ||
+                        autoStopController.isExtendToEnd()
+                if (shouldStop) {
+                    alarmPlaybackSession.stop()
                 }
+            }
+            is PlaybackTransition.QueueEnded -> {
+                autoStopController.onQueueEnded()
+                deletePlaylistProgressIfMatches(transition.playlistId, current.alarmId)
+                alarmPlaybackSession.stop()
+            }
+            is PlaybackTransition.PlaybackStopped -> onPlaybackStopped()
+        }
+    }
+
+    private fun deletePlaylistProgressIfMatches(playlistId: Long, alarmId: Long) {
+        sessionScope.launch(ioDispatcher) {
+            val alarm = alarmRepository.getAlarmById(alarmId)
+            if (alarm != null && alarm.playlistId == playlistId) {
+                playbackProgressRepository.deleteAllProgressForPlaylist(playlistId)
+                    .onSuccess { Timber.d("Cleared progress for playlistId=$playlistId after queue ended") }
+                    .onFailure { Timber.e(it, "Failed to clear progress for playlistId=$playlistId") }
+            } else {
+                Timber.w(
+                    "Skipping progress cleanup: playlistId=$playlistId does not match alarm=$alarmId"
+                )
             }
         }
     }
@@ -95,7 +127,7 @@ class AlarmFireSession @Inject constructor(
         }
         Timber.i("AlarmFireSession.pause: alarmId=${current.alarmId}")
         volumeRampPort.restoreVolume()
-        playbackController.pause()
+        alarmPlaybackSession.pause()
         notificationPort.showAlarmPaused(current.alarmId)
         _state.value = AlarmFireState.Paused(
             alarmId = current.alarmId,
@@ -115,7 +147,7 @@ class AlarmFireSession @Inject constructor(
             return
         }
         Timber.i("AlarmFireSession.resume: alarmId=${current.alarmId}")
-        playbackController.resume()
+        alarmPlaybackSession.resume()
         _state.value = AlarmFireState.Playing(
             alarmId = current.alarmId,
             currentSong = current.currentSong,
@@ -124,14 +156,14 @@ class AlarmFireSession @Inject constructor(
     }
 
     /**
-     * Stop the active alarm session. Delegates to the controller, which will then trigger
-     * [onPlaybackStopped] via the playbackState collector once playback has actually ended.
+     * Stop the active alarm session. Delegates to the session, which will then trigger
+     * [onPlaybackStopped] via the playbackTransitions collector once playback has actually ended.
      */
     fun stop() {
         val alarmId = _state.value.alarmIdOrNull
         Timber.i("AlarmFireSession.stop: alarmId=$alarmId")
         volumeRampPort.restoreVolume()
-        playbackController.stop()
+        alarmPlaybackSession.stop()
     }
 
     /**
@@ -179,10 +211,10 @@ class AlarmFireSession @Inject constructor(
         val startSong = result.startSong
 
         if (isAlarmTrigger && songs.isNotEmpty()) {
-            playbackController.preloadFirstSong(songs.first().path)
+            alarmPlaybackSession.preloadFirstSong(songs.first().path)
         }
 
-        playbackController.playAlarmQueue(songs, startIndex, alarm.playlistId, alarm.id, alarm.label)
+        alarmPlaybackSession.playAlarmQueue(songs, startIndex, alarm.playlistId)
 
         if (isAlarmTrigger) {
             volumeRampPort.startVolumeRamp(sessionScope)
@@ -190,7 +222,7 @@ class AlarmFireSession @Inject constructor(
         }
 
         autoStopController.start(alarm.autoStop) {
-            playbackController.stop()
+            alarmPlaybackSession.stop()
         }
 
         notificationPort.showAlarmPlaying(alarm, startSong)
@@ -222,7 +254,7 @@ class AlarmFireSession @Inject constructor(
             return
         }
         autoStopController.extend(minutes) {
-            playbackController.stop()
+            alarmPlaybackSession.stop()
         }
         Timber.i("Auto-stop extended by $minutes minutes")
     }

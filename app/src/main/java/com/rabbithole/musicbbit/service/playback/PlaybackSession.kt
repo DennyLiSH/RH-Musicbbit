@@ -4,7 +4,6 @@ import com.rabbithole.musicbbit.di.MainDispatcher
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.service.PlayMode
-import com.rabbithole.musicbbit.service.PlaybackSource
 import com.rabbithole.musicbbit.service.PlaybackState
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -13,10 +12,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,18 +24,20 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /**
- * Deep module that encapsulates all playback logic extracted from [MusicPlaybackService].
+ * Deep module that encapsulates all user playback logic extracted from [MusicPlaybackService].
  *
  * Responsibilities:
  *   - Managing [PlaybackState] via a [StateFlow]
  *   - Driving [PlayerPort] (queue, play, pause, seek, etc.)
  *   - Handling [PlayerEvent]s and reflecting them into state
- *   - Coordinating audio focus, service lifecycle, volume ramp, and progress tracking
- *   - Distinguishing user-initiated vs alarm-initiated playback via [PlaybackSource]
+ *   - Coordinating audio focus, service lifecycle, and progress tracking
  *
  * This class is a [@Singleton] with application-level lifetime. It does **not**
  * interact with Android Service specifics such as [startForeground] / [stopForeground];
  * those remain in [MusicPlaybackService].
+ *
+ * Events and audio-focus callbacks are routed through [PlaybackCoordinator] so that
+ * [AlarmPlaybackSession] can share the same [PlayerPort] without interference.
  */
 @Singleton
 class PlaybackSession @Inject constructor(
@@ -45,8 +46,9 @@ class PlaybackSession @Inject constructor(
     private val musicNotificationPort: MusicNotificationPort,
     private val serviceStarter: ServiceStarter,
     private val audioFocusPort: AudioFocusPort,
+    private val playbackCoordinator: PlaybackCoordinator,
     @MainDispatcher private val mainDispatcher: CoroutineDispatcher,
-) {
+) : PlaybackCoordinator.PlaybackConsumer {
 
     private val sessionJob = SupervisorJob()
     private val sessionScope = CoroutineScope(sessionJob + mainDispatcher)
@@ -59,72 +61,57 @@ class PlaybackSession @Inject constructor(
     private val _playbackTransitions = MutableSharedFlow<PlaybackTransition>(extraBufferCapacity = 1)
     val playbackTransitions: Flow<PlaybackTransition> = _playbackTransitions.asSharedFlow()
 
-    private lateinit var progressTracker: PlaybackProgressTracker
-    private var playerEventsJob: Job? = null
+    private val progressTracker = PlaybackProgressTracker(
+        scope = sessionScope,
+        playbackProgressRepository = playbackProgressRepository,
+        playerPort = playerPort,
+        getState = { _playbackState.value }
+    )
 
     private var wasPausedByFocusLoss = false
 
     init {
         Timber.i("PlaybackSession created")
-
         musicNotificationPort.ensureChannelExists()
-
-        progressTracker = PlaybackProgressTracker(
-            scope = sessionScope,
-            playbackProgressRepository = playbackProgressRepository,
-            playerPort = playerPort,
-            getState = { _playbackState.value }
-        )
-
-        audioFocusPort.registerCallbacks(
-            onFocusLoss = {
-                Timber.i("Audio focus lost: pausing playback")
-                if (_playbackState.value.isPlaying) {
-                    wasPausedByFocusLoss = true
-                    pause()
-                }
-            },
-            onFocusLossTransient = {
-                Timber.i("Audio focus lost transiently: pausing playback")
-                if (_playbackState.value.isPlaying) {
-                    wasPausedByFocusLoss = true
-                    pause()
-                }
-            },
-            onFocusGain = {
-                Timber.i("Audio focus gained")
-                if (wasPausedByFocusLoss &&
-                    !playerPort.isPlaying() &&
-                    _playbackState.value.currentSong != null
-                ) {
-                    wasPausedByFocusLoss = false
-                    resume()
-                }
-            }
-        )
-
-        observePlayerEvents()
     }
 
-    private fun observePlayerEvents() {
-        playerEventsJob?.cancel()
-        playerEventsJob = sessionScope.launch {
-            try {
-                playerPort.events.collect { event ->
-                    when (event) {
-                        is PlayerEvent.IsPlayingChanged -> handleIsPlayingChanged(event.isPlaying)
-                        is PlayerEvent.MediaItemTransition -> handleMediaItemTransition(event)
-                        is PlayerEvent.PlaybackReady -> {
-                            _playbackState.update { it.copy(durationMs = event.durationMs) }
-                            updateNotification()
-                        }
-                        is PlayerEvent.PositionDiscontinuity -> handlePositionDiscontinuity(event)
-                        is PlayerEvent.QueueEnded -> handleQueueEnded()
-                    }
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Player event collection failed")
+    override fun onPlayerEvent(event: PlayerEvent) {
+        when (event) {
+            is PlayerEvent.IsPlayingChanged -> handleIsPlayingChanged(event.isPlaying)
+            is PlayerEvent.MediaItemTransition -> handleMediaItemTransition(event)
+            is PlayerEvent.PlaybackReady -> {
+                _playbackState.update { it.copy(durationMs = event.durationMs) }
+                updateNotification()
             }
+            is PlayerEvent.PositionDiscontinuity -> handlePositionDiscontinuity(event)
+            is PlayerEvent.QueueEnded -> handleQueueEnded()
+        }
+    }
+
+    override fun onFocusLoss() {
+        Timber.i("Audio focus lost: pausing playback")
+        if (_playbackState.value.isPlaying) {
+            pause()
+            wasPausedByFocusLoss = true
+        }
+    }
+
+    override fun onFocusLossTransient() {
+        Timber.i("Audio focus lost transiently: pausing playback")
+        if (_playbackState.value.isPlaying) {
+            pause()
+            wasPausedByFocusLoss = true
+        }
+    }
+
+    override fun onFocusGain() {
+        Timber.i("Audio focus gained")
+        if (wasPausedByFocusLoss &&
+            !playerPort.isPlaying() &&
+            _playbackState.value.currentSong != null
+        ) {
+            wasPausedByFocusLoss = false
+            resume()
         }
     }
 
@@ -176,23 +163,9 @@ class PlaybackSession @Inject constructor(
         }
     }
 
-    private suspend fun handleQueueEnded() {
-        val state = _playbackState.value
-        if (state.source == PlaybackSource.USER) {
-            Timber.i("Queue ended for USER source, stopping playback")
-            stop()
-        } else {
-            Timber.i("Queue ended for ALARM source, clearing progress and emitting QueueEnded")
-            val playlistId = state.currentPlaylistId
-            progressTracker.stopSaveLoop()
-            progressTracker.stopTickLoop()
-            progressTracker.cancelAndAwaitPendingSave()
-            _playbackState.update { PlaybackState() }
-            playbackProgressRepository.deleteAllProgressForPlaylist(playlistId)
-                .onSuccess { Timber.d("Cleared progress for playlistId=$playlistId after queue ended") }
-                .onFailure { Timber.e(it, "Failed to clear progress for playlistId=$playlistId") }
-            _playbackTransitions.tryEmit(PlaybackTransition.QueueEnded)
-        }
+    private fun handleQueueEnded() {
+        Timber.i("Queue ended, stopping playback")
+        stop()
     }
 
     private fun updateNotification() {
@@ -207,6 +180,8 @@ class PlaybackSession @Inject constructor(
             return
         }
         Timber.i("Playing single song: ${song.title}, playlistId=$playlistId")
+
+        playbackCoordinator.activate(this)
         playerPort.configureForAlarmPlayback(false)
         serviceStarter.startService()
 
@@ -222,7 +197,6 @@ class PlaybackSession @Inject constructor(
             playlistId = playlistId,
             queue = listOf(song),
             queueIndex = 0,
-            source = PlaybackSource.USER,
         )
     }
 
@@ -241,6 +215,8 @@ class PlaybackSession @Inject constructor(
         Timber.i(
             "Playing queue of ${songs.size} songs, startIndex=$safeIndex, playlistId=$playlistId"
         )
+
+        playbackCoordinator.activate(this)
         playerPort.configureForAlarmPlayback(false)
         serviceStarter.startService()
 
@@ -264,7 +240,6 @@ class PlaybackSession @Inject constructor(
             playlistId = playlistId,
             queue = songs,
             queueIndex = safeIndex,
-            source = PlaybackSource.USER,
         )
     }
 
@@ -324,6 +299,7 @@ class PlaybackSession @Inject constructor(
         _playbackTransitions.tryEmit(PlaybackTransition.PlaybackStopped)
         progressTracker.stopSaveLoop()
         progressTracker.stopTickLoop()
+        playbackCoordinator.deactivate(this)
         serviceStarter.stopService()
     }
 
@@ -348,24 +324,6 @@ class PlaybackSession @Inject constructor(
         Timber.d("Preloaded first song: $uri")
     }
 
-    fun playAlarmQueue(
-        songs: List<Song>,
-        startIndex: Int,
-        playlistId: Long,
-        alarmId: Long,
-        alarmLabel: String? = null,
-    ) {
-        playerPort.configureForAlarmPlayback(true)
-        playQueue(songs, startIndex, playlistId)
-        _playbackState.update {
-            it.copy(
-                alarmId = alarmId,
-                alarmLabel = alarmLabel,
-                source = PlaybackSource.ALARM
-            )
-        }
-    }
-
     /**
      * Gracefully shuts down the session.
      *
@@ -375,7 +333,6 @@ class PlaybackSession @Inject constructor(
     fun close() {
         Timber.i("PlaybackSession closing")
         sessionJob.cancel()
-        playerEventsJob?.cancel()
         progressTracker.stopSaveLoop()
         progressTracker.stopTickLoop()
     }
@@ -389,9 +346,6 @@ class PlaybackSession @Inject constructor(
         playlistId: Long,
         queue: List<Song>,
         queueIndex: Int,
-        source: PlaybackSource,
-        alarmId: Long? = null,
-        alarmLabel: String? = null,
     ) {
         _playbackState.update {
             it.copy(
@@ -401,9 +355,6 @@ class PlaybackSession @Inject constructor(
                 queueIndex = queueIndex,
                 positionMs = 0,
                 durationMs = song.durationMs,
-                source = source,
-                alarmId = alarmId,
-                alarmLabel = alarmLabel,
             )
         }
     }

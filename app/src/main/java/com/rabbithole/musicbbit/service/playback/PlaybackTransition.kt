@@ -16,8 +16,10 @@ sealed class PlaybackTransition {
 
     /**
      * Emitted when the player reaches the end of the queue.
+     *
+     * @param playlistId The playlist that just finished playing.
      */
-    data object QueueEnded : PlaybackTransition()
+    data class QueueEnded(val playlistId: Long) : PlaybackTransition()
 
     /**
      * Emitted when playback is fully stopped and the session has been reset.

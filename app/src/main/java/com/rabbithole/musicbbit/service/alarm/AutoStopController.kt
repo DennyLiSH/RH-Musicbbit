@@ -1,8 +1,13 @@
 package com.rabbithole.musicbbit.service.alarm
 
+import com.rabbithole.musicbbit.di.DefaultDispatcher
 import com.rabbithole.musicbbit.domain.model.AutoStop
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -19,8 +24,12 @@ import timber.log.Timber
  * interact with the playback layer directly. Instead it returns signals
  * (Boolean / callback) that the session uses to decide when to call stop.
  */
-class AutoStopController(private val scope: CoroutineScope) {
+@Singleton
+class AutoStopController @Inject constructor(
+    @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
+) {
 
+    private val scope = CoroutineScope(SupervisorJob() + defaultDispatcher)
     private var autoStopJob: Job? = null
     private var songsRemaining: Int = 0
     private var extendToEnd: Boolean = false

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
@@ -23,14 +22,11 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -43,15 +39,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import android.content.Intent
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.presentation.components.rememberActivityScopedPlayerViewModel
-import com.rabbithole.musicbbit.presentation.alarm.AlarmRingActivity
-import com.rabbithole.musicbbit.service.AlarmScheduler
 import com.rabbithole.musicbbit.presentation.util.formatDuration
 import com.rabbithole.musicbbit.service.PlayMode
 
@@ -62,7 +53,6 @@ fun PlayerScreen(
     viewModel: PlayerViewModel = rememberActivityScopedPlayerViewModel()
 ) {
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
-    val alarmLabel by viewModel.alarmLabel.collectAsStateWithLifecycle()
     val currentSong = playbackState.currentSong
 
     Column(
@@ -82,24 +72,6 @@ fun PlayerScreen(
                     contentDescription = stringResource(R.string.player_dismiss)
                 )
             }
-        }
-
-        // Alarm-active banner (visible only when an alarm is currently playing)
-        val context = LocalContext.current
-        val alarmId = playbackState.alarmId
-        if (alarmId != null) {
-            AlarmActiveBanner(
-                label = alarmLabel,
-                onClick = {
-                    val intent = Intent(context, AlarmRingActivity::class.java).apply {
-                        putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(intent)
-                },
-                onStopAlarm = { viewModel.stop() }
-            )
-            Spacer(modifier = Modifier.height(8.dp))
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -240,50 +212,6 @@ fun PlayerScreen(
                     contentDescription = stringResource(R.string.player_next),
                     modifier = Modifier.size(36.dp)
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AlarmActiveBanner(
-    label: String?,
-    onClick: () -> Unit,
-    onStopAlarm: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Alarm,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp)
-            )
-            Text(
-                text = label?.let { "Alarm playing · $it" }
-                    ?: stringResource(R.string.alarm_active_banner_title),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f)
-            )
-            TextButton(
-                onClick = onStopAlarm,
-                colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer
-                )
-            ) {
-                Text(stringResource(R.string.alarm_active_banner_stop))
             }
         }
     }

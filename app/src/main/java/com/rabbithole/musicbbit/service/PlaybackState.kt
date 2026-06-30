@@ -11,15 +11,8 @@ data class PlaybackState(
     val playMode: PlayMode = PlayMode.SEQUENTIAL,
     val queue: List<Song> = emptyList(),
     val queueIndex: Int = 0,
-    val alarmId: Long? = null,
-    val alarmLabel: String? = null,
-    val source: PlaybackSource = PlaybackSource.USER,
 )
 
 enum class PlayMode {
     SEQUENTIAL, RANDOM, REPEAT_ONE
-}
-
-enum class PlaybackSource {
-    USER, ALARM
 }
