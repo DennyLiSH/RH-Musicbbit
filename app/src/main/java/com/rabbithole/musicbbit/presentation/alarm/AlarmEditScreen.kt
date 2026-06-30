@@ -20,8 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,6 +33,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -415,76 +414,78 @@ private fun AlarmEditContent(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Time picker area
         TimeDisplay(
             hour = form.hour,
             minute = form.minute,
             onClick = onTimeClick
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
-        // Repeat days
-        SectionTitle(title = stringResource(R.string.alarm_edit_section_repeat))
-        Spacer(modifier = Modifier.height(8.dp))
-        DayOfWeekSelector(
-            selectedDays = form.repeatDays,
-            excludeHolidays = form.excludeHolidays,
-            onDaysChanged = { days ->
-                onAction(AlarmEditAction.OnRepeatDaysChanged(days))
-            },
-            onExcludeHolidaysChanged = { exclude ->
-                onAction(AlarmEditAction.OnExcludeHolidaysChanged(exclude))
-            }
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Playlist selector
-        SectionTitle(title = stringResource(R.string.alarm_edit_section_playlist))
-        Spacer(modifier = Modifier.height(8.dp))
-        PlaylistSelector(
-            playlists = uiState.playlists,
-            selectedPlaylistId = form.playlistId,
-            onPlaylistSelected = { playlistId ->
-                onAction(AlarmEditAction.OnPlaylistSelected(playlistId))
-            }
-        )
+        AlarmEditSection(
+            title = stringResource(R.string.alarm_edit_section_repeat)
+        ) {
+            DayOfWeekSelector(
+                selectedDays = form.repeatDays,
+                excludeHolidays = form.excludeHolidays,
+                onDaysChanged = { days ->
+                    onAction(AlarmEditAction.OnRepeatDaysChanged(days))
+                },
+                onExcludeHolidaysChanged = { exclude ->
+                    onAction(AlarmEditAction.OnExcludeHolidaysChanged(exclude))
+                }
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Label input
-        SectionTitle(title = stringResource(R.string.alarm_edit_section_label))
-        Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
-            value = form.label,
-            onValueChange = { onAction(AlarmEditAction.OnLabelChanged(it)) },
-            placeholder = { Text(stringResource(R.string.alarm_edit_label_placeholder)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
+        AlarmEditSection(
+            title = stringResource(R.string.alarm_edit_section_playlist)
+        ) {
+            PlaylistSelector(
+                playlists = uiState.playlists,
+                selectedPlaylistId = form.playlistId,
+                onPlaylistSelected = { playlistId ->
+                    onAction(AlarmEditAction.OnPlaylistSelected(playlistId))
+                }
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Auto-stop dropdown
-        SectionTitle(title = stringResource(R.string.alarm_edit_section_auto_stop))
-        Spacer(modifier = Modifier.height(8.dp))
-        AutoStopDropdown(
-            selectedAutoStop = form.autoStop,
-            onSelectionChange = { autoStop ->
-                onAction(AlarmEditAction.OnAutoStopChanged(autoStop))
-            }
-        )
+        AlarmEditSection(
+            title = stringResource(R.string.alarm_edit_section_label)
+        ) {
+            OutlinedTextField(
+                value = form.label,
+                onValueChange = { onAction(AlarmEditAction.OnLabelChanged(it)) },
+                placeholder = { Text(stringResource(R.string.alarm_edit_label_placeholder)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        VolumeRampHint(
-            durationSeconds = uiState.volumeRampDurationSeconds
-        )
+        AlarmEditSection(
+            title = stringResource(R.string.alarm_edit_section_auto_stop)
+        ) {
+            AutoStopDropdown(
+                selectedAutoStop = form.autoStop,
+                onSelectionChange = { autoStop ->
+                    onAction(AlarmEditAction.OnAutoStopChanged(autoStop))
+                }
+            )
 
-        // Error message
+            Spacer(modifier = Modifier.height(8.dp))
+
+            VolumeRampHint(
+                durationSeconds = uiState.volumeRampDurationSeconds
+            )
+        }
+
         if (uiState.errorMessageResId != null) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = stringResource(uiState.errorMessageResId),
                 color = MaterialTheme.colorScheme.error,
@@ -496,7 +497,6 @@ private fun AlarmEditContent(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Save button
         Button(
             onClick = { onAction(AlarmEditAction.OnSave) },
             modifier = Modifier.fillMaxWidth(),
@@ -513,7 +513,7 @@ private fun AlarmEditContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
@@ -524,17 +524,16 @@ private fun TimeDisplay(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    Surface(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.primaryContainer
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 32.dp),
+                .padding(vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -542,7 +541,7 @@ private fun TimeDisplay(
                 style = timeDisplayStandard,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.alarm_edit_tap_to_change_time),
                 style = MaterialTheme.typography.bodyMedium,
@@ -553,14 +552,27 @@ private fun TimeDisplay(
 }
 
 @Composable
+private fun AlarmEditSection(
+    title: String,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        SectionTitle(title = title)
+        Spacer(modifier = Modifier.height(12.dp))
+        content()
+    }
+}
+
+@Composable
 private fun SectionTitle(
     title: String,
     modifier: Modifier = Modifier
 ) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.onSurface,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier
     )
 }

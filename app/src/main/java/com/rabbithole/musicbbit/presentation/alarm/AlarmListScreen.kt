@@ -134,22 +134,33 @@ fun AlarmListScreen(
 
                     is AlarmListUiState.Success -> {
                         Column(modifier = Modifier.fillMaxSize()) {
-                            if (!isIgnoringBatteryOptimizations) {
-                                BatteryOptimizationBanner(
-                                    onClick = {
-                                        val intent = viewModel.createBatteryOptimizationIntent()
-                                        if (intent.resolveActivity(context.packageManager) != null) {
-                                            context.startActivity(intent)
+                            if (!isIgnoringBatteryOptimizations || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !isFullScreenIntentGranted)) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp, bottom = 8.dp)
+                                ) {
+                                    if (!isIgnoringBatteryOptimizations) {
+                                        BatteryOptimizationBanner(
+                                            onClick = {
+                                                val intent = viewModel.createBatteryOptimizationIntent()
+                                                if (intent.resolveActivity(context.packageManager) != null) {
+                                                    context.startActivity(intent)
+                                                }
+                                            }
+                                        )
+                                    }
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !isFullScreenIntentGranted) {
+                                        if (!isIgnoringBatteryOptimizations) {
+                                            Spacer(modifier = Modifier.height(8.dp))
                                         }
+                                        FullScreenIntentBanner(
+                                            onClick = {
+                                                FullScreenIntentPermissionHelper.openSettings(context)
+                                            }
+                                        )
                                     }
-                                )
-                            }
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !isFullScreenIntentGranted) {
-                                FullScreenIntentBanner(
-                                    onClick = {
-                                        FullScreenIntentPermissionHelper.openSettings(context)
-                                    }
-                                )
+                                }
                             }
                             if (state.alarms.isEmpty()) {
                                 EmptyState(
@@ -206,7 +217,8 @@ private fun AlarmListContent(
     onDeleteAlarm: (Alarm) -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)
     ) {
         items(
             items = alarms,
@@ -240,12 +252,10 @@ private fun SwipeableAlarmItem(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
     ) {
-        // Background delete layer
         Box(
             modifier = Modifier
-                .fillMaxSize()
                 .matchParentSize()
                 .background(
                     color = MaterialTheme.colorScheme.errorContainer,
@@ -259,7 +269,8 @@ private fun SwipeableAlarmItem(
                         offsetX.animateTo(0f, tween(durationMillis = MotionTokens.DurationMedium, easing = MotionTokens.EasingEmphasized))
                     }
                     onDelete()
-                }
+                },
+                modifier = Modifier.padding(end = 16.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
@@ -269,7 +280,6 @@ private fun SwipeableAlarmItem(
             }
         }
 
-        // Foreground Card
         Card(
             onClick = onClick,
             modifier = Modifier
@@ -300,19 +310,19 @@ private fun SwipeableAlarmItem(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left: time display
-                Text(
-                    text = formatTime(alarm.hour, alarm.minute),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = formatTime(alarm.hour, alarm.minute),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                // Center: label + repeat rule + playlist name
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = alarm.label ?: stringResource(R.string.alarm_default_label),
@@ -327,7 +337,8 @@ private fun SwipeableAlarmItem(
                     )
                 }
 
-                // Right: enable/disable switch
+                Spacer(modifier = Modifier.width(12.dp))
+
                 Switch(
                     checked = alarm.isEnabled,
                     onCheckedChange = { enabled ->

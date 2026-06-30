@@ -11,18 +11,25 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -55,12 +62,23 @@ fun SettingsScreen(
 ) {
     val themeUiState by themeViewModel.uiState.collectAsStateWithLifecycle()
     val alarmRingUiState by alarmRingSettingsViewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_title)) }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { navController.navigate(ScanDirectorySettings) }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = stringResource(R.string.settings_add_scan_directory)
+                )
+            }
         }
     ) { paddingValues ->
         Column(
@@ -68,70 +86,77 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
         ) {
-            // Theme section
-            ThemeSettingsSection(
-                themeMode = themeUiState.themeMode,
-                onThemeModeChange = { themeViewModel.setThemeMode(it) }
-            )
-
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Language section
-            LanguageSettingsSection()
+            SettingsSection(
+                title = stringResource(R.string.settings_appearance)
+            ) {
+                ThemeDropdown(
+                    themeMode = themeUiState.themeMode,
+                    onThemeModeChange = { themeViewModel.setThemeMode(it) }
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Alarm ring section
-            AlarmRingSettingsSection(
-                alarmRingUiState = alarmRingUiState,
-                onVolumeRampChange = { alarmRingSettingsViewModel.setVolumeRampDuration(it) },
-                onBreathingEnabledChanged = { alarmRingSettingsViewModel.setBreathingEnabled(it) },
-                onBreathingPeriodChanged = { alarmRingSettingsViewModel.setBreathingPeriodMs(it) }
-            )
+                LanguageDropdown(
+                    selectedLanguage = remember { mutableStateOf(LocaleHelper.getCurrentLanguage(context)).value },
+                    onLanguageChange = { LocaleHelper.setLanguage(context as Activity, it) }
+                )
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Scan Directories card
-            SettingsNavCard(
-                title = stringResource(R.string.settings_scan_directories),
-                description = stringResource(R.string.settings_manage_scan_paths),
-                onClick = { navController.navigate(ScanDirectorySettings) }
-            )
+            SettingsSection(
+                title = stringResource(R.string.settings_alarm_ring)
+            ) {
+                VolumeRampDropdown(
+                    currentDuration = alarmRingUiState.volumeRampDurationSeconds,
+                    onDurationChange = { alarmRingSettingsViewModel.setVolumeRampDuration(it) }
+                )
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Permission Diagnostics card
-            SettingsNavCard(
-                title = stringResource(R.string.settings_permission_diagnostics),
-                description = stringResource(R.string.settings_check_permissions),
-                onClick = { navController.navigate(PermissionDiagnostics) }
-            )
+                BreathingLightControls(
+                    enabled = alarmRingUiState.breathingEnabled,
+                    periodMs = alarmRingUiState.breathingPeriodMs,
+                    onEnabledChanged = { alarmRingSettingsViewModel.setBreathingEnabled(it) },
+                    onPeriodChanged = { alarmRingSettingsViewModel.setBreathingPeriodMs(it) }
+                )
+            }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // About card
-            SettingsNavCard(
-                title = stringResource(R.string.settings_about_title),
-                description = stringResource(R.string.settings_about_description),
-                onClick = { navController.navigate(About) }
-            )
+            SettingsSection(
+                title = stringResource(R.string.settings_management)
+            ) {
+                SettingsNavCard(
+                    title = stringResource(R.string.settings_scan_directories),
+                    description = stringResource(R.string.settings_manage_scan_paths),
+                    onClick = { navController.navigate(ScanDirectorySettings) }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                SettingsNavCard(
+                    title = stringResource(R.string.settings_permission_diagnostics),
+                    description = stringResource(R.string.settings_check_permissions),
+                    onClick = { navController.navigate(PermissionDiagnostics) }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                SettingsNavCard(
+                    title = stringResource(R.string.settings_about_title),
+                    description = stringResource(R.string.settings_about_description),
+                    onClick = { navController.navigate(About) }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
-}
-
-@Composable
-private fun ThemeSettingsSection(
-    themeMode: ThemeMode,
-    onThemeModeChange: (ThemeMode) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    ThemeDropdown(
-        themeMode = themeMode,
-        onThemeModeChange = onThemeModeChange,
-        modifier = modifier
-    )
 }
 
 private val VolumeRampPresets = listOf(0, 5, 10, 15, 30, 60)
@@ -146,24 +171,6 @@ private val LanguageOptions = listOf(
     AppLanguage.ENGLISH,
     AppLanguage.JAPANESE
 )
-
-@Composable
-private fun LanguageSettingsSection(
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    val currentLanguage = remember { LocaleHelper.getCurrentLanguage(context) }
-    var selectedLanguage by remember { mutableStateOf(currentLanguage) }
-
-    LanguageDropdown(
-        selectedLanguage = selectedLanguage,
-        onLanguageChange = {
-            selectedLanguage = it
-            LocaleHelper.setLanguage(context as Activity, it)
-        },
-        modifier = modifier
-    )
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -313,6 +320,32 @@ private fun themeLabel(mode: ThemeMode): String = when (mode) {
 }
 
 @Composable
+private fun SettingsSection(
+    title: String,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            content()
+        }
+    }
+}
+
+@Composable
 private fun SettingsNavCard(
     title: String,
     description: String,
@@ -350,66 +383,45 @@ private fun BreathingLightControls(
     onPeriodChanged: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp)
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_breathing_light),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Switch(
+                    checked = enabled,
+                    onCheckedChange = onEnabledChanged
+                )
+            }
+            val alpha = if (enabled) 1.0f else 0.5f
             Text(
-                text = stringResource(R.string.settings_breathing_light),
-                style = MaterialTheme.typography.bodyLarge
+                text = stringResource(R.string.settings_breathing_period, periodMs / 1000f),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha),
+                modifier = Modifier.padding(top = 8.dp)
             )
-            Switch(
-                checked = enabled,
-                onCheckedChange = onEnabledChanged
+            Slider(
+                value = periodMs.toFloat(),
+                onValueChange = { onPeriodChanged(it.toLong()) },
+                valueRange = 1500f..6000f,
+                steps = 8,
+                enabled = enabled,
+                modifier = Modifier
+                    .alpha(alpha)
+                    .padding(top = 4.dp)
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        val alpha = if (enabled) 1.0f else 0.5f
-        Text(
-            text = stringResource(R.string.settings_breathing_period, periodMs / 1000f),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
-        )
-        Slider(
-            value = periodMs.toFloat(),
-            onValueChange = { onPeriodChanged(it.toLong()) },
-            valueRange = 1500f..6000f,
-            steps = 8,
-            enabled = enabled,
-            modifier = Modifier.alpha(alpha)
-        )
-    }
-}
-
-@Composable
-private fun AlarmRingSettingsSection(
-    alarmRingUiState: AlarmRingSettingsViewModel.AlarmRingSettingsUiState,
-    onVolumeRampChange: (Int) -> Unit,
-    onBreathingEnabledChanged: (Boolean) -> Unit,
-    onBreathingPeriodChanged: (Long) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier) {
-        Text(
-            text = stringResource(R.string.settings_alarm_ring),
-            style = MaterialTheme.typography.titleMedium
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        VolumeRampDropdown(
-            currentDuration = alarmRingUiState.volumeRampDurationSeconds,
-            onDurationChange = onVolumeRampChange
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        BreathingLightControls(
-            enabled = alarmRingUiState.breathingEnabled,
-            periodMs = alarmRingUiState.breathingPeriodMs,
-            onEnabledChanged = onBreathingEnabledChanged,
-            onPeriodChanged = onBreathingPeriodChanged
-        )
     }
 }
