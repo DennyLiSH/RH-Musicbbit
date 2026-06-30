@@ -9,13 +9,10 @@ import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
-import com.rabbithole.musicbbit.service.PlayMode
-import com.rabbithole.musicbbit.service.PlaybackSource
-import com.rabbithole.musicbbit.service.PlaybackState
 import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
-import com.rabbithole.musicbbit.service.playback.PlaybackSession
+import com.rabbithole.musicbbit.service.playback.AlarmPlaybackSession
 import com.rabbithole.musicbbit.service.playback.PlaybackTransition
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -26,13 +23,11 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.mockito.ArgumentMatchers
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
@@ -60,11 +55,12 @@ import timber.log.Timber
  *   - fire short-circuits to Error when the alarm is missing or the playlist is empty
  *     (and bookkeeping does NOT run in those cases)
  *   - pause / resume gate on state and update notification + transition to Paused / Playing
- *   - autoStop calls controller.stop after the configured delay
+ *   - autoStop calls session.stop after the configured delay
  *   - extendAutoStop cancels the prior timer and starts a fresh one
  *   - onPlaybackStopped releases the wake lock, cancels the notification, and resets state
- *   - playerEvents (MediaItemTransition, QueueEnded) drive onSongCompleted/onQueueEnded
- *   - playbackState changes (alarmId=null, isPlaying=false) trigger onPlaybackStopped
+ *   - playback transitions (SongCompleted, QueueEnded, PlaybackStopped) drive session actions
+ *   - QueueEnded deletes playlist progress when playlistId matches the alarm
+ *   - QueueEnded skips cleanup when playlistId does not match
  *
  * All tests use [UnconfinedTestDispatcher] sharing one [TestScope] scheduler so both the
  * injected main and IO dispatchers participate in virtual time. This lets the autoStop
@@ -83,8 +79,8 @@ class AlarmFireSessionTest {
     private lateinit var notificationPort: FakeNotificationPort
     private lateinit var volumeRampPort: FakeVolumeRampPort
     private lateinit var clock: FakeClock
-    private lateinit var playbackSession: PlaybackSession
-    private lateinit var fakeControls: FakePlaybackControls
+    private lateinit var alarmPlaybackSession: AlarmPlaybackSession
+    private lateinit var fakeControls: FakeAlarmPlaybackControls
 
     private lateinit var session: AlarmFireSession
 
@@ -123,29 +119,26 @@ class AlarmFireSessionTest {
         notificationPort = FakeNotificationPort()
         volumeRampPort = FakeVolumeRampPort()
         clock = FakeClock(NOW_MS)
-        playbackSession = mock()
-        fakeControls = FakePlaybackControls()
-        whenever(playbackSession.playbackState).thenReturn(fakeControls.playbackState)
-        whenever(playbackSession.playbackTransitions).thenReturn(fakeControls.playbackTransitions)
-        whenever(playbackSession.stop()).thenAnswer { fakeControls.stop() }
+        alarmPlaybackSession = mock()
+        fakeControls = FakeAlarmPlaybackControls()
+        whenever(alarmPlaybackSession.playbackTransitions).thenReturn(fakeControls.playbackTransitions)
+        whenever(alarmPlaybackSession.stop()).thenAnswer { fakeControls.stop() }
+        whenever(alarmPlaybackSession.pause()).thenAnswer { fakeControls.pause() }
+        whenever(alarmPlaybackSession.resume()).thenAnswer { fakeControls.resume() }
         whenever(
-            playbackSession.playAlarmQueue(
+            alarmPlaybackSession.playAlarmQueue(
                 any<List<Song>>(),
                 any<Int>(),
                 any<Long>(),
-                any<Long>(),
-                ArgumentMatchers.nullable(String::class.java),
             )
         ).thenAnswer { invocation ->
             fakeControls.playAlarmQueue(
                 invocation.getArgument(0),
                 invocation.getArgument(1),
                 invocation.getArgument(2),
-                invocation.getArgument(3),
-                invocation.getArgument(4),
             )
         }
-        whenever(playbackSession.preloadFirstSong(any<String>())).thenAnswer { invocation ->
+        whenever(alarmPlaybackSession.preloadFirstSong(any<String>())).thenAnswer { invocation ->
             fakeControls.preloadFirstSong(invocation.getArgument(0))
         }
 
@@ -155,14 +148,17 @@ class AlarmFireSessionTest {
             playbackProgressRepository = progressRepository,
             clock = clock,
         )
+        val autoStopController = AutoStopController(defaultDispatcher = testDispatcher)
 
         session = AlarmFireSession(
             alarmRepository = alarmRepository,
             alarmPlaybackResolver = alarmPlaybackResolver,
+            playbackProgressRepository = progressRepository,
             wakeLockPort = wakeLockPort,
             notificationPort = notificationPort,
             volumeRampPort = volumeRampPort,
-            playbackController = playbackSession,
+            alarmPlaybackSession = alarmPlaybackSession,
+            autoStopController = autoStopController,
             mainDispatcher = testDispatcher,
             ioDispatcher = testDispatcher,
         )
@@ -273,7 +269,7 @@ class AlarmFireSessionTest {
 
         val state = session.state.value
         assertTrue("expected Error, was $state", state is AlarmFireState.Error)
-        assertNull("controller must not have been driven", fakeControls.lastStartIndex)
+        assertNull("session must not have been driven", fakeControls.lastStartIndex)
         assertEquals(1, wakeLockPort.releaseCount)
     }
 
@@ -324,14 +320,14 @@ class AlarmFireSessionTest {
 
         val state = session.state.value
         assertTrue("expected Paused, was $state", state is AlarmFireState.Paused)
-        verify(playbackSession).pause()
+        verify(alarmPlaybackSession).pause()
         assertEquals(1, notificationPort.pauseCount)
     }
 
     @Test
     fun `pause while Idle is a no-op`() {
         session.pause()
-        verify(playbackSession, times(0)).pause()
+        verify(alarmPlaybackSession, times(0)).pause()
         assertEquals(0, notificationPort.pauseCount)
         assertTrue(session.state.value is AlarmFireState.Idle)
     }
@@ -345,38 +341,38 @@ class AlarmFireSessionTest {
         session.resume()
 
         assertTrue(session.state.value is AlarmFireState.Playing)
-        verify(playbackSession).resume()
+        verify(alarmPlaybackSession).resume()
     }
 
     @Test
     fun `resume while not Paused is a no-op`() {
         session.resume()
-        verify(playbackSession, times(0)).resume()
+        verify(alarmPlaybackSession, times(0)).resume()
     }
 
     @Test
-    fun `stop forwards to controller stop`() = scope.runTest {
+    fun `stop forwards to session stop`() = scope.runTest {
         firePlaying(alarmId = 13L, playlistId = 130L)
 
         session.stop()
 
-        verify(playbackSession).stop()
+        verify(alarmPlaybackSession).stop()
     }
 
     // -------- autoStop / extend ---------------------------------------------
 
     @Test
-    fun `autoStop fires after configured delay and calls controller stop`() = scope.runTest {
+    fun `autoStop fires after configured delay and calls session stop`() = scope.runTest {
         alarmRepository.insert(repeatingAlarm(id = 14L, playlistId = 140L).copy(autoStop = AutoStop.ByMinutes(30)))
         playlistRepository.set(140L, threeSongPlaylist(id = 140L))
 
         session.fire(alarmId = 14L, isAlarmTrigger = true)
         runCurrent()
-        verify(playbackSession, times(0)).stop()
+        verify(alarmPlaybackSession, times(0)).stop()
 
         advanceTimeBy(30L * 60_000L + 1L)
 
-        verify(playbackSession).stop()
+        verify(alarmPlaybackSession).stop()
     }
 
     @Test
@@ -393,21 +389,21 @@ class AlarmFireSessionTest {
 
         // Original 10-minute deadline (5 more min) should NOT trigger stop.
         advanceTimeBy(6L * 60_000L)
-        verify(playbackSession, times(0)).stop()
+        verify(alarmPlaybackSession, times(0)).stop()
 
         // The fresh 20-minute deadline should fire.
         advanceTimeBy(15L * 60_000L)
-        verify(playbackSession).stop()
+        verify(alarmPlaybackSession).stop()
     }
 
     @Test
     fun `extendAutoStop is a no-op when no timer is in flight`() {
         session.extendAutoStop(5)
-        verify(playbackSession, times(0)).stop()
+        verify(alarmPlaybackSession, times(0)).stop()
     }
 
     @Test
-    fun `setExtendToEnd flips the flag observable to controller`() {
+    fun `setExtendToEnd flips the flag observable to session`() {
         assertFalse(session.isExtendToEnd())
         session.setExtendToEnd(true)
         assertTrue(session.isExtendToEnd())
@@ -415,10 +411,10 @@ class AlarmFireSessionTest {
         assertFalse(session.isExtendToEnd())
     }
 
-    // -------- playerEvents subscription -------------------------------------
+    // -------- playback transitions subscription --------------------------------
 
     @Test
-    fun `MediaItemTransition AUTO while Playing triggers onSongCompleted and stops when extendToEnd`() = scope.runTest {
+    fun `SongCompleted while Playing triggers onSongCompleted and stops when extendToEnd`() = scope.runTest {
         alarmRepository.insert(
             repeatingAlarm(id = 30L, playlistId = 300L).copy(
                 autoStop = AutoStop.BySongCount(5)
@@ -428,7 +424,7 @@ class AlarmFireSessionTest {
 
         session.fire(alarmId = 30L, isAlarmTrigger = true)
         runCurrent()
-        verify(playbackSession, times(0)).stop()
+        verify(alarmPlaybackSession, times(0)).stop()
 
         session.setExtendToEnd(true)
 
@@ -436,14 +432,14 @@ class AlarmFireSessionTest {
         fakeControls.emitPlaybackTransition(PlaybackTransition.SongCompleted(songId = 101L))
         runCurrent()
 
-        verify(playbackSession).stop()
+        verify(alarmPlaybackSession).stop()
     }
 
     @Test
-    fun `MediaItemTransition SEEK does not trigger onSongCompleted`() = scope.runTest {
+    fun `SongCompleted does not trigger stop when no auto-stop condition met`() = scope.runTest {
         alarmRepository.insert(
             repeatingAlarm(id = 31L, playlistId = 310L).copy(
-                autoStop = AutoStop.BySongCount(1)
+                autoStop = AutoStop.BySongCount(5)
             )
         )
         playlistRepository.set(310L, threeSongPlaylist(id = 310L))
@@ -451,36 +447,71 @@ class AlarmFireSessionTest {
         session.fire(alarmId = 31L, isAlarmTrigger = true)
         runCurrent()
 
-        // PlaybackTransition only carries SongCompleted (from AUTO transitions), not SEEK.
-        // No equivalent event for SEEK — nothing to emit, nothing should happen.
+        fakeControls.emitPlaybackTransition(PlaybackTransition.SongCompleted(songId = 101L))
         runCurrent()
 
-        verify(playbackSession, times(0)).stop()
+        verify(alarmPlaybackSession, times(0)).stop()
     }
 
     @Test
-    fun `QueueEnded while Playing triggers onQueueEnded`() = scope.runTest {
+    fun `QueueEnded while Playing deletes progress and stops`() = scope.runTest {
         alarmRepository.insert(
             repeatingAlarm(id = 32L, playlistId = 320L).copy(
                 autoStop = AutoStop.BySongCount(5)
             )
         )
         playlistRepository.set(320L, threeSongPlaylist(id = 320L))
+        var deletedPlaylistId: Long? = null
+        progressRepository.set(320L, emptyList())
+        // Capture deletion by overriding the fake behavior via reflection-free wrapper.
+        val trackingRepository = object : PlaybackProgressRepository by progressRepository {
+            override suspend fun deleteAllProgressForPlaylist(playlistId: Long): Result<Unit> {
+                deletedPlaylistId = playlistId
+                return progressRepository.deleteAllProgressForPlaylist(playlistId)
+            }
+        }
+        recreateSessionWithProgressRepository(trackingRepository)
 
         session.fire(alarmId = 32L, isAlarmTrigger = true)
         runCurrent()
 
-        fakeControls.emitPlaybackTransition(PlaybackTransition.QueueEnded)
+        fakeControls.emitPlaybackTransition(PlaybackTransition.QueueEnded(playlistId = 320L))
         runCurrent()
 
-        verify(playbackSession).stop()
+        verify(alarmPlaybackSession).stop()
+        assertEquals(320L, deletedPlaylistId)
     }
 
-    // -------- playbackTransitions subscription ------------------------------------
+    @Test
+    fun `QueueEnded skips cleanup when playlistId does not match alarm`() = scope.runTest {
+        alarmRepository.insert(
+            repeatingAlarm(id = 33L, playlistId = 330L).copy(
+                autoStop = AutoStop.BySongCount(5)
+            )
+        )
+        playlistRepository.set(330L, threeSongPlaylist(id = 330L))
+        var deletedPlaylistId: Long? = null
+        val trackingRepository = object : PlaybackProgressRepository by progressRepository {
+            override suspend fun deleteAllProgressForPlaylist(playlistId: Long): Result<Unit> {
+                deletedPlaylistId = playlistId
+                return progressRepository.deleteAllProgressForPlaylist(playlistId)
+            }
+        }
+        recreateSessionWithProgressRepository(trackingRepository)
+
+        session.fire(alarmId = 33L, isAlarmTrigger = true)
+        runCurrent()
+
+        fakeControls.emitPlaybackTransition(PlaybackTransition.QueueEnded(playlistId = 999L))
+        runCurrent()
+
+        verify(alarmPlaybackSession).stop()
+        assertNull(deletedPlaylistId)
+    }
 
     @Test
     fun `PlaybackStopped transition triggers onPlaybackStopped`() = scope.runTest {
-        firePlaying(alarmId = 33L, playlistId = 330L)
+        firePlaying(alarmId = 34L, playlistId = 340L)
         assertTrue(wakeLockPort.isHeld)
 
         fakeControls.emitPlaybackTransition(PlaybackTransition.PlaybackStopped)
@@ -493,7 +524,7 @@ class AlarmFireSessionTest {
 
     @Test
     fun `SongCompleted transition does not trigger onPlaybackStopped`() = scope.runTest {
-        firePlaying(alarmId = 34L, playlistId = 340L)
+        firePlaying(alarmId = 35L, playlistId = 350L)
         assertTrue(wakeLockPort.isHeld)
 
         fakeControls.emitPlaybackTransition(PlaybackTransition.SongCompleted(songId = 101L))
@@ -520,21 +551,21 @@ class AlarmFireSessionTest {
     }
 
     @Test
-    fun `onPlaybackStopped after autoStop does not call controller stop again`() = scope.runTest {
+    fun `onPlaybackStopped after autoStop does not call session stop again`() = scope.runTest {
         alarmRepository.insert(repeatingAlarm(id = 17L, playlistId = 170L).copy(autoStop = AutoStop.ByMinutes(1)))
         playlistRepository.set(170L, threeSongPlaylist(id = 170L))
 
         session.fire(alarmId = 17L, isAlarmTrigger = true)
         runCurrent()
         advanceTimeBy(70_000L)
-        verify(playbackSession).stop()
+        verify(alarmPlaybackSession).stop()
 
-        // Controller responds to stop by emitting PlaybackStopped, which triggers onPlaybackStopped
+        // Session responds to stop by emitting PlaybackStopped, which triggers onPlaybackStopped
         fakeControls.emitPlaybackTransition(PlaybackTransition.PlaybackStopped)
         runCurrent()
 
         // No additional stop call from session-side.
-        verify(playbackSession, times(1)).stop()
+        verify(alarmPlaybackSession, times(1)).stop()
         assertTrue(session.state.value is AlarmFireState.Stopped)
     }
 
@@ -561,6 +592,28 @@ class AlarmFireSessionTest {
         wakeLockPort.acquire(10 * 60 * 1000L)
         session.fire(alarmId = alarmId, isAlarmTrigger = true)
         scope.runCurrent()
+    }
+
+    private fun recreateSessionWithProgressRepository(repository: PlaybackProgressRepository) {
+        val alarmPlaybackResolver = AlarmPlaybackResolver(
+            alarmRepository = alarmRepository,
+            playlistRepository = playlistRepository,
+            playbackProgressRepository = repository,
+            clock = clock,
+        )
+        val autoStopController = AutoStopController(defaultDispatcher = testDispatcher)
+        session = AlarmFireSession(
+            alarmRepository = alarmRepository,
+            alarmPlaybackResolver = alarmPlaybackResolver,
+            playbackProgressRepository = repository,
+            wakeLockPort = wakeLockPort,
+            notificationPort = notificationPort,
+            volumeRampPort = volumeRampPort,
+            alarmPlaybackSession = alarmPlaybackSession,
+            autoStopController = autoStopController,
+            mainDispatcher = testDispatcher,
+            ioDispatcher = testDispatcher,
+        )
     }
 
     private fun repeatingAlarm(id: Long, playlistId: Long): Alarm = Alarm(
@@ -650,15 +703,13 @@ class AlarmFireSessionTest {
     }
 
     /**
-     * Test double that records playback control method calls and allows emitting
-     * playback transitions and state changes for testing the transition subscriptions.
+     * Test double that records alarm playback control method calls and allows emitting
+     * playback transitions for testing the transition subscriptions.
      */
-    private class FakePlaybackControls {
+    private class FakeAlarmPlaybackControls {
         var lastPreloadUri: String? = null
             private set
         var lastStartIndex: Int? = null
-            private set
-        var lastQueueAlarmId: Long? = null
             private set
         var pauseCount = 0
             private set
@@ -666,39 +717,14 @@ class AlarmFireSessionTest {
             private set
         var stopCount = 0
             private set
-        var playCount = 0
+        var playAlarmQueueCount = 0
             private set
-        var playQueueCount = 0
-            private set
-        var nextCount = 0
-            private set
-        var previousCount = 0
-            private set
-        var seekCount = 0
-            private set
-        var setPlayModeCount = 0
-            private set
-
-        private val _playbackState = MutableStateFlow(PlaybackState())
-        val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
         private val _playbackTransitions = MutableSharedFlow<PlaybackTransition>(extraBufferCapacity = 64)
         val playbackTransitions: Flow<PlaybackTransition> = _playbackTransitions.asSharedFlow()
 
-        fun setPlaybackState(state: PlaybackState) {
-            _playbackState.value = state
-        }
-
         fun emitPlaybackTransition(transition: PlaybackTransition) {
             _playbackTransitions.tryEmit(transition)
-        }
-
-        fun play(song: Song, playlistId: Long) {
-            playCount++
-        }
-
-        fun playQueue(songs: List<Song>, startIndex: Int, playlistId: Long) {
-            playQueueCount++
         }
 
         fun pause() {
@@ -709,44 +735,17 @@ class AlarmFireSessionTest {
             resumeCount++
         }
 
-        fun next() {
-            nextCount++
-        }
-
-        fun previous() {
-            previousCount++
-        }
-
-        fun seekTo(positionMs: Long) {
-            seekCount++
-        }
-
         fun stop() {
             stopCount++
-            // Simulate real controller: stop resets playbackState to alarmId=null, isPlaying=false
-            _playbackState.value = PlaybackState(alarmId = null, isPlaying = false)
-        }
-
-        fun setPlayMode(mode: PlayMode) {
-            setPlayModeCount++
         }
 
         fun playAlarmQueue(
             songs: List<Song>,
             startIndex: Int,
             playlistId: Long,
-            alarmId: Long,
-            alarmLabel: String?,
         ) {
             lastStartIndex = startIndex
-            lastQueueAlarmId = alarmId
-            // Simulate real controller: set alarmId and isPlaying=true
-            _playbackState.value = PlaybackState(
-                alarmId = alarmId,
-                isPlaying = true,
-                currentPlaylistId = playlistId,
-                source = PlaybackSource.ALARM,
-            )
+            playAlarmQueueCount++
         }
 
         fun preloadFirstSong(uri: String) {

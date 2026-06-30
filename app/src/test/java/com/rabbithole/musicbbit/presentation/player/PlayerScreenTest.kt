@@ -150,7 +150,6 @@ class PlayerScreenTest {
     private fun createMockViewModel(playbackState: PlaybackState): PlayerViewModel {
         val viewModel = mock<PlayerViewModel>()
         whenever(viewModel.playbackState).thenReturn(MutableStateFlow(playbackState))
-        whenever(viewModel.alarmLabel).thenReturn(MutableStateFlow(null))
         return viewModel
     }
 }

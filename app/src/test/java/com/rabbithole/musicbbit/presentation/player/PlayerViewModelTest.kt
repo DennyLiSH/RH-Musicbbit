@@ -16,7 +16,6 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -26,8 +25,7 @@ import timber.log.Timber
  * JVM unit tests for [PlayerViewModel].
  *
  * PlayerViewModel is a thin facade over [PlaybackSession]. These tests verify
- * that playback control methods forward correctly and that [alarmLabel] is
- * derived from [PlaybackState.alarmLabel].
+ * that playback control methods forward correctly.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlayerViewModelTest {
@@ -56,37 +54,6 @@ class PlayerViewModelTest {
 
     private fun createViewModel(): PlayerViewModel {
         return PlayerViewModel(playbackController)
-    }
-
-    // ------------------------------------------------------------------
-    // Alarm label tests
-    // ------------------------------------------------------------------
-
-    @Test
-    fun `alarmLabel is null when alarmLabel in state is null`() = runTest(testDispatcher) {
-        playbackStateFlow.value = PlaybackState(alarmId = null, alarmLabel = null)
-        val viewModel = createViewModel()
-        assertNull(viewModel.alarmLabel.value)
-    }
-
-    @Test
-    fun `alarmLabel loaded from playbackState`() = runTest(testDispatcher) {
-        playbackStateFlow.value = PlaybackState(alarmId = 1L, alarmLabel = "Morning Jog")
-        val viewModel = createViewModel()
-        advanceUntilIdle()
-        assertEquals("Morning Jog", viewModel.alarmLabel.value)
-    }
-
-    @Test
-    fun `alarmLabel cleared when alarmLabel becomes null`() = runTest(testDispatcher) {
-        playbackStateFlow.value = PlaybackState(alarmId = 1L, alarmLabel = "Morning Jog")
-        val viewModel = createViewModel()
-        advanceUntilIdle()
-        assertEquals("Morning Jog", viewModel.alarmLabel.value)
-
-        playbackStateFlow.value = PlaybackState(alarmId = null, alarmLabel = null)
-        advanceUntilIdle()
-        assertNull(viewModel.alarmLabel.value)
     }
 
     // ------------------------------------------------------------------

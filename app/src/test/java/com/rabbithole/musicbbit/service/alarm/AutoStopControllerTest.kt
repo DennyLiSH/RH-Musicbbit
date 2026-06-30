@@ -2,6 +2,7 @@ package com.rabbithole.musicbbit.service.alarm
 
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -16,7 +17,7 @@ class AutoStopControllerTest {
 
     @Test
     fun `ByMinutes timer fires after delay`() = runTest {
-        val controller = AutoStopController(this.backgroundScope)
+        val controller = AutoStopController(StandardTestDispatcher(testScheduler))
         var triggered = false
 
         controller.start(AutoStop.ByMinutes(1)) { triggered = true }
@@ -29,7 +30,7 @@ class AutoStopControllerTest {
 
     @Test
     fun `ByMinutes timer can be cancelled`() = runTest {
-        val controller = AutoStopController(this.backgroundScope)
+        val controller = AutoStopController(StandardTestDispatcher(testScheduler))
         var triggered = false
 
         controller.start(AutoStop.ByMinutes(1)) { triggered = true }
@@ -42,7 +43,7 @@ class AutoStopControllerTest {
 
     @Test
     fun `extend cancels prior timer and starts fresh`() = runTest {
-        val controller = AutoStopController(this.backgroundScope)
+        val controller = AutoStopController(StandardTestDispatcher(testScheduler))
         var triggered = false
 
         controller.start(AutoStop.ByMinutes(10)) { triggered = true }
@@ -62,7 +63,7 @@ class AutoStopControllerTest {
 
     @Test
     fun `extend is no-op when no timer in flight`() = runTest {
-        val controller = AutoStopController(this.backgroundScope)
+        val controller = AutoStopController(StandardTestDispatcher(testScheduler))
         var triggered = false
 
         controller.extend(5) { triggered = true }
@@ -74,7 +75,7 @@ class AutoStopControllerTest {
 
     @Test
     fun `BySongCount stops after N songs`() = runTest {
-        val controller = AutoStopController(this.backgroundScope)
+        val controller = AutoStopController(StandardTestDispatcher(testScheduler))
 
         controller.start(AutoStop.BySongCount(3)) {}
 
@@ -85,14 +86,14 @@ class AutoStopControllerTest {
 
     @Test
     fun `onSongCompleted returns false when no counter active`() = runTest {
-        val controller = AutoStopController(this.backgroundScope)
+        val controller = AutoStopController(StandardTestDispatcher(testScheduler))
 
         assertFalse(controller.onSongCompleted())
     }
 
     @Test
     fun `onQueueEnded returns true when counter active`() = runTest {
-        val controller = AutoStopController(this.backgroundScope)
+        val controller = AutoStopController(StandardTestDispatcher(testScheduler))
 
         controller.start(AutoStop.BySongCount(5)) {}
         assertTrue(controller.onQueueEnded())
@@ -100,14 +101,14 @@ class AutoStopControllerTest {
 
     @Test
     fun `onQueueEnded returns false when no counter active`() = runTest {
-        val controller = AutoStopController(this.backgroundScope)
+        val controller = AutoStopController(StandardTestDispatcher(testScheduler))
 
         assertFalse(controller.onQueueEnded())
     }
 
     @Test
     fun `extendToEnd flag can be toggled`() = runTest {
-        val controller = AutoStopController(this.backgroundScope)
+        val controller = AutoStopController(StandardTestDispatcher(testScheduler))
 
         assertFalse(controller.isExtendToEnd())
         controller.setExtendToEnd(true)
@@ -118,7 +119,7 @@ class AutoStopControllerTest {
 
     @Test
     fun `reset clears all state`() = runTest {
-        val controller = AutoStopController(this.backgroundScope)
+        val controller = AutoStopController(StandardTestDispatcher(testScheduler))
         var triggered = false
 
         controller.start(AutoStop.ByMinutes(1)) { triggered = true }
