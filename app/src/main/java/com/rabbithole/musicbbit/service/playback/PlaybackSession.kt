@@ -115,6 +115,19 @@ class PlaybackSession @Inject constructor(
         }
     }
 
+    override fun onDeactivated() {
+        Timber.i("PlaybackSession deactivated by coordinator handoff")
+        progressTracker.stopTickLoop()
+        progressTracker.stopSaveLoop()
+        // Do NOT call saveProgress here — at this point playerPort may already be
+        // configured for the incoming consumer (e.g. AlarmFireSession.preloadFirstSong
+        // runs before activate). Reading playerPort.currentPositionMs() would return
+        // the new consumer's position (~0 for a freshly set alarm queue), corrupting
+        // user progress. Rely on the last periodic save (<=5s stale) as restore point.
+        _playbackState.update { it.copy(isPlaying = false) }
+        wasPausedByFocusLoss = false
+    }
+
     private fun handleIsPlayingChanged(isPlaying: Boolean) {
         Timber.d("Player isPlaying changed: $isPlaying")
         if (isPlaying) {
@@ -313,15 +326,6 @@ class PlaybackSession @Inject constructor(
             }
         )
         _playbackState.update { it.copy(playMode = mode) }
-    }
-
-    fun preloadFirstSong(uri: String) {
-        playerPort.setQueue(
-            items = listOf(PlayItem(uri = uri)),
-            startIndex = 0,
-            startPositionMs = 0,
-        )
-        Timber.d("Preloaded first song: $uri")
     }
 
     /**

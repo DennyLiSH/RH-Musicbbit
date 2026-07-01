@@ -103,11 +103,35 @@ class PlaybackCoordinatorTest {
         assertTrue(second.focusLost)
     }
 
+    @Test
+    fun `activate fires onDeactivated on previous consumer`() = runTest(dispatcher) {
+        val first = FakeConsumer()
+        val second = FakeConsumer()
+        coordinator.activate(first)
+
+        coordinator.activate(second)
+
+        assertEquals(1, first.deactivatedCount)
+        assertEquals(0, second.deactivatedCount)
+    }
+
+    @Test
+    fun `activate does not fire onDeactivated when same consumer reactivates`() = runTest(dispatcher) {
+        val consumer = FakeConsumer()
+        coordinator.activate(consumer)
+
+        coordinator.activate(consumer)
+
+        assertEquals(0, consumer.deactivatedCount)
+    }
+
     private class FakeConsumer : PlaybackCoordinator.PlaybackConsumer {
         val events = mutableListOf<PlayerEvent>()
         var focusLost = false
         var focusLostTransient = false
         var focusGained = false
+        var deactivatedCount = 0
+            private set
 
         override fun onPlayerEvent(event: PlayerEvent) {
             events.add(event)
@@ -123,6 +147,10 @@ class PlaybackCoordinatorTest {
 
         override fun onFocusGain() {
             focusGained = true
+        }
+
+        override fun onDeactivated() {
+            deactivatedCount++
         }
     }
 }

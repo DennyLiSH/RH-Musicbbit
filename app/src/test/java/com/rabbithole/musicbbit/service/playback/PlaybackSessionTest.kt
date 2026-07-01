@@ -362,17 +362,6 @@ class PlaybackSessionTest {
         assertEquals(45_000L, session.playbackState.value.positionMs)
     }
 
-    // -------- preloadFirstSong() ----------------------------------------------
-
-    @Test
-    fun `preloadFirstSong sets queue with single item`() {
-        session.preloadFirstSong("/tmp/preload.mp3")
-
-        val queue = playerPort.queueCalls.single()
-        assertEquals(1, queue.items.size)
-        assertEquals("/tmp/preload.mp3", queue.items[0].uri)
-    }
-
     // -------- playQueue() -----------------------------------------------------
 
     @Test

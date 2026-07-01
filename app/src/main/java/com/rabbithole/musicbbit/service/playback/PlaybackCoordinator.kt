@@ -30,6 +30,19 @@ class PlaybackCoordinator @Inject constructor(
         fun onFocusLoss()
         fun onFocusLossTransient()
         fun onFocusGain()
+
+        /**
+         * Called by [PlaybackCoordinator.activate] when another consumer is taking over
+         * as the active recipient. Use to stop internal loops (tick/save) and mark the
+         * session as inactive.
+         *
+         * **Must NOT call saveProgress or read playerPort real-time state** — by the time
+         * this fires, playerPort may already be configured for the incoming consumer
+         * (e.g. AlarmFireSession.preloadFirstSong runs before activate), so reading
+         * currentPositionMs() would return the new consumer's position and corrupt
+         * progress. Rely on the last periodic save (≤5s stale) as the restore point.
+         */
+        fun onDeactivated()
     }
 
     private val coordinatorJob = SupervisorJob()
@@ -51,11 +64,20 @@ class PlaybackCoordinator @Inject constructor(
 
     /**
      * Make [consumer] the active recipient of player events and focus callbacks.
-     * Must be called on the main dispatcher.
+     * If another consumer is currently active, that consumer's [PlaybackConsumer.onDeactivated]
+     * is invoked before the swap. Must be called on the main dispatcher.
      */
     fun activate(consumer: PlaybackConsumer) {
+        val previous = activeConsumer
         activeConsumer = consumer
-        Timber.d("PlaybackCoordinator activated: ${consumer::class.java.simpleName}")
+        if (previous != null && previous !== consumer) {
+            previous.onDeactivated()
+            Timber.i(
+                "PlaybackCoordinator handed off: ${previous::class.java.simpleName} -> ${consumer::class.java.simpleName}"
+            )
+        } else {
+            Timber.d("PlaybackCoordinator activated: ${consumer::class.java.simpleName}")
+        }
     }
 
     /**

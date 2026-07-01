@@ -220,6 +220,16 @@ class AlarmPlaybackSession @Inject constructor(
         }
     }
 
+    override fun onDeactivated() {
+        Timber.i("AlarmPlaybackSession deactivated by coordinator handoff (defensive)")
+        progressTracker.stopTickLoop()
+        progressTracker.stopSaveLoop()
+        // Do NOT call saveProgress — reverse handoff (user manually plays during alarm)
+        // means playerPort has been reconfigured by the incoming PlaybackSession.
+        _playbackState.update { it.copy(isPlaying = false) }
+        wasPausedByFocusLoss = false
+    }
+
     private fun handleIsPlayingChanged(isPlaying: Boolean) {
         _playbackState.update { it.copy(isPlaying = isPlaying) }
         if (isPlaying) {
