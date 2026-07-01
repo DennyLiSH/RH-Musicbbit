@@ -56,6 +56,15 @@ class AlarmPlaybackSession @Inject constructor(
 
     private var wasPausedByFocusLoss = false
 
+    /**
+     * Set by [handleQueueEnded] to signal that the subsequent [stop] call (driven by
+     * AlarmFireSession upon receiving QueueEnded) should skip saveProgress — at this
+     * point the queue has ended naturally and any save would write the just-finished
+     * song's end position. Cancels the saveProgress branch in [stop] without changing
+     * its `currentSong != null` guard semantics.
+     */
+    private var queueEndedPending = false
+
     init {
         Timber.i("AlarmPlaybackSession created")
     }
@@ -138,7 +147,9 @@ class AlarmPlaybackSession @Inject constructor(
     fun stop() {
         Timber.i("Stopping alarm playback")
         audioFocusPort.abandonFocus()
-        if (_playbackState.value.currentSong != null) {
+        val skipSave = queueEndedPending
+        queueEndedPending = false
+        if (!skipSave && _playbackState.value.currentSong != null) {
             progressTracker.saveProgress()
         }
         playerPort.stop()
@@ -271,12 +282,16 @@ class AlarmPlaybackSession @Inject constructor(
     private fun handleQueueEnded() {
         Timber.i("Alarm queue ended")
         val playlistId = _playbackState.value.currentPlaylistId
+        queueEndedPending = true
         progressTracker.stopSaveLoop()
         progressTracker.stopTickLoop()
         playbackCoordinator.deactivate(this)
         sessionScope.launch {
+            // cancelAndAwaitPendingSave MUST complete before emit QueueEnded — ensures
+            // AlarmFireSession's deletePlaylistProgressIfMatches runs after any in-flight
+            // save completes (or is cancelled). See commit 20daaa5: prevents pending save
+            // from racing past delete.
             progressTracker.cancelAndAwaitPendingSave()
-            _playbackState.update { PlaybackState() }
             _playbackTransitions.tryEmit(PlaybackTransition.QueueEnded(playlistId))
         }
     }

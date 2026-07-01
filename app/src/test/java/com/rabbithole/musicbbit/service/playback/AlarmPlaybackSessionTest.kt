@@ -11,6 +11,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
 
@@ -173,6 +174,31 @@ class AlarmPlaybackSessionTest {
     }
 
     @Test
+    fun `stop after queueEnded skips saveProgress`() = runBlocking {
+        // Queue-ended path: handleQueueEnded sets queueEndedPending=true; the subsequent
+        // stop() call (driven by AlarmFireSession upon receiving QueueEnded) must skip
+        // saveProgress to avoid writing the just-finished song's end position.
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+
+        playerPort.emitEvent(PlayerEvent.QueueEnded)
+        // Calling stop here simulates AlarmFireSession's response to QueueEnded.
+        // UnconfinedTestDispatcher executes the sessionScope.launch in handleQueueEnded eagerly.
+        session.stop()
+
+        assertNull(progressRepository.lastSaved)
+    }
+
+    @Test
+    fun `stop without prior queueEnded saves progress`() = runBlocking {
+        // Non-queue-ended stop path (manual stop): saveProgress should still run.
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+
+        session.stop()
+
+        assertNotNull(progressRepository.lastSaved)
+    }
+
+    @Test
     fun `stop emits PlaybackStopped transition`() = runBlocking {
         session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
         val transitions = mutableListOf<PlaybackTransition>()
@@ -286,16 +312,21 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `QueueEnded does not delete playlist progress`() {
-        var deleteCalled = false
         progressRepository.set(10L, emptyList())
-        // Wrap delete to detect calls; FakeProgressRepository currently returns success silently.
-        // We verify no call by checking there is no interaction through a custom fake if needed.
-        // For this test, FakeProgressRepository.deleteAllProgressForPlaylist does nothing,
-        // so we assert the transition is emitted and the state is reset.
+        // FakeProgressRepository.deleteAllProgressForPlaylist does not track call count,
+        // so we verify indirectly: QueueEnded alone must NOT reset state (Fix 2 moved the
+        // reset into stop()'s path). State reset happens when AlarmFireSession receives
+        // the QueueEnded transition and calls stop().
         session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
 
         playerPort.emitEvent(PlayerEvent.QueueEnded)
 
+        // Post-Fix-2: state is NOT reset by QueueEnded alone (queueEndedPending flag set,
+        // but state preserved until stop() runs).
+        assertEquals(SONG_1, session.playbackState.value.currentSong)
+
+        // stop() — simulating AlarmFireSession's response to QueueEnded — resets state.
+        session.stop()
         assertNull(session.playbackState.value.currentSong)
         assertEquals(-1L, session.playbackState.value.currentPlaylistId)
     }
