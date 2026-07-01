@@ -119,11 +119,9 @@ class AlarmPlaybackSession @Inject constructor(
                 isPlaying = true,
             )
         }
-
-        progressTracker.startTickLoop(PROGRESS_TICK_INTERVAL_MS) { pos ->
-            _playbackState.update { it.copy(positionMs = pos) }
-        }
-        progressTracker.startSaveLoop(PROGRESS_SAVE_INTERVAL_MS)
+        // Note: tick/save loops are started by handleIsPlayingChanged(true) — aligned
+        // with PlaybackSession. The loops are idempotent (cancel-then-launch) so the
+        // IsPlayingChanged event re-starting them is safe.
     }
 
     fun pause() {
