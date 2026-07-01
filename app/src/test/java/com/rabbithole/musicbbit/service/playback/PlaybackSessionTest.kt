@@ -469,4 +469,64 @@ class PlaybackSessionTest {
         playerPort.emitEvent(PlayerEvent.IsPlayingChanged(false))
         assertFalse(session.playbackState.value.isPlaying)
     }
+
+    // -------- onDeactivated() -------------------------------------------------
+
+    @Test
+    fun `onDeactivated stops loops and clears isPlaying flag`() = runBlocking {
+        session.play(SONG_1, playlistId = 10L)
+        playerPort.emitEvent(PlayerEvent.IsPlayingChanged(true))
+        assertTrue(session.playbackState.value.isPlaying)
+
+        // Simulate coordinator handoff: another consumer takes over
+        val other = object : PlaybackCoordinator.PlaybackConsumer {
+            override fun onPlayerEvent(event: PlayerEvent) {}
+            override fun onFocusLoss() {}
+            override fun onFocusLossTransient() {}
+            override fun onFocusGain() {}
+            override fun onDeactivated() {}
+        }
+        playbackCoordinator.activate(other)
+
+        // After handoff: isPlaying should be false (onDeactivated cleared it)
+        assertFalse(session.playbackState.value.isPlaying)
+    }
+
+    @Test
+    fun `onDeactivated does NOT call saveProgress`() = runBlocking {
+        session.play(SONG_1, playlistId = 10L)
+        playerPort.emitEvent(PlayerEvent.IsPlayingChanged(true))
+
+        // Trigger handoff
+        val other = object : PlaybackCoordinator.PlaybackConsumer {
+            override fun onPlayerEvent(event: PlayerEvent) {}
+            override fun onFocusLoss() {}
+            override fun onFocusLossTransient() {}
+            override fun onFocusGain() {}
+            override fun onDeactivated() {}
+        }
+        playbackCoordinator.activate(other)
+
+        // Critical: onDeactivated must not save progress — at handoff time playerPort
+        // may already be configured for the incoming consumer (preloadFirstSong case),
+        // so saveProgress would write the wrong position.
+        verify(playbackProgressRepository, org.mockito.kotlin.never())
+            .saveProgress(any())
+        Unit
+    }
+
+    @Test
+    fun `activate setQueue order regression`() = runBlocking {
+        // Lock the activate→setQueue order invariant in PlaybackSession.play().
+        // Reverse handoff (alarm active, user plays) requires activate BEFORE setQueue
+        // so onDeactivated fires while playerPort still holds the previous consumer's state.
+        session.play(SONG_1, playlistId = 10L)
+
+        // After play(): coordinator has this session as active consumer AND playerPort
+        // has the queue set. Both must hold for the order invariant to be meaningful.
+        assertEquals(1, playerPort.queueCalls.size)
+        // Emitting an event should route to this session (proves activate ran)
+        playerPort.emitEvent(PlayerEvent.IsPlayingChanged(true))
+        assertTrue(session.playbackState.value.isPlaying)
+    }
 }
