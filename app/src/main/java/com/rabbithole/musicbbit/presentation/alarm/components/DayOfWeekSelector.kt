@@ -107,7 +107,7 @@ fun DayOfWeekSelector(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
         ) {
             ShortcutButton(
-                label = "Daily",
+                label = stringResource(R.string.alarm_edit_repeat_daily),
                 selected = selectedDays == EVERYDAY && !excludeHolidays,
                 onClick = {
                     onDaysChanged(EVERYDAY)
@@ -115,7 +115,7 @@ fun DayOfWeekSelector(
                 }
             )
             ShortcutButton(
-                label = "Weekdays",
+                label = stringResource(R.string.alarm_edit_repeat_weekdays),
                 selected = selectedDays == WEEKDAYS && !excludeHolidays,
                 onClick = {
                     onDaysChanged(WEEKDAYS)
@@ -123,7 +123,7 @@ fun DayOfWeekSelector(
                 }
             )
             ShortcutButton(
-                label = stringResource(R.string.alarm_excluding_holidays_short),
+                label = stringResource(R.string.alarm_edit_repeat_except_holidays),
                 selected = selectedDays == EVERYDAY && excludeHolidays,
                 onClick = {
                     onDaysChanged(EVERYDAY)

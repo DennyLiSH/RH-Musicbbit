@@ -9,6 +9,7 @@ import androidx.core.app.NotificationCompat
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.presentation.alarm.AlarmRingActivity
 import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.domain.model.AlarmRingMode
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -53,7 +54,8 @@ class AlarmNotificationHelper @Inject constructor(
             descFallback = "Music alarm notifications",
             importance = NotificationManager.IMPORTANCE_HIGH
         )
-        val content = contentBuilder.buildPlaying(alarm.label, song.title, song.artist)
+        val showFullScreen = alarm.ringMode == AlarmRingMode.FullScreen
+        val content = contentBuilder.buildPlaying(alarm.label, song.title, song.artist, showFullScreen)
         val notification = renderNotification(content, alarm.id)
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
             as NotificationManager

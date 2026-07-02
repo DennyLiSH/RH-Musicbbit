@@ -40,7 +40,12 @@ class AlarmNotificationContentBuilder(
     private val playbackPausedText: String,
 ) {
 
-    fun buildPlaying(alarmLabel: String?, songTitle: String, songArtist: String?): AlarmNotificationContent {
+    fun buildPlaying(
+        alarmLabel: String?,
+        songTitle: String,
+        songArtist: String?,
+        showFullScreenIntent: Boolean,
+    ): AlarmNotificationContent {
         val label = alarmLabel ?: defaultAlarmLabel
         val artist = songArtist ?: unknownArtist
         val fullText = String.format(playingFormat, songTitle, artist)
@@ -50,7 +55,7 @@ class AlarmNotificationContentBuilder(
             bigText = fullText,
             isOngoing = true,
             autoCancel = false,
-            showFullScreenIntent = true,
+            showFullScreenIntent = showFullScreenIntent,
             actions = listOf(
                 AlarmNotificationContent.Action(R.drawable.ic_notification_stop, stop, AlarmNotificationContent.ActionType.Stop),
                 AlarmNotificationContent.Action(R.drawable.ic_notification_pause, pause, AlarmNotificationContent.ActionType.Pause),

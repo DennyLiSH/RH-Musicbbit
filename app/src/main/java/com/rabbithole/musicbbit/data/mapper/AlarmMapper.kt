@@ -3,6 +3,7 @@ package com.rabbithole.musicbbit.data.mapper
 import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.data.model.AutoStopConverter
 import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.domain.model.AlarmRingMode
 import java.time.DayOfWeek
 
 internal fun AlarmEntity.toDomain(): Alarm = Alarm(
@@ -15,7 +16,9 @@ internal fun AlarmEntity.toDomain(): Alarm = Alarm(
     isEnabled = isEnabled,
     label = label,
     autoStop = AutoStopConverter.toAutoStop(autoStop),
-    lastTriggeredAt = lastTriggeredAt
+    lastTriggeredAt = lastTriggeredAt,
+    resumePlayback = resumePlayback,
+    ringMode = ringMode.toAlarmRingMode()
 )
 
 internal fun Alarm.toEntity(): AlarmEntity = AlarmEntity(
@@ -28,8 +31,14 @@ internal fun Alarm.toEntity(): AlarmEntity = AlarmEntity(
     isEnabled = isEnabled,
     label = label,
     autoStop = AutoStopConverter.fromAutoStop(autoStop),
-    lastTriggeredAt = lastTriggeredAt
+    lastTriggeredAt = lastTriggeredAt,
+    resumePlayback = resumePlayback,
+    ringMode = ringMode.name.uppercase()
 )
+
+private fun String.toAlarmRingMode(): AlarmRingMode =
+    AlarmRingMode.entries.firstOrNull { it.name.equals(this, ignoreCase = true) }
+        ?: AlarmRingMode.Normal
 
 private fun Set<DayOfWeek>.toBitmask(): Int {
     var bitmask = 0

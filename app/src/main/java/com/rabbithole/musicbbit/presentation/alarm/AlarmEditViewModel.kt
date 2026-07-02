@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.domain.model.AlarmRingMode
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
@@ -44,6 +45,8 @@ data class AlarmFormState(
     val label: String = "",
     val autoStop: AutoStop? = null,
     val isEnabled: Boolean = true,
+    val resumePlayback: Boolean = true,
+    val ringMode: AlarmRingMode = AlarmRingMode.Normal,
 )
 
 data class AlarmEditUiState(
@@ -79,6 +82,8 @@ sealed interface AlarmEditAction {
     data class OnPlaylistSelected(val playlistId: Long) : AlarmEditAction
     data class OnLabelChanged(val label: String) : AlarmEditAction
     data class OnAutoStopChanged(val autoStop: AutoStop?) : AlarmEditAction
+    data class OnResumePlaybackChanged(val resume: Boolean) : AlarmEditAction
+    data class OnRingModeChanged(val ringMode: AlarmRingMode) : AlarmEditAction
     data object OnSave : AlarmEditAction
 }
 
@@ -160,6 +165,8 @@ class AlarmEditViewModel @Inject constructor(
                                 label = alarm.label ?: "",
                                 autoStop = alarm.autoStop,
                                 isEnabled = alarm.isEnabled,
+                                resumePlayback = alarm.resumePlayback,
+                                ringMode = alarm.ringMode,
                             ),
                             isLoading = false,
                             isNewAlarm = false
@@ -224,6 +231,18 @@ class AlarmEditViewModel @Inject constructor(
                     it.copy(form = it.form.copy(autoStop = action.autoStop), errorMessageResId = null)
                 }
             }
+            is AlarmEditAction.OnResumePlaybackChanged -> {
+                Timber.d("Resume playback changed: %s", action.resume)
+                _uiState.update {
+                    it.copy(form = it.form.copy(resumePlayback = action.resume), errorMessageResId = null)
+                }
+            }
+            is AlarmEditAction.OnRingModeChanged -> {
+                Timber.d("Ring mode changed: %s", action.ringMode)
+                _uiState.update {
+                    it.copy(form = it.form.copy(ringMode = action.ringMode), errorMessageResId = null)
+                }
+            }
             is AlarmEditAction.OnSave -> saveAlarm()
         }
     }
@@ -263,7 +282,9 @@ class AlarmEditViewModel @Inject constructor(
             isEnabled = form.isEnabled,
             label = form.label.takeIf { it.isNotBlank() },
             autoStop = form.autoStop,
-            lastTriggeredAt = null
+            lastTriggeredAt = null,
+            resumePlayback = form.resumePlayback,
+            ringMode = form.ringMode,
         )
 
         _uiState.update { it.copy(isSaving = true, errorMessageResId = null) }

@@ -8,6 +8,7 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -34,6 +36,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -47,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -56,6 +60,7 @@ import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.presentation.alarm.components.DayOfWeekSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.PlaylistSelector
+import com.rabbithole.musicbbit.presentation.alarm.components.RingModeSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.TimePickerDialog
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import com.rabbithole.musicbbit.ui.theme.timeDisplayStandard
@@ -224,25 +229,13 @@ fun AlarmEditScreen(
                         )
                     }
                 },
-                actions = {
-                    IconButton(
-                        onClick = { viewModel.onAction(AlarmEditAction.OnSave) },
-                        enabled = !uiState.isSaving
-                    ) {
-                        if (uiState.isSaving) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.padding(8.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text(
-                                text = stringResource(R.string.common_save),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
+                actions = {}
+            )
+        },
+        bottomBar = {
+            SaveButtonBar(
+                isSaving = uiState.isSaving,
+                onSave = { onActionWithTracking(AlarmEditAction.OnSave) }
             )
         }
     ) { paddingValues ->
@@ -422,9 +415,10 @@ private fun AlarmEditContent(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        AlarmEditSection(
-            title = stringResource(R.string.alarm_edit_section_repeat)
+        SettingsGroup(
+            title = stringResource(R.string.alarm_edit_section_basic)
         ) {
+            SectionTitle(title = stringResource(R.string.alarm_edit_section_repeat))
             DayOfWeekSelector(
                 selectedDays = form.repeatDays,
                 excludeHolidays = form.excludeHolidays,
@@ -435,13 +429,10 @@ private fun AlarmEditContent(
                     onAction(AlarmEditAction.OnExcludeHolidaysChanged(exclude))
                 }
             )
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        AlarmEditSection(
-            title = stringResource(R.string.alarm_edit_section_playlist)
-        ) {
+            SectionTitle(title = stringResource(R.string.alarm_edit_section_playlist))
             PlaylistSelector(
                 playlists = uiState.playlists,
                 selectedPlaylistId = form.playlistId,
@@ -449,13 +440,24 @@ private fun AlarmEditContent(
                     onAction(AlarmEditAction.OnPlaylistSelected(playlistId))
                 }
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SectionTitle(title = stringResource(R.string.alarm_edit_section_resume_playback))
+            ResumePlaybackSwitch(
+                checked = form.resumePlayback,
+                onCheckedChange = { resume ->
+                    onAction(AlarmEditAction.OnResumePlaybackChanged(resume))
+                }
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        AlarmEditSection(
-            title = stringResource(R.string.alarm_edit_section_label)
+        SettingsGroup(
+            title = stringResource(R.string.alarm_edit_section_advanced)
         ) {
+            SectionTitle(title = stringResource(R.string.alarm_edit_section_label))
             OutlinedTextField(
                 value = form.label,
                 onValueChange = { onAction(AlarmEditAction.OnLabelChanged(it)) },
@@ -463,13 +465,20 @@ private fun AlarmEditContent(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        AlarmEditSection(
-            title = stringResource(R.string.alarm_edit_section_auto_stop)
-        ) {
+            SectionTitle(title = stringResource(R.string.alarm_edit_section_ring_mode))
+            RingModeSelector(
+                selectedMode = form.ringMode,
+                onModeChanged = { mode ->
+                    onAction(AlarmEditAction.OnRingModeChanged(mode))
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SectionTitle(title = stringResource(R.string.alarm_edit_section_auto_stop))
             AutoStopDropdown(
                 selectedAutoStop = form.autoStop,
                 onSelectionChange = { autoStop ->
@@ -496,13 +505,28 @@ private fun AlarmEditContent(
         }
 
         Spacer(modifier = Modifier.height(32.dp))
+    }
+}
 
+@Composable
+private fun SaveButtonBar(
+    isSaving: Boolean,
+    onSave: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 3.dp
+    ) {
         Button(
-            onClick = { onAction(AlarmEditAction.OnSave) },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !uiState.isSaving
+            onClick = onSave,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            enabled = !isSaving
         ) {
-            if (uiState.isSaving) {
+            if (isSaving) {
                 CircularProgressIndicator(
                     modifier = Modifier.padding(4.dp),
                     strokeWidth = 2.dp,
@@ -512,8 +536,59 @@ private fun AlarmEditContent(
                 Text(stringResource(R.string.alarm_edit_save_button))
             }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(24.dp))
+@Composable
+private fun SettingsGroup(
+    title: String,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        SectionTitle(title = title)
+        Spacer(modifier = Modifier.height(12.dp))
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surfaceVariant
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                content = content
+            )
+        }
+    }
+}
+
+@Composable
+private fun ResumePlaybackSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .toggleable(
+                value = checked,
+                onValueChange = onCheckedChange,
+                role = Role.Switch
+            )
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.alarm_edit_resume_playback_label),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = null
+        )
     }
 }
 
@@ -533,7 +608,7 @@ private fun TimeDisplay(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 24.dp),
+                .padding(vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -548,19 +623,6 @@ private fun TimeDisplay(
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
             )
         }
-    }
-}
-
-@Composable
-private fun AlarmEditSection(
-    title: String,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        SectionTitle(title = title)
-        Spacer(modifier = Modifier.height(12.dp))
-        content()
     }
 }
 

@@ -15,6 +15,8 @@ import java.time.DayOfWeek
  * @property label Optional user-defined label for the alarm
  * @property autoStop Optional auto-stop configuration. Null means no auto-stop.
  * @property lastTriggeredAt Unix timestamp (ms) of the last trigger, or null
+ * @property resumePlayback Whether to resume the playlist from the last saved position.
+ * @property ringMode How the alarm surfaces when it fires.
  */
 data class Alarm(
     val id: Long = 0,
@@ -26,6 +28,8 @@ data class Alarm(
     val isEnabled: Boolean,
     val label: String?,
     val autoStop: AutoStop?,
-    val lastTriggeredAt: Long?
+    val lastTriggeredAt: Long?,
+    val resumePlayback: Boolean = true,
+    val ringMode: AlarmRingMode = AlarmRingMode.Normal,
 )
 

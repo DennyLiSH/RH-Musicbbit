@@ -62,15 +62,20 @@ class AlarmPlaybackResolver @Inject constructor(
         }
 
         val songs = playlistWithSongs.songs
-        val startIndex = resolveStartIndex(songs, alarm.playlistId)
+        val startIndex = resolveStartIndex(songs, alarm.playlistId, alarm.resumePlayback)
         val startSong = songs[startIndex]
 
-        resetPlaybackProgress(startSong, alarm.playlistId)
+        if (!alarm.resumePlayback) {
+            resetPlaybackProgress(startSong, alarm.playlistId)
+        }
 
         return Result.Success(alarm, songs, startIndex, startSong)
     }
 
-    private suspend fun resolveStartIndex(songs: List<Song>, playlistId: Long): Int {
+    private suspend fun resolveStartIndex(songs: List<Song>, playlistId: Long, resumePlayback: Boolean): Int {
+        if (!resumePlayback) {
+            return 0
+        }
         val progressList =
             playbackProgressRepository.getProgressForPlaylist(playlistId).getOrNull()
         return if (!progressList.isNullOrEmpty()) {
