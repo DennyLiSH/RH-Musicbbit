@@ -1,6 +1,7 @@
 package com.rabbithole.musicbbit.service.alarm
 
 import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.domain.model.AlarmRingMode
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.model.PlaylistWithSongs
@@ -8,6 +9,7 @@ import com.rabbithole.musicbbit.domain.model.Song
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -135,9 +137,60 @@ class AlarmPlaybackResolverTest {
         assertEquals(song1, success.startSong)
     }
 
-    private fun alarm(id: Long, playlistId: Long) = Alarm(
+    @Test
+    fun `resolve returns index 0 and resets progress when resumePlayback is false`() = runTest {
+        val alarmRepo = FakeAlarmRepository().apply {
+            insert(alarm(id = 1L, playlistId = 10L, resumePlayback = false))
+        }
+        val playlistRepo = FakePlaylistRepository().apply {
+            set(10L, PlaylistWithSongs(Playlist(10L, "Test", 0L, 0L), listOf(song1, song2)))
+        }
+        val progressRepo = FakeProgressRepository().apply {
+            set(10L, listOf(
+                PlaybackProgress(songId = 2L, positionMs = 30_000L, updatedAt = 100L, playlistId = 10L)
+            ))
+        }
+
+        val resolver = AlarmPlaybackResolver(alarmRepo, playlistRepo, progressRepo, clock)
+        val result = resolver.resolve(1L)
+
+        assertTrue(result is AlarmPlaybackResolver.Result.Success)
+        val success = result as AlarmPlaybackResolver.Result.Success
+        assertEquals(0, success.startIndex)
+        assertEquals(song1, success.startSong)
+        assertEquals(song1.id, progressRepo.lastSaved?.songId)
+        assertEquals(0L, progressRepo.lastSaved?.positionMs)
+    }
+
+    @Test
+    fun `resolve resumes from saved progress and does not reset it when resumePlayback is true`() = runTest {
+        val alarmRepo = FakeAlarmRepository().apply {
+            insert(alarm(id = 1L, playlistId = 10L, resumePlayback = true))
+        }
+        val playlistRepo = FakePlaylistRepository().apply {
+            set(10L, PlaylistWithSongs(Playlist(10L, "Test", 0L, 0L), listOf(song1, song2)))
+        }
+        val progressRepo = FakeProgressRepository().apply {
+            set(10L, listOf(
+                PlaybackProgress(songId = 2L, positionMs = 30_000L, updatedAt = 100L, playlistId = 10L)
+            ))
+        }
+
+        val resolver = AlarmPlaybackResolver(alarmRepo, playlistRepo, progressRepo, clock)
+        val result = resolver.resolve(1L)
+
+        assertTrue(result is AlarmPlaybackResolver.Result.Success)
+        val success = result as AlarmPlaybackResolver.Result.Success
+        assertEquals(1, success.startIndex)
+        assertEquals(song2, success.startSong)
+        assertNull(progressRepo.lastSaved)
+    }
+
+    private fun alarm(id: Long, playlistId: Long, resumePlayback: Boolean = true) = Alarm(
         id = id, hour = 7, minute = 0,
         repeatDays = emptySet(), playlistId = playlistId,
-        isEnabled = true, label = "Test", autoStop = null, lastTriggeredAt = null
+        isEnabled = true, label = "Test", autoStop = null, lastTriggeredAt = null,
+        resumePlayback = resumePlayback,
+        ringMode = AlarmRingMode.Normal
     )
 }

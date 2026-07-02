@@ -2,6 +2,7 @@ package com.rabbithole.musicbbit.data.mapper
 
 import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.domain.model.AlarmRingMode
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -37,6 +38,8 @@ class AlarmMapperTest {
         assertEquals("Work Alarm", domain.label)
         assertEquals(AutoStop.ByMinutes(20), domain.autoStop)
         assertEquals(1_700_000_000_000L, domain.lastTriggeredAt)
+        assertEquals(true, domain.resumePlayback)
+        assertEquals(AlarmRingMode.Normal, domain.ringMode)
     }
 
     @Test
@@ -60,6 +63,8 @@ class AlarmMapperTest {
         assertNull(domain.autoStop)
         assertNull(domain.lastTriggeredAt)
         assertEquals(emptySet<DayOfWeek>(), domain.repeatDays)
+        assertEquals(true, domain.resumePlayback)
+        assertEquals(AlarmRingMode.Normal, domain.ringMode)
     }
 
     @Test
@@ -89,6 +94,8 @@ class AlarmMapperTest {
         assertEquals("Work Alarm", entity.label)
         assertEquals("SONGS:3", entity.autoStop)
         assertEquals(1_700_000_000_000L, entity.lastTriggeredAt)
+        assertEquals(true, entity.resumePlayback)
+        assertEquals("NORMAL", entity.ringMode)
     }
 
     @Test
@@ -103,12 +110,50 @@ class AlarmMapperTest {
             isEnabled = true,
             label = "Weekend",
             autoStop = AutoStop.ByMinutes(5),
-            lastTriggeredAt = null
+            lastTriggeredAt = null,
+            resumePlayback = false,
+            ringMode = AlarmRingMode.FullScreen
         )
 
         val entity = original.toEntity()
         val roundtrip = entity.toDomain()
 
         assertEquals(original, roundtrip)
+    }
+
+    @Test
+    fun `toDomain falls back to Normal for unknown ringMode string`() {
+        val entity = AlarmEntity(
+            id = 1L,
+            hour = 7,
+            minute = 0,
+            repeatDaysBitmask = 0,
+            playlistId = 1L,
+            isEnabled = true,
+            label = null,
+            autoStop = null,
+            lastTriggeredAt = null,
+            ringMode = "UNKNOWN_VALUE"
+        )
+
+        assertEquals(AlarmRingMode.Normal, entity.toDomain().ringMode)
+    }
+
+    @Test
+    fun `toEntity stores FullScreen ringMode uppercase`() {
+        val domain = Alarm(
+            id = 1L,
+            hour = 7,
+            minute = 0,
+            repeatDays = emptySet(),
+            playlistId = 1L,
+            isEnabled = true,
+            label = null,
+            autoStop = null,
+            lastTriggeredAt = null,
+            ringMode = AlarmRingMode.FullScreen
+        )
+
+        assertEquals("FULLSCREEN", domain.toEntity().ringMode)
     }
 }

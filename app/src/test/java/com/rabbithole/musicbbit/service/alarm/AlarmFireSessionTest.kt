@@ -1,6 +1,7 @@
 package com.rabbithole.musicbbit.service.alarm
 
 import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.domain.model.AlarmRingMode
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Playlist
@@ -199,7 +200,7 @@ class AlarmFireSessionTest {
     }
 
     @Test
-    fun `fire resolves start index from saved progress and resets it to zero`() = scope.runTest {
+    fun `fire with resumePlayback true resumes from saved progress and does not reset it`() = scope.runTest {
         val alarm = repeatingAlarm(id = 3L, playlistId = 30L)
         alarmRepository.insert(alarm)
         playlistRepository.set(30L, threeSongPlaylist(id = 30L))
@@ -220,9 +221,35 @@ class AlarmFireSessionTest {
 
         assertEquals("playback should start at the song with the latest saved progress",
             2, fakeControls.lastStartIndex)
+        assertNull("progress should not be reset when resumePlayback is true",
+            progressRepository.lastSaved)
+    }
+
+    @Test
+    fun `fire with resumePlayback false starts from first song and resets progress`() = scope.runTest {
+        val alarm = repeatingAlarm(id = 3L, playlistId = 30L).copy(resumePlayback = false)
+        alarmRepository.insert(alarm)
+        playlistRepository.set(30L, threeSongPlaylist(id = 30L))
+        progressRepository.set(
+            playlistId = 30L,
+            entries = listOf(
+                PlaybackProgress(
+                    songId = SONG_3.id,
+                    positionMs = 45_000L,
+                    updatedAt = NOW_MS - 1_000L,
+                    playlistId = 30L,
+                ),
+            ),
+        )
+
+        session.fire(alarmId = 3L, isAlarmTrigger = true)
+        runCurrent()
+
+        assertEquals("playback should start from the first song",
+            0, fakeControls.lastStartIndex)
         val savedProgress = progressRepository.lastSaved
-        assertEquals(SONG_3.id, savedProgress?.songId)
-        assertEquals("progress for the resumed song should be reset to 0", 0L,
+        assertEquals(SONG_1.id, savedProgress?.songId)
+        assertEquals("progress should be reset to 0 when resumePlayback is false", 0L,
             savedProgress?.positionMs)
     }
 

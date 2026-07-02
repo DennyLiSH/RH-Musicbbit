@@ -7,6 +7,7 @@ import androidx.work.Configuration
 import androidx.work.WorkManager
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.domain.model.AlarmRingMode
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
@@ -31,6 +32,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verifyBlocking
@@ -109,6 +111,8 @@ class AlarmEditViewModelTest {
         assertEquals("Label should be empty", "", form.label)
         assertNull("AutoStop should be null", form.autoStop)
         assertTrue("isEnabled should be true", form.isEnabled)
+        assertTrue("resumePlayback should default to true", form.resumePlayback)
+        assertEquals("ringMode should default to Normal", AlarmRingMode.Normal, form.ringMode)
         assertTrue("isNewAlarm should be true", state.isNewAlarm)
         assertFalse("isLoading should be false", state.isLoading)
         assertFalse("isSaving should be false", state.isSaving)
@@ -128,7 +132,9 @@ class AlarmEditViewModelTest {
             isEnabled = true,
             label = "Work Alarm",
             autoStop = AutoStop.ByMinutes(20),
-            lastTriggeredAt = 1_700_000_000_000L
+            lastTriggeredAt = 1_700_000_000_000L,
+            resumePlayback = false,
+            ringMode = AlarmRingMode.FullScreen
         )
 
         wheneverBlocking { alarmRepository.getAlarmById(1L) } doReturn existingAlarm
@@ -154,6 +160,56 @@ class AlarmEditViewModelTest {
         assertEquals("Label should match alarm", "Work Alarm", form.label)
         assertEquals("AutoStop should match alarm", AutoStop.ByMinutes(20), form.autoStop)
         assertTrue("isEnabled should match alarm", form.isEnabled)
+        assertFalse("resumePlayback should match alarm", form.resumePlayback)
+        assertEquals("ringMode should match alarm", AlarmRingMode.FullScreen, form.ringMode)
+    }
+
+    @Test
+    fun `OnResumePlaybackChanged updates form`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        viewModel.onAction(AlarmEditAction.OnResumePlaybackChanged(false))
+
+        assertFalse(viewModel.uiState.value.form.resumePlayback)
+    }
+
+    @Test
+    fun `OnRingModeChanged updates form`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        viewModel.onAction(AlarmEditAction.OnRingModeChanged(AlarmRingMode.FullScreen))
+
+        assertEquals(AlarmRingMode.FullScreen, viewModel.uiState.value.form.ringMode)
+    }
+
+    @Test
+    fun `saveAlarm carries resumePlayback and ringMode to repository`() = runTest {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(
+            flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
+        )
+        wheneverBlocking { alarmRepository.saveAlarm(any()) } doReturn Result.success(1L)
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        viewModel.onAction(AlarmEditAction.OnPlaylistSelected(10L))
+        viewModel.onAction(AlarmEditAction.OnResumePlaybackChanged(false))
+        viewModel.onAction(AlarmEditAction.OnRingModeChanged(AlarmRingMode.FullScreen))
+        viewModel.onAction(AlarmEditAction.OnSave)
+
+        advanceUntilIdle()
+
+        val captor = argumentCaptor<Alarm>()
+        verifyBlocking(alarmRepository) { saveAlarm(captor.capture()) }
+        val savedAlarm = captor.firstValue
+        assertFalse(savedAlarm.resumePlayback)
+        assertEquals(AlarmRingMode.FullScreen, savedAlarm.ringMode)
     }
 
     @Test
