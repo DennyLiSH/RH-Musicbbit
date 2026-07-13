@@ -10,6 +10,7 @@ import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyBlocking
 import org.mockito.kotlin.whenever
@@ -123,6 +124,11 @@ class PlaybackSessionTest {
         assertEquals(PlayMode.SEQUENTIAL, state.playMode)
         assertTrue(state.queue.isEmpty())
         assertEquals(0, state.queueIndex)
+    }
+
+    @Test
+    fun `init does not ensure notification channel exists`() {
+        verify(musicNotificationPort, never()).ensureChannelExists()
     }
 
     // -------- play() ----------------------------------------------------------

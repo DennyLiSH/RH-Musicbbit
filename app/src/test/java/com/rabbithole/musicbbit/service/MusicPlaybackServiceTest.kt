@@ -4,6 +4,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
+import com.rabbithole.musicbbit.service.playback.ForegroundNotificationController
 import com.rabbithole.musicbbit.service.playback.PlaybackSession
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
@@ -15,6 +16,7 @@ import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -34,6 +36,7 @@ import org.robolectric.annotation.Config
  *   - onBind returns MusicBinder
  *   - onStartCommand returns START_STICKY
  *   - Intent action delegation to [PlaybackSession] and [AlarmFireSession]
+ *   - ForegroundNotificationController and MusicPlaybackServiceForegroundBridge lifecycle
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltAndroidTest
@@ -67,6 +70,21 @@ class MusicPlaybackServiceTest {
     }
 
     @Test
+    fun `onCreate attaches service to bridge`() {
+        service.onCreate()
+
+        val bridge = service.javaClass.getDeclaredField("foregroundServiceBridge").apply {
+            isAccessible = true
+        }.get(service) as MusicPlaybackServiceForegroundBridge
+
+        val attached = bridge.javaClass.getDeclaredField("service").apply {
+            isAccessible = true
+        }.get(bridge)
+
+        assertEquals("Bridge should attach the created service", service, attached)
+    }
+
+    @Test
     fun `onBind returns MusicBinder`() {
         service.onCreate()
 
@@ -87,6 +105,24 @@ class MusicPlaybackServiceTest {
             Service.START_NOT_STICKY,
             result,
         )
+    }
+
+    @Test
+    fun `onStartCommand calls foregroundNotificationController onStartCommand`() {
+        service.onCreate()
+
+        val mockController = mock<ForegroundNotificationController>()
+        service.javaClass.getDeclaredField("foregroundNotificationController").apply {
+            isAccessible = true
+            set(service, mockController)
+        }
+
+        val intent = Intent(RuntimeEnvironment.getApplication(), MusicPlaybackService::class.java).apply {
+            action = MusicPlaybackService.ACTION_NEXT
+        }
+        val result = service.onStartCommand(intent, 0, 0)
+        assertEquals("Should return START_STICKY", Service.START_STICKY, result)
+        verify(mockController).onStartCommand()
     }
 
     @Test
@@ -187,6 +223,31 @@ class MusicPlaybackServiceTest {
         service.onStartCommand(intent, 0, 0)
 
         verify(mockPlaybackSession).resume()
+    }
+
+    @Test
+    fun `onDestroy calls controller onDestroy and detaches from bridge`() {
+        service.onCreate()
+
+        val mockController = mock<ForegroundNotificationController>()
+        service.javaClass.getDeclaredField("foregroundNotificationController").apply {
+            isAccessible = true
+            set(service, mockController)
+        }
+
+        service.onDestroy()
+
+        verify(mockController).onDestroy()
+
+        val bridge = service.javaClass.getDeclaredField("foregroundServiceBridge").apply {
+            isAccessible = true
+        }.get(service) as MusicPlaybackServiceForegroundBridge
+
+        val attached = bridge.javaClass.getDeclaredField("service").apply {
+            isAccessible = true
+        }.get(bridge)
+
+        assertNull("Bridge should detach the destroyed service", attached)
     }
 
     @Test

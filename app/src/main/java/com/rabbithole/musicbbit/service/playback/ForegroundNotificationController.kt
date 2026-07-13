@@ -3,6 +3,7 @@ package com.rabbithole.musicbbit.service.playback
 import com.rabbithole.musicbbit.di.MainDispatcher
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -30,7 +31,10 @@ class ForegroundNotificationController @Inject constructor(
 ) {
 
     private val controllerJob = SupervisorJob()
-    private val controllerScope = CoroutineScope(controllerJob + mainDispatcher)
+    private val exceptionHandler = CoroutineExceptionHandler { _, t ->
+        Timber.e(t, "ForegroundNotificationController unhandled error")
+    }
+    private val controllerScope = CoroutineScope(controllerJob + exceptionHandler + mainDispatcher)
     private var stateCollectionJob: Job? = null
 
     fun onCreate() {
