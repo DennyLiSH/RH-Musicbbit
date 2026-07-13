@@ -72,7 +72,6 @@ class PlaybackSession @Inject constructor(
 
     init {
         Timber.i("PlaybackSession created")
-        musicNotificationPort.ensureChannelExists()
     }
 
     override fun onPlayerEvent(event: PlayerEvent) {
