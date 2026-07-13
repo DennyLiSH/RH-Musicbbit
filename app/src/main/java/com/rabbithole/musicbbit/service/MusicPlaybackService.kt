@@ -126,7 +126,7 @@ class MusicPlaybackService : Service() {
     }
 
     companion object {
-        private const val NOTIFICATION_ID = 1
+        internal const val NOTIFICATION_ID = 1
         private const val ALARM_WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
 
         const val ACTION_PLAY_ALARM = "com.rabbithole.musicbbit.action.PLAY_ALARM"
