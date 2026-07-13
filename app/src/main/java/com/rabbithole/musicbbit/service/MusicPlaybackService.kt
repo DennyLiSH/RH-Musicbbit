@@ -35,9 +35,6 @@ class MusicPlaybackService : Service() {
     lateinit var playbackSession: PlaybackSession
 
     @Inject
-    lateinit var musicNotificationManager: MusicNotificationManager
-
-    @Inject
     lateinit var wakeLockPort: WakeLockPort
 
     @Inject
@@ -49,7 +46,6 @@ class MusicPlaybackService : Service() {
 
     private val serviceJob = SupervisorJob()
     private val serviceScope by lazy { CoroutineScope(serviceJob + mainDispatcher) }
-    private var stateJob: Job? = null
 
     inner class MusicBinder : Binder() {
         fun getService(): MusicPlaybackService = this@MusicPlaybackService
@@ -60,21 +56,6 @@ class MusicPlaybackService : Service() {
     override fun onCreate() {
         super.onCreate()
         Timber.i("MusicPlaybackService created")
-        musicNotificationManager.ensureChannelExists()
-        observePlaybackState()
-    }
-
-    private fun observePlaybackState() {
-        stateJob = serviceScope.launch {
-            playbackSession.playbackState.collect { state ->
-                if (state.currentSong != null) {
-                    val notification = musicNotificationManager.buildNotification(state)
-                    startForeground(NOTIFICATION_ID, notification)
-                } else {
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                }
-            }
-        }
     }
 
     override fun onBind(intent: Intent): IBinder = binder
@@ -87,10 +68,6 @@ class MusicPlaybackService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-
-        val state = playbackSession.playbackState.value
-        val notification = musicNotificationManager.buildNotification(state)
-        startForeground(NOTIFICATION_ID, notification)
 
         when (intent.action) {
             ACTION_PLAY_ALARM -> {
@@ -119,7 +96,6 @@ class MusicPlaybackService : Service() {
 
     override fun onDestroy() {
         Timber.i("MusicPlaybackService destroyed")
-        stateJob?.cancel()
         wakeLockPort.release()
         serviceJob.cancel()
         super.onDestroy()

@@ -16,14 +16,17 @@ import javax.inject.Singleton
 /**
  * Manages the foreground notification for [MusicPlaybackService].
  *
- * Encapsulates channel creation, notification building, and posting.
+ * Encapsulates channel creation, notification building, and the Android
+ * foreground service lifecycle cycle. The [android.app.Notification] type
+ * never leaves this adapter.
  */
 @Singleton
-class MusicNotificationManager @Inject constructor(
+internal class MusicNotificationManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val resources: NotificationResources,
     private val channelFactory: NotificationChannelFactory,
     private val mainActivityIntentFactory: MainActivityIntentFactory,
+    private val foregroundServicePort: ForegroundServicePort,
 ) : MusicNotificationPort {
     private val channelId = "music_playback_channel"
     private val notificationId = 1
@@ -43,17 +46,22 @@ class MusicNotificationManager @Inject constructor(
 
     override fun buildAndNotify(state: PlaybackState) {
         val notification = buildNotification(state)
-        notificationManager.notify(notificationId, notification)
+        Timber.i("Starting foreground notification for playback")
+        foregroundServicePort.startForeground(notification)
+    }
+
+    override fun hideForegroundNotification() {
+        Timber.i("Stopping foreground notification for playback")
+        foregroundServicePort.stopForeground()
     }
 
     /**
-     * Builds the notification for [MusicPlaybackService.startForeground].
+     * Builds the notification for the foreground service.
      *
-     * This method intentionally remains public (not part of [MusicNotificationPort])
-     * because [android.app.Notification] is required by the Service API and must not
-     * leak into the pure-Kotlin `service/playback/` seam.
+     * This method is private to keep [android.app.Notification] inside this
+     * adapter and out of the pure-Kotlin `service/playback/` seam.
      */
-    fun buildNotification(state: PlaybackState): Notification {
+    private fun buildNotification(state: PlaybackState): Notification {
         val song = state.currentSong
 
         val contentIntent = mainActivityIntentFactory.create(0)

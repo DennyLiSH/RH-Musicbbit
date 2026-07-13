@@ -10,4 +10,5 @@ import com.rabbithole.musicbbit.service.PlaybackState
 interface MusicNotificationPort {
     fun ensureChannelExists()
     fun buildAndNotify(state: PlaybackState)
+    fun hideForegroundNotification()
 }
