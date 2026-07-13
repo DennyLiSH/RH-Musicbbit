@@ -6,7 +6,6 @@ import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.service.AlarmScheduler
-import com.rabbithole.musicbbit.service.alarm.AlarmSchedulerCoordinator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -36,8 +35,7 @@ class AlarmRepositoryImplTest {
     @Before
     fun setup() {
         val persistence = AlarmPersistenceRepositoryImpl(alarmDao, testDispatcher)
-        val coordinator = AlarmSchedulerCoordinator(alarmScheduler)
-        repository = AlarmRepositoryImpl(persistence, coordinator, testDispatcher)
+        repository = AlarmRepositoryImpl(persistence, alarmScheduler, testDispatcher)
     }
 
     // ------------------------------------------------------------------
@@ -155,6 +153,33 @@ class AlarmRepositoryImplTest {
         assertTrue(result.isSuccess)
         verifyBlocking(alarmScheduler, org.mockito.Mockito.never()) { schedule(any()) }
         verifyBlocking(alarmDao, org.mockito.Mockito.never()) { update(any()) }
+    }
+
+    @Test
+    fun `enableAlarm disables and cancels alarm`() = runTest(testDispatcher) {
+        val entity = alarmEntity(id = 7L, isEnabled = true)
+        wheneverBlocking { alarmDao.getById(7L) } doReturn entity
+        wheneverBlocking { alarmDao.update(any()) } doReturn Unit
+
+        val result = repository.enableAlarm(7L, false)
+
+        assertTrue(result.isSuccess)
+        verifyBlocking(alarmDao) { update(argThat { id == 7L && !isEnabled }) }
+        verify(alarmScheduler).cancel(7L)
+        verifyBlocking(alarmScheduler, org.mockito.Mockito.never()) { schedule(any()) }
+    }
+
+    @Test
+    fun `saveAlarm with disabled alarm triggers cancel`() = runTest(testDispatcher) {
+        val alarm = alarmDomain(id = 0, hour = 8, minute = 0, playlistId = 5L, isEnabled = false)
+        wheneverBlocking { alarmDao.insert(any()) } doReturn 42L
+
+        val result = repository.saveAlarm(alarm)
+
+        assertTrue(result.isSuccess)
+        assertEquals(42L, result.getOrNull())
+        verifyBlocking(alarmDao) { insert(argThat { hour == 8 && minute == 0 && playlistId == 5L && !isEnabled }) }
+        verifyBlocking(alarmScheduler) { schedule(argThat { id == 42L && !isEnabled }) }
     }
 
     @Test

@@ -79,6 +79,7 @@ class AlarmScheduler @Inject constructor(
 
         val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime, createShowIntent())
         alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+        Timber.i("Alarm scheduled id=${alarm.id}")
     }
 
     /**
@@ -90,6 +91,7 @@ class AlarmScheduler @Inject constructor(
         Timber.i("Cancelling alarm id=$alarmId")
         val pendingIntent = createPendingIntent(alarmId)
         alarmManager.cancel(pendingIntent)
+        Timber.i("Alarm cancelled id=$alarmId")
     }
 
     /**

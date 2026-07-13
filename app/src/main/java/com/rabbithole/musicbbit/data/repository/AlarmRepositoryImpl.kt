@@ -4,7 +4,7 @@ import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.repository.AlarmPersistenceRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
-import com.rabbithole.musicbbit.service.alarm.AlarmSchedulerCoordinator
+import com.rabbithole.musicbbit.service.AlarmScheduler
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -17,13 +17,13 @@ import javax.inject.Singleton
  * Coordinates alarm persistence with system scheduling.
  *
  * Delegates all database work to [AlarmPersistenceRepository] and all
- * AlarmManager interactions to [AlarmSchedulerCoordinator]. This class
+ * AlarmManager interactions to [AlarmScheduler]. This class
  * contains **only** orchestration logic — no direct Room or AlarmManager calls.
  */
 @Singleton
 class AlarmRepositoryImpl @Inject constructor(
     private val persistence: AlarmPersistenceRepository,
-    private val schedulerCoordinator: AlarmSchedulerCoordinator,
+    private val alarmScheduler: AlarmScheduler,
     @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : AlarmRepository {
 
@@ -42,7 +42,7 @@ class AlarmRepositoryImpl @Inject constructor(
     override suspend fun saveAlarm(alarm: Alarm): Result<Long> = runCatching {
         withContext(ioDispatcher) {
             val id = persistence.save(alarm)
-            schedulerCoordinator.schedule(alarm.copy(id = id))
+            alarmScheduler.schedule(alarm.copy(id = id))
             id
         }
     }
@@ -50,13 +50,13 @@ class AlarmRepositoryImpl @Inject constructor(
     override suspend fun updateAlarm(alarm: Alarm): Result<Unit> = runCatching {
         withContext(ioDispatcher) {
             persistence.update(alarm)
-            schedulerCoordinator.schedule(alarm)
+            alarmScheduler.schedule(alarm)
         }
     }
 
     override suspend fun deleteAlarm(alarm: Alarm): Result<Unit> = runCatching {
         withContext(ioDispatcher) {
-            schedulerCoordinator.cancel(alarm.id)
+            alarmScheduler.cancel(alarm.id)
             persistence.delete(alarm)
         }
     }
@@ -67,9 +67,9 @@ class AlarmRepositoryImpl @Inject constructor(
             if (alarm != null) {
                 persistence.enableAlarm(id, enabled)
                 if (enabled) {
-                    schedulerCoordinator.schedule(alarm.copy(isEnabled = enabled))
+                    alarmScheduler.schedule(alarm.copy(isEnabled = enabled))
                 } else {
-                    schedulerCoordinator.cancel(id)
+                    alarmScheduler.cancel(id)
                 }
             }
         }
@@ -80,7 +80,7 @@ class AlarmRepositoryImpl @Inject constructor(
             persistence.recordTriggered(alarmId)
             val alarm = persistence.getAlarmById(alarmId)
             if (alarm != null && alarm.repeatDays.isNotEmpty()) {
-                schedulerCoordinator.schedule(alarm)
+                alarmScheduler.schedule(alarm)
             }
         }
     }
