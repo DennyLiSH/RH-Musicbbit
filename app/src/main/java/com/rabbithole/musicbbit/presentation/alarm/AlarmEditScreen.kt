@@ -58,69 +58,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.AutoStop
+import com.rabbithole.musicbbit.presentation.alarm.components.AUTO_STOP_OPTIONS
 import com.rabbithole.musicbbit.presentation.alarm.components.DayOfWeekSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.PlaylistSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.RingModeSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.TimePickerDialog
+import com.rabbithole.musicbbit.presentation.alarm.components.labelRes
+import com.rabbithole.musicbbit.presentation.alarm.components.toAutoStop
+import com.rabbithole.musicbbit.presentation.alarm.components.toOption
 import com.rabbithole.musicbbit.presentation.components.rememberAppToast
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import com.rabbithole.musicbbit.ui.theme.timeDisplayStandard
 import timber.log.Timber
-
-private sealed interface AutoStopOption {
-    data object None : AutoStopOption
-    data class Minutes(val value: Int) : AutoStopOption
-    data class Songs(val value: Int) : AutoStopOption
-}
-
-private fun AutoStopOption.toAutoStop(): AutoStop? = when (this) {
-    is AutoStopOption.Minutes -> AutoStop.ByMinutes(value)
-    is AutoStopOption.Songs -> AutoStop.BySongCount(value)
-    AutoStopOption.None -> null
-}
-
-private fun AutoStop?.toOption(): AutoStopOption = when (this) {
-    is AutoStop.ByMinutes -> AutoStopOption.Minutes(minutes)
-    is AutoStop.BySongCount -> AutoStopOption.Songs(count)
-    null -> AutoStopOption.None
-}
-
-@StringRes
-private fun AutoStopOption.labelRes(): Int = when (this) {
-    AutoStopOption.None -> R.string.alarm_edit_auto_stop_none
-    is AutoStopOption.Minutes -> when (value) {
-        5 -> R.string.alarm_edit_auto_stop_5min
-        10 -> R.string.alarm_edit_auto_stop_10min
-        15 -> R.string.alarm_edit_auto_stop_15min
-        30 -> R.string.alarm_edit_auto_stop_30min
-        60 -> R.string.alarm_edit_auto_stop_60min
-        else -> R.string.alarm_edit_auto_stop_none
-    }
-    is AutoStopOption.Songs -> when (value) {
-        1 -> R.string.alarm_edit_auto_stop_1song
-        2 -> R.string.alarm_edit_auto_stop_2songs
-        3 -> R.string.alarm_edit_auto_stop_3songs
-        4 -> R.string.alarm_edit_auto_stop_4songs
-        5 -> R.string.alarm_edit_auto_stop_5songs
-        10 -> R.string.alarm_edit_auto_stop_10songs
-        else -> R.string.alarm_edit_auto_stop_none
-    }
-}
-
-private val AUTO_STOP_OPTIONS = listOf(
-    AutoStopOption.None,
-    AutoStopOption.Minutes(5),
-    AutoStopOption.Minutes(10),
-    AutoStopOption.Minutes(15),
-    AutoStopOption.Minutes(30),
-    AutoStopOption.Minutes(60),
-    AutoStopOption.Songs(1),
-    AutoStopOption.Songs(2),
-    AutoStopOption.Songs(3),
-    AutoStopOption.Songs(4),
-    AutoStopOption.Songs(5),
-    AutoStopOption.Songs(10),
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
