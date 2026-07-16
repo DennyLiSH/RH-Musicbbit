@@ -58,21 +58,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.AutoStop
-import com.rabbithole.musicbbit.presentation.alarm.components.AUTO_STOP_OPTIONS
-import com.rabbithole.musicbbit.presentation.alarm.components.AutoStopDropdown
-import com.rabbithole.musicbbit.presentation.alarm.components.DayOfWeekSelector
-import com.rabbithole.musicbbit.presentation.alarm.components.PlaylistSelector
-import com.rabbithole.musicbbit.presentation.alarm.components.ResumePlaybackSwitch
-import com.rabbithole.musicbbit.presentation.alarm.components.RingModeSelector
+import com.rabbithole.musicbbit.presentation.alarm.components.AlarmEditContent
 import com.rabbithole.musicbbit.presentation.alarm.components.SaveButtonBar
-import com.rabbithole.musicbbit.presentation.alarm.components.SectionTitle
-import com.rabbithole.musicbbit.presentation.alarm.components.SettingsGroup
-import com.rabbithole.musicbbit.presentation.alarm.components.TimeDisplay
 import com.rabbithole.musicbbit.presentation.alarm.components.TimePickerDialog
-import com.rabbithole.musicbbit.presentation.alarm.components.VolumeRampHint
-import com.rabbithole.musicbbit.presentation.alarm.components.labelRes
-import com.rabbithole.musicbbit.presentation.alarm.components.toAutoStop
-import com.rabbithole.musicbbit.presentation.alarm.components.toOption
 import com.rabbithole.musicbbit.presentation.components.rememberAppToast
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import com.rabbithole.musicbbit.ui.theme.timeDisplayStandard
@@ -346,122 +334,5 @@ fun AlarmEditScreen(
                 }
             }
         )
-    }
-}
-
-@Composable
-private fun AlarmEditContent(
-    uiState: AlarmEditUiState,
-    onTimeClick: () -> Unit,
-    onAction: (AlarmEditAction) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val form = uiState.form
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-    ) {
-        Spacer(modifier = Modifier.height(16.dp))
-
-        TimeDisplay(
-            hour = form.hour,
-            minute = form.minute,
-            onClick = onTimeClick
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        SettingsGroup(
-            title = stringResource(R.string.alarm_edit_section_basic)
-        ) {
-            SectionTitle(title = stringResource(R.string.alarm_edit_section_repeat))
-            DayOfWeekSelector(
-                selectedDays = form.repeatDays,
-                excludeHolidays = form.excludeHolidays,
-                onDaysChanged = { days ->
-                    onAction(AlarmEditAction.OnRepeatDaysChanged(days))
-                },
-                onExcludeHolidaysChanged = { exclude ->
-                    onAction(AlarmEditAction.OnExcludeHolidaysChanged(exclude))
-                }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            SectionTitle(title = stringResource(R.string.alarm_edit_section_playlist))
-            PlaylistSelector(
-                playlists = uiState.playlists,
-                selectedPlaylistId = form.playlistId,
-                onPlaylistSelected = { playlistId ->
-                    onAction(AlarmEditAction.OnPlaylistSelected(playlistId))
-                }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            SectionTitle(title = stringResource(R.string.alarm_edit_section_resume_playback))
-            ResumePlaybackSwitch(
-                checked = form.resumePlayback,
-                onCheckedChange = { resume ->
-                    onAction(AlarmEditAction.OnResumePlaybackChanged(resume))
-                }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        SettingsGroup(
-            title = stringResource(R.string.alarm_edit_section_advanced)
-        ) {
-            SectionTitle(title = stringResource(R.string.alarm_edit_section_label))
-            OutlinedTextField(
-                value = form.label,
-                onValueChange = { onAction(AlarmEditAction.OnLabelChanged(it)) },
-                placeholder = { Text(stringResource(R.string.alarm_edit_label_placeholder)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            SectionTitle(title = stringResource(R.string.alarm_edit_section_ring_mode))
-            RingModeSelector(
-                selectedMode = form.ringMode,
-                onModeChanged = { mode ->
-                    onAction(AlarmEditAction.OnRingModeChanged(mode))
-                }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            SectionTitle(title = stringResource(R.string.alarm_edit_section_auto_stop))
-            AutoStopDropdown(
-                selectedAutoStop = form.autoStop,
-                onSelectionChange = { autoStop ->
-                    onAction(AlarmEditAction.OnAutoStopChanged(autoStop))
-                }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            VolumeRampHint(
-                durationSeconds = uiState.volumeRampDurationSeconds
-            )
-        }
-
-        if (uiState.errorMessageResId != null) {
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = stringResource(uiState.errorMessageResId),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
-            )
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
     }
 }
