@@ -62,6 +62,7 @@ import com.rabbithole.musicbbit.presentation.alarm.components.DayOfWeekSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.PlaylistSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.RingModeSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.TimePickerDialog
+import com.rabbithole.musicbbit.presentation.components.rememberAppToast
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import com.rabbithole.musicbbit.ui.theme.timeDisplayStandard
 import timber.log.Timber
@@ -138,6 +139,7 @@ fun AlarmEditScreen(
     var hasUnsavedChanges by remember { mutableStateOf(false) }
     var autostartIntent by remember { mutableStateOf<Intent?>(null) }
     val context = LocalContext.current
+    val toast = rememberAppToast()
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMessageResId = uiState.saveFailedMessageResId
     val saveFailedMessage = saveFailedMessageResId?.let { stringResource(it) }
@@ -158,7 +160,7 @@ fun AlarmEditScreen(
     LaunchedEffect(uiState.saveCompleted) {
         if (uiState.saveCompleted) {
             Timber.i("Alarm saved, navigating up")
-            android.widget.Toast.makeText(context, alarmSavedMessage, android.widget.Toast.LENGTH_SHORT).show()
+            toast.showShort(alarmSavedMessage)
             navController.navigateUp()
         }
     }

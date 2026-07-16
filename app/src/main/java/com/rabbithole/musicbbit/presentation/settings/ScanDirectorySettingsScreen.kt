@@ -1,6 +1,5 @@
 package com.rabbithole.musicbbit.presentation.settings
 
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -44,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.presentation.components.ErrorContent
+import com.rabbithole.musicbbit.presentation.components.rememberAppToast
 import com.rabbithole.musicbbit.presentation.settings.components.ScanDirectoryItem
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,6 +54,7 @@ fun ScanDirectorySettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val toast = rememberAppToast()
     val externalStorageMessage = stringResource(R.string.settings_toast_external_storage)
     val parseFailedMessage = stringResource(R.string.settings_toast_parse_failed)
 
@@ -67,18 +68,10 @@ fun ScanDirectorySettingsScreen(
                     viewModel.onAction(ScanDirectorySettingsAction.OnScanDirectoryPreview(result.path, name))
                 }
                 is TreeUriPathResult.UnsupportedStorage -> {
-                    Toast.makeText(
-                        context,
-                        externalStorageMessage,
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    toast.showShort(externalStorageMessage)
                 }
                 is TreeUriPathResult.ParseFailed -> {
-                    Toast.makeText(
-                        context,
-                        parseFailedMessage,
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    toast.showShort(parseFailedMessage)
                 }
             }
         }
