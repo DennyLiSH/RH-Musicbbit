@@ -59,6 +59,9 @@ import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.presentation.alarm.components.AlarmEditContent
+import com.rabbithole.musicbbit.presentation.alarm.components.DiscardDialog
+import com.rabbithole.musicbbit.presentation.alarm.components.FullScreenIntentDialog
+import com.rabbithole.musicbbit.presentation.alarm.components.PermissionDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.SaveButtonBar
 import com.rabbithole.musicbbit.presentation.alarm.components.TimePickerDialog
 import com.rabbithole.musicbbit.presentation.components.rememberAppToast
@@ -220,55 +223,16 @@ fun AlarmEditScreen(
     }
 
     if (showPermissionDialog) {
-        AlertDialog(
-            onDismissRequest = { showPermissionDialog = false },
-            title = { Text(stringResource(R.string.exact_alarm_permission_title)) },
-            text = { Text(stringResource(R.string.exact_alarm_permission_message)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-                            data = Uri.parse("package:${context.packageName}")
-                        }
-                        try {
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            Timber.e(e, "Failed to launch exact alarm settings")
-                        }
-                        showPermissionDialog = false
-                    }
-                ) {
-                    Text(stringResource(R.string.go_to_settings))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showPermissionDialog = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            }
+        PermissionDialog(
+            onDismiss = { showPermissionDialog = false },
+            context = context,
         )
     }
 
     if (showFullScreenIntentDialog) {
-        AlertDialog(
-            onDismissRequest = { showFullScreenIntentDialog = false },
-            title = { Text(stringResource(R.string.fsi_permission_title)) },
-            text = { Text(stringResource(R.string.fsi_permission_message)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        FullScreenIntentPermissionHelper.openSettings(context)
-                        showFullScreenIntentDialog = false
-                    }
-                ) {
-                    Text(stringResource(R.string.fsi_permission_grant))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showFullScreenIntentDialog = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            }
+        FullScreenIntentDialog(
+            onDismiss = { showFullScreenIntentDialog = false },
+            context = context,
         )
     }
 
@@ -313,25 +277,12 @@ fun AlarmEditScreen(
     }
 
     if (showDiscardDialog) {
-        AlertDialog(
-            onDismissRequest = { showDiscardDialog = false },
-            title = { Text(stringResource(R.string.discard_changes_title)) },
-            text = { Text(stringResource(R.string.discard_changes_message)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDiscardDialog = false
-                        hasUnsavedChanges = false
-                        navController.navigateUp()
-                    }
-                ) {
-                    Text(stringResource(R.string.action_confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDiscardDialog = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
+        DiscardDialog(
+            onDismiss = { showDiscardDialog = false },
+            onConfirm = {
+                showDiscardDialog = false
+                hasUnsavedChanges = false
+                navController.navigateUp()
             }
         )
     }
