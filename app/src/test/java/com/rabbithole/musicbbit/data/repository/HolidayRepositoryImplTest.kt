@@ -18,6 +18,7 @@ import org.junit.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
 import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verifyBlocking
 import org.mockito.kotlin.whenever
@@ -121,5 +122,55 @@ class HolidayRepositoryImplTest {
         verifyBlocking(holidayDao) {
             insertAll(argThat { size == 1 && this[0].date == "2026-01-01" && this[0].isHoliday })
         }
+    }
+
+    @Test
+    fun `refreshHolidays with non-zero api code returns failure and skips dao`() = runTest(testDispatcher) {
+        wheneverBlocking { holidayApi.getHolidaysForYear(2026) } doReturn """{"code":1,"holiday":{}}"""
+
+        val result = repository.refreshHolidays(2026)
+
+        assertTrue(result.isFailure)
+        verifyBlocking(holidayDao, org.mockito.Mockito.never()) { deleteByYear(any()) }
+        verifyBlocking(holidayDao, org.mockito.Mockito.never()) { insertAll(any()) }
+    }
+
+    @Test
+    fun `refreshHolidays network exception returns failure`() = runTest(testDispatcher) {
+        wheneverBlocking { holidayApi.getHolidaysForYear(2026) } doThrow java.io.IOException("network")
+
+        val result = repository.refreshHolidays(2026)
+
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `maybeRefreshHolidays skips api when already called this month`() = runTest(testDispatcher) {
+        val prefs = androidx.datastore.preferences.core.mutablePreferencesOf(
+            com.rabbithole.musicbbit.data.local.datastore.SettingsKeys.LAST_HOLIDAY_API_CALL_MONTH to
+                java.time.YearMonth.now().toString()
+        )
+        whenever(dataStore.data).thenReturn(kotlinx.coroutines.flow.MutableStateFlow(prefs))
+
+        repository.maybeRefreshHolidays(2026)
+
+        verifyBlocking(holidayApi, org.mockito.Mockito.never()) { getHolidaysForYear(any()) }
+    }
+
+    @Test
+    fun `maybeRefreshHolidays swallows api failure silently`() = runTest(testDispatcher) {
+        // Empty prefs → no previous month record → proceeds to refresh
+        whenever(dataStore.data).thenReturn(
+            kotlinx.coroutines.flow.MutableStateFlow(
+                androidx.datastore.preferences.core.mutablePreferencesOf()
+            )
+        )
+        wheneverBlocking { holidayApi.getHolidaysForYear(2026) } doThrow java.io.IOException("network")
+
+        // Current signature is `suspend fun maybeRefreshHolidays(...): Unit` — internal
+        // try/catch swallows the exception. Direction 3 will change this to Result<Unit>.
+        repository.maybeRefreshHolidays(2026)
+
+        verifyBlocking(holidayApi) { getHolidaysForYear(2026) }
     }
 }
