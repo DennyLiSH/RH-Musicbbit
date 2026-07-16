@@ -52,7 +52,7 @@ class MusicPlaybackServiceTest {
     @Before
     fun setUp() {
         hiltRule.inject()
-        service = Robolectric.setupService(MusicPlaybackService::class.java)
+        service = Robolectric.buildService(MusicPlaybackService::class.java).get()
     }
 
     @Test

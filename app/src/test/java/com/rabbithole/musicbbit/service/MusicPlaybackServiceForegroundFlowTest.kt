@@ -66,7 +66,7 @@ class MusicPlaybackServiceForegroundFlowTest {
 
     @Test
     fun `service start with active song shows foreground notification`() {
-        val service = Robolectric.setupService(MusicPlaybackService::class.java)
+        val service = Robolectric.buildService(MusicPlaybackService::class.java).get()
         service.onCreate()
 
         setPlaybackState(
@@ -89,7 +89,7 @@ class MusicPlaybackServiceForegroundFlowTest {
 
     @Test
     fun `clearing active song removes foreground notification`() {
-        val service = Robolectric.setupService(MusicPlaybackService::class.java)
+        val service = Robolectric.buildService(MusicPlaybackService::class.java).get()
         service.onCreate()
 
         setPlaybackState(PlaybackState(currentSong = song, isPlaying = true))
@@ -116,12 +116,12 @@ class MusicPlaybackServiceForegroundFlowTest {
 
     @Test
     fun `service recreation re-attaches new instance`() {
-        val service1 = Robolectric.setupService(MusicPlaybackService::class.java)
+        val service1 = Robolectric.buildService(MusicPlaybackService::class.java).get()
         service1.onCreate()
 
         assertEquals("First service should be attached", service1, attachedService())
 
-        val service2 = Robolectric.setupService(MusicPlaybackService::class.java)
+        val service2 = Robolectric.buildService(MusicPlaybackService::class.java).get()
         service2.onCreate()
 
         assertEquals("Second service should replace first in bridge", service2, attachedService())

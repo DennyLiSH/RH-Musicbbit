@@ -2,8 +2,8 @@ package com.rabbithole.musicbbit.service.playback
 
 import com.rabbithole.musicbbit.di.MainDispatcher
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -20,8 +20,9 @@ import timber.log.Timber
  * adapter remains the only place that touches Android notifications.
  *
  * On any unexpected error in the state collection loop the controller hides the
- * notification and stops the service, then re-throws the error so it is not
- * silently swallowed.
+ * notification, stops the service, and ends this coroutine's collection by
+ * throwing [CancellationException]. The original error is logged via Timber
+ * before the coroutine is cancelled.
  */
 class ForegroundNotificationController @Inject constructor(
     private val playbackSession: PlaybackSession,
@@ -31,10 +32,7 @@ class ForegroundNotificationController @Inject constructor(
 ) {
 
     private val controllerJob = SupervisorJob()
-    private val exceptionHandler = CoroutineExceptionHandler { _, t ->
-        Timber.e(t, "ForegroundNotificationController unhandled error")
-    }
-    private val controllerScope = CoroutineScope(controllerJob + exceptionHandler + mainDispatcher)
+    private val controllerScope = CoroutineScope(controllerJob + mainDispatcher)
     private var stateCollectionJob: Job? = null
 
     fun onCreate() {
@@ -52,7 +50,7 @@ class ForegroundNotificationController @Inject constructor(
                     Timber.e(t, "ForegroundNotificationController state collection failed")
                     musicNotificationPort.hideForegroundNotification()
                     serviceStarter.stopService()
-                    throw t
+                    throw CancellationException("ForegroundNotificationController stop collection after error")
                 }
             }
         }
