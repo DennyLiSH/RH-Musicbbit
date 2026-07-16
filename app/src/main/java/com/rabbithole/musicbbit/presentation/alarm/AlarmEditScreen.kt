@@ -59,10 +59,17 @@ import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.presentation.alarm.components.AUTO_STOP_OPTIONS
+import com.rabbithole.musicbbit.presentation.alarm.components.AutoStopDropdown
 import com.rabbithole.musicbbit.presentation.alarm.components.DayOfWeekSelector
 import com.rabbithole.musicbbit.presentation.alarm.components.PlaylistSelector
+import com.rabbithole.musicbbit.presentation.alarm.components.ResumePlaybackSwitch
 import com.rabbithole.musicbbit.presentation.alarm.components.RingModeSelector
+import com.rabbithole.musicbbit.presentation.alarm.components.SaveButtonBar
+import com.rabbithole.musicbbit.presentation.alarm.components.SectionTitle
+import com.rabbithole.musicbbit.presentation.alarm.components.SettingsGroup
+import com.rabbithole.musicbbit.presentation.alarm.components.TimeDisplay
 import com.rabbithole.musicbbit.presentation.alarm.components.TimePickerDialog
+import com.rabbithole.musicbbit.presentation.alarm.components.VolumeRampHint
 import com.rabbithole.musicbbit.presentation.alarm.components.labelRes
 import com.rabbithole.musicbbit.presentation.alarm.components.toAutoStop
 import com.rabbithole.musicbbit.presentation.alarm.components.toOption
@@ -457,199 +464,4 @@ private fun AlarmEditContent(
 
         Spacer(modifier = Modifier.height(32.dp))
     }
-}
-
-@Composable
-private fun SaveButtonBar(
-    isSaving: Boolean,
-    onSave: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp
-    ) {
-        Button(
-            onClick = onSave,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            enabled = !isSaving
-        ) {
-            if (isSaving) {
-                CircularProgressIndicator(
-                    modifier = Modifier.padding(4.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Text(stringResource(R.string.alarm_edit_save_button))
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsGroup(
-    title: String,
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        SectionTitle(title = title)
-        Spacer(modifier = Modifier.height(12.dp))
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surfaceVariant
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                content = content
-            )
-        }
-    }
-}
-
-@Composable
-private fun ResumePlaybackSwitch(
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .toggleable(
-                value = checked,
-                onValueChange = onCheckedChange,
-                role = Role.Switch
-            )
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.alarm_edit_resume_playback_label),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
-        )
-        Switch(
-            checked = checked,
-            onCheckedChange = null
-        )
-    }
-}
-
-@Composable
-private fun TimeDisplay(
-    hour: Int,
-    minute: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.primaryContainer
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = String.format("%02d:%02d", hour, minute),
-                style = timeDisplayStandard,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = stringResource(R.string.alarm_edit_tap_to_change_time),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun SectionTitle(
-    title: String,
-    modifier: Modifier = Modifier
-) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AutoStopDropdown(
-    selectedAutoStop: AutoStop?,
-    onSelectionChange: (AutoStop?) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedOption = selectedAutoStop.toOption()
-    val selectedLabelRes = selectedOption.labelRes()
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = modifier.fillMaxWidth()
-    ) {
-        OutlinedTextField(
-            value = stringResource(selectedLabelRes),
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.alarm_edit_auto_stop_label)) },
-            trailingIcon = {
-                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-        )
-
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            AUTO_STOP_OPTIONS.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(stringResource(option.labelRes())) },
-                    onClick = {
-                        onSelectionChange(option.toAutoStop())
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun VolumeRampHint(
-    durationSeconds: Int,
-    modifier: Modifier = Modifier
-) {
-    val text = if (durationSeconds == 0) {
-        stringResource(R.string.alarm_edit_volume_ramp_disabled_hint)
-    } else {
-        stringResource(R.string.alarm_edit_volume_ramp_hint, durationSeconds)
-    }
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier.padding(horizontal = 4.dp)
-    )
 }
