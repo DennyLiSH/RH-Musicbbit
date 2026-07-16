@@ -35,7 +35,7 @@ class NextOccurrenceCalculatorProductionTest {
         now: Calendar = fixedNow()
     ): NextOccurrenceCalculator {
         val holidayRepository = mock<HolidayRepository>()
-        wheneverBlocking { holidayRepository.maybeRefreshHolidays(any()) } doReturn Unit
+        wheneverBlocking { holidayRepository.maybeRefreshHolidays(any()) } doReturn Result.success(Unit)
         wheneverBlocking { holidayRepository.isWorkday(any()) } doAnswer {
             it.getArgument<String>(0) !in nonWorkdayDates
         }

@@ -101,30 +101,23 @@ class HolidayRepositoryImpl @Inject constructor(
         result
     }
 
-    override suspend fun maybeRefreshHolidays(year: Int) {
-        try {
-            val currentMonth = YearMonth.now().toString()
-            val preferences = dataStore.data.first()
-            val lastCallMonth = preferences[SettingsKeys.LAST_HOLIDAY_API_CALL_MONTH]
+    override suspend fun maybeRefreshHolidays(year: Int): Result<Unit> = runCatching {
+        val currentMonth = YearMonth.now().toString()
+        val preferences = dataStore.data.first()
+        val lastCallMonth = preferences[SettingsKeys.LAST_HOLIDAY_API_CALL_MONTH]
 
-            if (lastCallMonth == currentMonth) {
-                Timber.d("Holiday API already called this month ($currentMonth), skipping refresh")
-                return
-            }
-
-            Timber.i("Triggering holiday refresh for year $year (last call: $lastCallMonth, current: $currentMonth)")
-            val result = refreshHolidays(year)
-            result.onSuccess {
-                dataStore.edit { prefs ->
-                    prefs[SettingsKeys.LAST_HOLIDAY_API_CALL_MONTH] = currentMonth
-                }
-                Timber.i("Holiday refresh succeeded, recorded month $currentMonth")
-            }.onFailure { error ->
-                Timber.w(error, "Holiday refresh failed for year $year, will retry next month")
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Unexpected error during holiday refresh check")
+        if (lastCallMonth == currentMonth) {
+            Timber.d("Holiday API already called this month ($currentMonth), skipping refresh")
+            return@runCatching
         }
+
+        Timber.i("Triggering holiday refresh for year $year (last call: $lastCallMonth, current: $currentMonth)")
+        val result = refreshHolidays(year)
+        result.getOrThrow()
+        dataStore.edit { prefs ->
+            prefs[SettingsKeys.LAST_HOLIDAY_API_CALL_MONTH] = currentMonth
+        }
+        Timber.i("Holiday refresh succeeded, recorded month $currentMonth")
     }
 
     /**

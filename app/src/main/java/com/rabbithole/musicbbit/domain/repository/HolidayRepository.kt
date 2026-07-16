@@ -34,6 +34,11 @@ interface HolidayRepository {
     /**
      * Refresh holiday data from the API at most once per calendar month.
      * Callers that need up-to-date holiday data should invoke this before calling [isWorkday].
+     *
+     * @return Result indicating success or failure. Failures (network, API, DataStore)
+     *   are surfaced explicitly so callers can decide whether to fall back to cached
+     *   data, log a warning, or escalate. `isWorkday` continues to work via its
+     *   own Room → assets fallback chain regardless of this result.
      */
-    suspend fun maybeRefreshHolidays(year: Int)
+    suspend fun maybeRefreshHolidays(year: Int): Result<Unit>
 }

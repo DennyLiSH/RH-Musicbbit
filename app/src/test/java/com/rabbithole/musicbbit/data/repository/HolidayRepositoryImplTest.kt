@@ -152,13 +152,14 @@ class HolidayRepositoryImplTest {
         )
         whenever(dataStore.data).thenReturn(kotlinx.coroutines.flow.MutableStateFlow(prefs))
 
-        repository.maybeRefreshHolidays(2026)
+        val result = repository.maybeRefreshHolidays(2026)
 
+        assertTrue(result.isSuccess)
         verifyBlocking(holidayApi, org.mockito.Mockito.never()) { getHolidaysForYear(any()) }
     }
 
     @Test
-    fun `maybeRefreshHolidays swallows api failure silently`() = runTest(testDispatcher) {
+    fun `maybeRefreshHolidays surfaces api failure as Result failure`() = runTest(testDispatcher) {
         // Empty prefs → no previous month record → proceeds to refresh
         whenever(dataStore.data).thenReturn(
             kotlinx.coroutines.flow.MutableStateFlow(
@@ -167,10 +168,9 @@ class HolidayRepositoryImplTest {
         )
         wheneverBlocking { holidayApi.getHolidaysForYear(2026) } doThrow java.io.IOException("network")
 
-        // Current signature is `suspend fun maybeRefreshHolidays(...): Unit` — internal
-        // try/catch swallows the exception. Direction 3 will change this to Result<Unit>.
-        repository.maybeRefreshHolidays(2026)
+        val result = repository.maybeRefreshHolidays(2026)
 
+        assertTrue(result.isFailure)
         verifyBlocking(holidayApi) { getHolidaysForYear(2026) }
     }
 }

@@ -26,7 +26,9 @@ class NextOccurrenceCalculator @Inject constructor(
     suspend fun nextOccurrence(hour: Int, minute: Int, repeatDays: Set<DayOfWeek>, excludeHolidays: Boolean = false): Long {
         val now = Calendar.getInstance().apply { timeInMillis = clock.nowMs() }
         val year = now.get(Calendar.YEAR)
-        holidayRepository.maybeRefreshHolidays(year)
+        holidayRepository.maybeRefreshHolidays(year).onFailure { error ->
+            Timber.w(error, "Holiday refresh failed; falling back to local Room/assets cache via isWorkday")
+        }
         val candidate = (now.clone() as Calendar).apply {
             set(Calendar.HOUR_OF_DAY, hour)
             set(Calendar.MINUTE, minute)

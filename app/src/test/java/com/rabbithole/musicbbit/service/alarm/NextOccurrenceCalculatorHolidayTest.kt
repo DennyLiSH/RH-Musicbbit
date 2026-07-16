@@ -64,7 +64,7 @@ class NextOccurrenceCalculatorHolidayTest {
         now: Calendar = fixedNow(),
     ): NextOccurrenceCalculator {
         val holidayRepository = mock<HolidayRepository>()
-        wheneverBlocking { holidayRepository.maybeRefreshHolidays(any()) } doReturn Unit
+        wheneverBlocking { holidayRepository.maybeRefreshHolidays(any()) } doReturn Result.success(Unit)
         wheneverBlocking { holidayRepository.isWorkday(any()) } doAnswer {
             it.getArgument<String>(0) !in nonWorkdayDates
         }
@@ -275,7 +275,7 @@ class NextOccurrenceCalculatorHolidayTest {
         // of whether they are holidays.
         val now = fixedNow(day = 15, hour = 8)
         val holidayRepository = mock<HolidayRepository>()
-        wheneverBlocking { holidayRepository.maybeRefreshHolidays(any()) } doReturn Unit
+        wheneverBlocking { holidayRepository.maybeRefreshHolidays(any()) } doReturn Result.success(Unit)
         wheneverBlocking { holidayRepository.isWorkday(any()) } doAnswer {
             val dateStr = it.getArgument<String>(0)
             val localDate = java.time.LocalDate.parse(dateStr)
@@ -313,7 +313,7 @@ class NextOccurrenceCalculatorHolidayTest {
         // Next Monday (Jan 22): dayMatches=true, isWorkday=true -> return.
         val now = fixedNow(day = 15, hour = 8)
         val holidayRepository = mock<HolidayRepository>()
-        wheneverBlocking { holidayRepository.maybeRefreshHolidays(any()) } doReturn Unit
+        wheneverBlocking { holidayRepository.maybeRefreshHolidays(any()) } doReturn Result.success(Unit)
         wheneverBlocking { holidayRepository.isWorkday(any()) } doAnswer {
             val dateStr = it.getArgument<String>(0)
             val localDate = java.time.LocalDate.parse(dateStr)
@@ -368,7 +368,7 @@ class NextOccurrenceCalculatorHolidayTest {
         // The while loop will iterate past year+1 and invoke the fallback path.
         val now = fixedNow(day = 15, hour = 8)
         val holidayRepository = mock<HolidayRepository>()
-        wheneverBlocking { holidayRepository.maybeRefreshHolidays(any()) } doReturn Unit
+        wheneverBlocking { holidayRepository.maybeRefreshHolidays(any()) } doReturn Result.success(Unit)
         wheneverBlocking { holidayRepository.isWorkday(any()) } doReturn false
 
         val clock = mock<Clock>()
