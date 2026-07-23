@@ -78,7 +78,11 @@ class MusicPlaybackService : Service(), ForegroundServicePort {
         Timber.i("MusicPlaybackService started, action=${intent?.action}")
 
         if (intent == null) {
-            // System restarted the service (START_STICKY), but no active playback — stop immediately
+            // System restarted the service (START_STICKY) after process death.
+            // We must still call startForeground to satisfy the 5-second window
+            // imposed by ContextCompat.startForegroundService() from the original
+            // launch (e.g. AlarmReceiver). Then stop immediately — no active playback.
+            foregroundNotificationController.onStartCommand()
             stopSelf()
             return START_NOT_STICKY
         }
