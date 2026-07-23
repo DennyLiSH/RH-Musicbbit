@@ -29,7 +29,6 @@ internal class MusicNotificationManager @Inject constructor(
     private val foregroundServicePort: ForegroundServicePort,
 ) : MusicNotificationPort {
     private val channelId = "music_playback_channel"
-    private val notificationId = 1
     private val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
