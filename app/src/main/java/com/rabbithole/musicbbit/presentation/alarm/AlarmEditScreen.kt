@@ -30,6 +30,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.service.ExactAlarmPermissionHelper
+import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import com.rabbithole.musicbbit.presentation.alarm.components.AlarmEditContent
 import com.rabbithole.musicbbit.presentation.alarm.components.DiscardDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.FullScreenIntentDialog
@@ -194,15 +196,21 @@ fun AlarmEditScreen(
 
     if (showPermissionDialog) {
         PermissionDialog(
+            onConfirm = {
+                ExactAlarmPermissionHelper.openSettings(context)
+                showPermissionDialog = false
+            },
             onDismiss = { showPermissionDialog = false },
-            context = context,
         )
     }
 
     if (showFullScreenIntentDialog) {
         FullScreenIntentDialog(
+            onConfirm = {
+                FullScreenIntentPermissionHelper.openSettings(context)
+                showFullScreenIntentDialog = false
+            },
             onDismiss = { showFullScreenIntentDialog = false },
-            context = context,
         )
     }
 
