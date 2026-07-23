@@ -47,6 +47,7 @@ class ForegroundNotificationController @Inject constructor(
                         musicNotificationPort.hideForegroundNotification()
                     }
                 } catch (t: Throwable) {
+                    if (t is CancellationException) throw t
                     Timber.e(t, "ForegroundNotificationController state collection failed")
                     musicNotificationPort.hideForegroundNotification()
                     serviceStarter.stopService()

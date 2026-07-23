@@ -156,6 +156,19 @@ class ForegroundNotificationControllerTest {
     }
 
     @Test
+    fun `job cancellation does not trigger stopService`() {
+        // CancellationException is a normal coroutine cancellation signal, not an
+        // error. The catch block must re-throw it without calling stopService —
+        // otherwise routine Service.onDestroy would be mishandled as an error.
+        controller.onCreate()
+
+        // onDestroy cancels stateCollectionJob internally
+        controller.onDestroy()
+
+        verify(serviceStarter, never()).stopService()
+    }
+
+    @Test
     fun `onCreate onStartCommand onDestroy order`() {
         val state = PlaybackState(currentSong = song, isPlaying = true)
         playbackState.value = state
