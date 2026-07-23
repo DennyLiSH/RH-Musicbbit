@@ -108,6 +108,25 @@ class MusicPlaybackServiceTest {
     }
 
     @Test
+    fun `onStartCommand with null intent calls controller onStartCommand before stopSelf`() {
+        // Sticky restart path (process death + system restart) must still call
+        // startForeground to satisfy the 5-second window imposed by the original
+        // ContextCompat.startForegroundService launch. Otherwise Android 12+ may
+        // throw ForegroundServiceDidNotStartInTimeException.
+        service.onCreate()
+
+        val mockController = mock<ForegroundNotificationController>()
+        service.javaClass.getDeclaredField("foregroundNotificationController").apply {
+            isAccessible = true
+            set(service, mockController)
+        }
+
+        service.onStartCommand(null, 0, 0)
+
+        verify(mockController).onStartCommand()
+    }
+
+    @Test
     fun `onStartCommand calls foregroundNotificationController onStartCommand`() {
         service.onCreate()
 
