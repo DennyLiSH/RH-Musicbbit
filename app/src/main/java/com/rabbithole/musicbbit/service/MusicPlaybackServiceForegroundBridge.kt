@@ -21,7 +21,16 @@ class MusicPlaybackServiceForegroundBridge @Inject constructor() : ForegroundSer
     private var service: MusicPlaybackService? = null
 
     fun attach(service: MusicPlaybackService) {
-        Timber.i("Attaching MusicPlaybackService to foreground bridge: %s", service)
+        val existing = this.service
+        if (existing != null && existing !== service) {
+            Timber.w(
+                "Bridge already attached to %s, overwriting with %s",
+                existing,
+                service,
+            )
+        } else {
+            Timber.i("Attaching MusicPlaybackService to foreground bridge: %s", service)
+        }
         this.service = service
     }
 
