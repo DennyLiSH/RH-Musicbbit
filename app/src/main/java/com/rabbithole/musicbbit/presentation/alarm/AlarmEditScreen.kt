@@ -66,11 +66,13 @@ fun AlarmEditScreen(
 
     // Track form edits for BackHandler gating. OnSave does not count — once
     // save completes the screen navigates up anyway.
-    val onActionWithTracking: (AlarmEditAction) -> Unit = { action ->
-        if (action !is AlarmEditAction.OnSave) {
-            hasUnsavedChanges = true
+    val onActionWithTracking: (AlarmEditAction) -> Unit = remember(viewModel) {
+        { action ->
+            if (action !is AlarmEditAction.OnSave) {
+                hasUnsavedChanges = true
+            }
+            viewModel.onAction(action)
         }
-        viewModel.onAction(action)
     }
 
     // Navigate up when save is completed; briefly toast the success message

@@ -12,13 +12,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.domain.model.AlarmRingMode
+import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.presentation.alarm.AlarmEditAction
 import com.rabbithole.musicbbit.presentation.alarm.AlarmEditUiState
+import java.time.DayOfWeek
 
 @Composable
 internal fun AlarmEditContent(
@@ -28,6 +32,30 @@ internal fun AlarmEditContent(
     modifier: Modifier = Modifier
 ) {
     val form = uiState.form
+    // Memoize action-mapping lambdas so they don't reallocate on every recomposition,
+    // keeping child components stable. Remember chain must start from the parent
+    // (AlarmEditScreen.onActionWithTracking is also remembered).
+    val onRepeatDaysChanged = remember(onAction) {
+        { days: Set<DayOfWeek> -> onAction(AlarmEditAction.OnRepeatDaysChanged(days)) }
+    }
+    val onExcludeHolidaysChanged = remember(onAction) {
+        { exclude: Boolean -> onAction(AlarmEditAction.OnExcludeHolidaysChanged(exclude)) }
+    }
+    val onPlaylistSelected = remember(onAction) {
+        { playlistId: Long -> onAction(AlarmEditAction.OnPlaylistSelected(playlistId)) }
+    }
+    val onResumePlaybackChanged = remember(onAction) {
+        { resume: Boolean -> onAction(AlarmEditAction.OnResumePlaybackChanged(resume)) }
+    }
+    val onLabelChanged = remember(onAction) {
+        { label: String -> onAction(AlarmEditAction.OnLabelChanged(label)) }
+    }
+    val onRingModeChanged = remember(onAction) {
+        { mode: AlarmRingMode -> onAction(AlarmEditAction.OnRingModeChanged(mode)) }
+    }
+    val onAutoStopChanged = remember(onAction) {
+        { autoStop: AutoStop? -> onAction(AlarmEditAction.OnAutoStopChanged(autoStop)) }
+    }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -51,12 +79,8 @@ internal fun AlarmEditContent(
             DayOfWeekSelector(
                 selectedDays = form.repeatDays,
                 excludeHolidays = form.excludeHolidays,
-                onDaysChanged = { days ->
-                    onAction(AlarmEditAction.OnRepeatDaysChanged(days))
-                },
-                onExcludeHolidaysChanged = { exclude ->
-                    onAction(AlarmEditAction.OnExcludeHolidaysChanged(exclude))
-                }
+                onDaysChanged = onRepeatDaysChanged,
+                onExcludeHolidaysChanged = onExcludeHolidaysChanged
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -65,9 +89,7 @@ internal fun AlarmEditContent(
             PlaylistSelector(
                 playlists = uiState.playlists,
                 selectedPlaylistId = form.playlistId,
-                onPlaylistSelected = { playlistId ->
-                    onAction(AlarmEditAction.OnPlaylistSelected(playlistId))
-                }
+                onPlaylistSelected = onPlaylistSelected
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -75,9 +97,7 @@ internal fun AlarmEditContent(
             SectionTitle(title = stringResource(R.string.alarm_edit_section_resume_playback))
             ResumePlaybackSwitch(
                 checked = form.resumePlayback,
-                onCheckedChange = { resume ->
-                    onAction(AlarmEditAction.OnResumePlaybackChanged(resume))
-                }
+                onCheckedChange = onResumePlaybackChanged
             )
         }
 
@@ -89,7 +109,7 @@ internal fun AlarmEditContent(
             SectionTitle(title = stringResource(R.string.alarm_edit_section_label))
             OutlinedTextField(
                 value = form.label,
-                onValueChange = { onAction(AlarmEditAction.OnLabelChanged(it)) },
+                onValueChange = onLabelChanged,
                 placeholder = { Text(stringResource(R.string.alarm_edit_label_placeholder)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
@@ -100,9 +120,7 @@ internal fun AlarmEditContent(
             SectionTitle(title = stringResource(R.string.alarm_edit_section_ring_mode))
             RingModeSelector(
                 selectedMode = form.ringMode,
-                onModeChanged = { mode ->
-                    onAction(AlarmEditAction.OnRingModeChanged(mode))
-                }
+                onModeChanged = onRingModeChanged
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -110,9 +128,7 @@ internal fun AlarmEditContent(
             SectionTitle(title = stringResource(R.string.alarm_edit_section_auto_stop))
             AutoStopDropdown(
                 selectedAutoStop = form.autoStop,
-                onSelectionChange = { autoStop ->
-                    onAction(AlarmEditAction.OnAutoStopChanged(autoStop))
-                }
+                onSelectionChange = onAutoStopChanged
             )
 
             Spacer(modifier = Modifier.height(8.dp))
