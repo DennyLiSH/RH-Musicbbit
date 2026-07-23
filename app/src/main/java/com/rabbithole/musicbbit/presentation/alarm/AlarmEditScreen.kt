@@ -33,6 +33,7 @@ import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.service.ExactAlarmPermissionHelper
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import com.rabbithole.musicbbit.presentation.alarm.components.AlarmEditContent
+import com.rabbithole.musicbbit.presentation.alarm.components.AutostartGuideDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.DiscardDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.FullScreenIntentDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.PermissionDialog

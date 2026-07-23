@@ -1,4 +1,4 @@
-package com.rabbithole.musicbbit.presentation.alarm
+package com.rabbithole.musicbbit.presentation.alarm.components
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -8,7 +8,7 @@ import androidx.compose.ui.res.stringResource
 import com.rabbithole.musicbbit.R
 
 @Composable
-fun AutostartGuideDialog(
+internal fun AutostartGuideDialog(
     isManualGuide: Boolean,
     onDismiss: () -> Unit,
     onOpenSettings: () -> Unit,
