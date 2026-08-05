@@ -18,15 +18,12 @@ import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -59,17 +56,24 @@ data class AlarmEditUiState(
     val form: AlarmFormState = AlarmFormState(),
     val playlists: List<Playlist> = emptyList(),
     val volumeRampDurationSeconds: Int = 0,
+    val dialogState: AlarmEditDialogState? = null,
+    val hasUnsavedChanges: Boolean = false,
 )
 
 /**
- * One-time events emitted by [AlarmEditViewModel] for ephemeral UI actions
- * (dialogs, navigation, toasts) that should not survive configuration change.
+ * Single-value representation of which (mutually exclusive) dialog the screen should render.
+ *
+ * Replaces the previous scheme of N independent `Boolean` flags in the screen plus a one-shot
+ * event flow from the ViewModel. LWW semantics: a new [showXxx] call overwrites whatever dialog
+ * was active — no priority queue, no stacking.
  */
-sealed interface AlarmEditEvent {
-    data object ShowPermissionDialog : AlarmEditEvent
-    data object ShowFullScreenIntentDialog : AlarmEditEvent
-    data class ShowAutostartGuideDialog(val intent: Intent?) : AlarmEditEvent
-    data object ShowAutostartManualGuideDialog : AlarmEditEvent
+sealed interface AlarmEditDialogState {
+    data object TimePicker : AlarmEditDialogState
+    data object Permission : AlarmEditDialogState
+    data object FullScreenIntent : AlarmEditDialogState
+    data class AutostartGuide(val intent: Intent?) : AlarmEditDialogState
+    data object AutostartManualGuide : AlarmEditDialogState
+    data object Discard : AlarmEditDialogState
 }
 
 /**
@@ -108,9 +112,6 @@ class AlarmEditViewModel @Inject constructor(
         )
     )
     val uiState: StateFlow<AlarmEditUiState> = _uiState.asStateFlow()
-
-    private val _events = Channel<AlarmEditEvent>()
-    val events: Flow<AlarmEditEvent> = _events.receiveAsFlow()
 
     init {
         Timber.i("AlarmEditViewModel initialized, alarmId=%d", alarmId)
@@ -198,49 +199,50 @@ class AlarmEditViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         form = it.form.copy(hour = action.hour, minute = action.minute),
-                        errorMessageResId = null
+                        errorMessageResId = null,
+                        hasUnsavedChanges = true,
                     )
                 }
             }
             is AlarmEditAction.OnRepeatDaysChanged -> {
                 Timber.d("Repeat days changed: %s", action.days)
                 _uiState.update {
-                    it.copy(form = it.form.copy(repeatDays = action.days), errorMessageResId = null)
+                    it.copy(form = it.form.copy(repeatDays = action.days), errorMessageResId = null, hasUnsavedChanges = true)
                 }
             }
             is AlarmEditAction.OnExcludeHolidaysChanged -> {
                 Timber.d("Exclude holidays changed: %s", action.exclude)
                 _uiState.update {
-                    it.copy(form = it.form.copy(excludeHolidays = action.exclude), errorMessageResId = null)
+                    it.copy(form = it.form.copy(excludeHolidays = action.exclude), errorMessageResId = null, hasUnsavedChanges = true)
                 }
             }
             is AlarmEditAction.OnPlaylistSelected -> {
                 Timber.d("Playlist selected: id=%d", action.playlistId)
                 _uiState.update {
-                    it.copy(form = it.form.copy(playlistId = action.playlistId), errorMessageResId = null)
+                    it.copy(form = it.form.copy(playlistId = action.playlistId), errorMessageResId = null, hasUnsavedChanges = true)
                 }
             }
             is AlarmEditAction.OnLabelChanged -> {
                 _uiState.update {
-                    it.copy(form = it.form.copy(label = action.label), errorMessageResId = null)
+                    it.copy(form = it.form.copy(label = action.label), errorMessageResId = null, hasUnsavedChanges = true)
                 }
             }
             is AlarmEditAction.OnAutoStopChanged -> {
                 Timber.d("Auto-stop changed: %s", action.autoStop?.toString() ?: "null")
                 _uiState.update {
-                    it.copy(form = it.form.copy(autoStop = action.autoStop), errorMessageResId = null)
+                    it.copy(form = it.form.copy(autoStop = action.autoStop), errorMessageResId = null, hasUnsavedChanges = true)
                 }
             }
             is AlarmEditAction.OnResumePlaybackChanged -> {
                 Timber.d("Resume playback changed: %s", action.resume)
                 _uiState.update {
-                    it.copy(form = it.form.copy(resumePlayback = action.resume), errorMessageResId = null)
+                    it.copy(form = it.form.copy(resumePlayback = action.resume), errorMessageResId = null, hasUnsavedChanges = true)
                 }
             }
             is AlarmEditAction.OnRingModeChanged -> {
                 Timber.d("Ring mode changed: %s", action.ringMode)
                 _uiState.update {
-                    it.copy(form = it.form.copy(ringMode = action.ringMode), errorMessageResId = null)
+                    it.copy(form = it.form.copy(ringMode = action.ringMode), errorMessageResId = null, hasUnsavedChanges = true)
                 }
             }
             is AlarmEditAction.OnSave -> saveAlarm()
@@ -248,25 +250,30 @@ class AlarmEditViewModel @Inject constructor(
     }
 
     fun onAutostartGuideDismissed() {
-        _uiState.update { it.copy(saveCompleted = true) }
+        _uiState.update { it.copy(dialogState = null, saveCompleted = true) }
     }
 
     /**
-     * Clears the inline form error message. Called by UI when user edits any
-     * form field after a validation error was shown (e.g. LaunchedEffect on
-     * playlistId after a "playlist required" error).
+     * Clears the inline form error message *and* the save-failed snackbar trigger.
+     * Called by UI when user edits any form field after a validation error,
+     * or after the save-failed snackbar finishes displaying.
      */
     fun clearError() {
-        _uiState.update { it.copy(errorMessageResId = null) }
+        _uiState.update { it.copy(errorMessageResId = null, saveFailedMessageResId = null) }
     }
 
-    /**
-     * Clears the save-failure Snackbar trigger. Called by UI after the
-     * Snackbar finishes displaying, so the message doesn't re-show on
-     * configuration change.
-     */
-    fun clearSaveFailedMessage() {
-        _uiState.update { it.copy(saveFailedMessageResId = null) }
+    /** UI-driven dialog show requests (user-initiated, not from saveAlarm flow). */
+    fun showTimePicker() {
+        _uiState.update { it.copy(dialogState = AlarmEditDialogState.TimePicker) }
+    }
+
+    fun showDiscardDialog() {
+        _uiState.update { it.copy(dialogState = AlarmEditDialogState.Discard) }
+    }
+
+    /** Dismiss whatever dialog is currently shown. LWW: any new showXxx overwrites prior state. */
+    fun dismissDialog() {
+        _uiState.update { it.copy(dialogState = null) }
     }
 
     private fun saveAlarm() {
@@ -295,21 +302,19 @@ class AlarmEditViewModel @Inject constructor(
                     _uiState.update { it.copy(isSaving = false, errorMessageResId = R.string.alarm_edit_error_select_playlist) }
                 }
                 is AlarmSaveOrchestrator.SaveOutcome.NeedsExactAlarmPermission -> {
-                    _uiState.update { it.copy(isSaving = false) }
-                    _events.send(AlarmEditEvent.ShowPermissionDialog)
+                    _uiState.update { it.copy(isSaving = false, dialogState = AlarmEditDialogState.Permission) }
                 }
                 is AlarmSaveOrchestrator.SaveOutcome.NeedsFullScreenIntentPermission -> {
-                    _uiState.update { it.copy(isSaving = false) }
-                    _events.send(AlarmEditEvent.ShowFullScreenIntentDialog)
+                    _uiState.update { it.copy(isSaving = false, dialogState = AlarmEditDialogState.FullScreenIntent) }
                 }
                 is AlarmSaveOrchestrator.SaveOutcome.Success -> {
                     _uiState.update { it.copy(isSaving = false) }
                     when (val autostart = outcome.autostart) {
                         is AlarmSaveOrchestrator.AutostartOutcome.Resolved -> {
-                            _events.send(AlarmEditEvent.ShowAutostartGuideDialog(autostart.intent))
+                            _uiState.update { it.copy(dialogState = AlarmEditDialogState.AutostartGuide(autostart.intent)) }
                         }
                         is AlarmSaveOrchestrator.AutostartOutcome.NeedsManualGuide -> {
-                            _events.send(AlarmEditEvent.ShowAutostartManualGuideDialog)
+                            _uiState.update { it.copy(dialogState = AlarmEditDialogState.AutostartManualGuide) }
                         }
                         is AlarmSaveOrchestrator.AutostartOutcome.NotApplicable -> {
                             _uiState.update { it.copy(saveCompleted = true) }

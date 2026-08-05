@@ -15,14 +15,11 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -344,7 +341,7 @@ class AlarmEditViewModelTest {
     }
 
     @Test
-    fun `save emits permission event when exact alarm permission needed`() = runTest {
+    fun `save sets dialogState=Permission when exact alarm permission needed`() = runTest {
         whenever(playlistRepository.getAllPlaylists()).thenReturn(
             flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
         )
@@ -357,14 +354,18 @@ class AlarmEditViewModelTest {
 
         viewModel.onAction(AlarmEditAction.OnPlaylistSelected(10L))
         viewModel.onAction(AlarmEditAction.OnSave)
+        advanceUntilIdle()
 
-        val event = viewModel.events.firstInScope(this)
-        assertTrue("ShowPermissionDialog event should be emitted", event is AlarmEditEvent.ShowPermissionDialog)
+        assertEquals(
+            "dialogState should be Permission when exact alarm permission needed",
+            AlarmEditDialogState.Permission,
+            viewModel.uiState.value.dialogState
+        )
         assertFalse("saveCompleted should be false", viewModel.uiState.value.saveCompleted)
     }
 
     @Test
-    fun `save emits fsi event when fsi permission needed`() = runTest {
+    fun `save sets dialogState=FullScreenIntent when fsi permission needed`() = runTest {
         whenever(playlistRepository.getAllPlaylists()).thenReturn(
             flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
         )
@@ -377,14 +378,18 @@ class AlarmEditViewModelTest {
 
         viewModel.onAction(AlarmEditAction.OnPlaylistSelected(10L))
         viewModel.onAction(AlarmEditAction.OnSave)
+        advanceUntilIdle()
 
-        val event = viewModel.events.firstInScope(this)
-        assertTrue("ShowFullScreenIntentDialog event should be emitted", event is AlarmEditEvent.ShowFullScreenIntentDialog)
+        assertEquals(
+            "dialogState should be FullScreenIntent when fsi permission needed",
+            AlarmEditDialogState.FullScreenIntent,
+            viewModel.uiState.value.dialogState
+        )
         assertFalse("saveCompleted should be false", viewModel.uiState.value.saveCompleted)
     }
 
     @Test
-    fun `save success emits autostart guide event when resolved`() = runTest {
+    fun `save sets dialogState=AutostartGuide with intent when resolved`() = runTest {
         val mockIntent = mock<android.content.Intent>()
         whenever(playlistRepository.getAllPlaylists()).thenReturn(
             flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
@@ -402,14 +407,14 @@ class AlarmEditViewModelTest {
 
         advanceUntilIdle()
 
-        val event = viewModel.events.firstInScope(this)
-        assertTrue("ShowAutostartGuideDialog event should be emitted", event is AlarmEditEvent.ShowAutostartGuideDialog)
-        assertEquals(mockIntent, (event as AlarmEditEvent.ShowAutostartGuideDialog).intent)
+        val dialogState = viewModel.uiState.value.dialogState
+        assertTrue("dialogState should be AutostartGuide", dialogState is AlarmEditDialogState.AutostartGuide)
+        assertEquals(mockIntent, (dialogState as AlarmEditDialogState.AutostartGuide).intent)
         assertFalse("saveCompleted should be false when guide shown", viewModel.uiState.value.saveCompleted)
     }
 
     @Test
-    fun `save success emits manual guide event when needed`() = runTest {
+    fun `save sets dialogState=AutostartManualGuide when manual guide needed`() = runTest {
         whenever(playlistRepository.getAllPlaylists()).thenReturn(
             flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
         )
@@ -426,9 +431,83 @@ class AlarmEditViewModelTest {
 
         advanceUntilIdle()
 
-        val event = viewModel.events.firstInScope(this)
-        assertTrue("ShowAutostartManualGuideDialog event should be emitted", event is AlarmEditEvent.ShowAutostartManualGuideDialog)
+        assertEquals(
+            "dialogState should be AutostartManualGuide",
+            AlarmEditDialogState.AutostartManualGuide,
+            viewModel.uiState.value.dialogState
+        )
         assertFalse("saveCompleted should be false when guide shown", viewModel.uiState.value.saveCompleted)
+    }
+
+    @Test
+    fun `onShowTimePicker sets dialogState=TimePicker`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        viewModel.showTimePicker()
+
+        assertEquals(AlarmEditDialogState.TimePicker, viewModel.uiState.value.dialogState)
+    }
+
+    @Test
+    fun `showDiscardDialog sets dialogState=Discard`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        viewModel.showDiscardDialog()
+
+        assertEquals(AlarmEditDialogState.Discard, viewModel.uiState.value.dialogState)
+    }
+
+    @Test
+    fun `dismissDialog clears dialogState to null`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        viewModel.showTimePicker()
+        viewModel.dismissDialog()
+
+        assertNull(viewModel.uiState.value.dialogState)
+    }
+
+    @Test
+    fun `dialog state follows LWW semantics`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        viewModel.showTimePicker()
+        viewModel.showDiscardDialog()
+
+        assertEquals(
+            "Second show should overwrite the first (last-writer-wins)",
+            AlarmEditDialogState.Discard,
+            viewModel.uiState.value.dialogState
+        )
+    }
+
+    @Test
+    fun `onAction sets hasUnsavedChanges=true for form edits but not for OnSave`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        viewModel.onAction(AlarmEditAction.OnTimeChanged(8, 0))
+        assertTrue("Form edit sets hasUnsavedChanges", viewModel.uiState.value.hasUnsavedChanges)
+
+        viewModel.onAction(AlarmEditAction.OnSave)
+        assertTrue(
+            "OnSave does NOT clear hasUnsavedChanges itself; the screen clears it via navigation",
+            viewModel.uiState.value.hasUnsavedChanges
+        )
     }
 
     @Test
@@ -499,14 +578,4 @@ class AlarmEditViewModelTest {
             permissionOrchestrator = permissionOrchestrator
         )
     }
-}
-
-/**
- * Helper to collect the first event from a [kotlinx.coroutines.flow.Flow].
- * Uses [withTimeout] so the caller's test scope does not leak an uncompleted collector.
- */
-private suspend fun <T> kotlinx.coroutines.flow.Flow<T>.firstInScope(
-    @Suppress("UNUSED_PARAMETER") scope: kotlinx.coroutines.CoroutineScope
-): T {
-    return withTimeout(1000) { first() }
 }

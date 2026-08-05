@@ -19,9 +19,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -50,14 +48,6 @@ fun AlarmEditScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val form = uiState.form
-    var showTimePicker by remember { mutableStateOf(false) }
-    var showPermissionDialog by remember { mutableStateOf(false) }
-    var showFullScreenIntentDialog by remember { mutableStateOf(false) }
-    var showAutostartGuideDialog by remember { mutableStateOf(false) }
-    var showAutostartManualGuideDialog by remember { mutableStateOf(false) }
-    var showDiscardDialog by remember { mutableStateOf(false) }
-    var hasUnsavedChanges by remember { mutableStateOf(false) }
-    var autostartIntent by remember { mutableStateOf<Intent?>(null) }
     val context = LocalContext.current
     val toast = rememberAppToast()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -65,20 +55,8 @@ fun AlarmEditScreen(
     val saveFailedMessage = saveFailedMessageResId?.let { stringResource(it) }
     val alarmSavedMessage = stringResource(R.string.alarm_saved)
 
-    // Track form edits for BackHandler gating. OnSave does not count — once
-    // save completes the screen navigates up anyway.
-    val onActionWithTracking: (AlarmEditAction) -> Unit = remember(viewModel) {
-        { action ->
-            if (action !is AlarmEditAction.OnSave) {
-                hasUnsavedChanges = true
-            }
-            viewModel.onAction(action)
-        }
-    }
-
-    // Navigate up when save is completed; briefly toast the success message
-    // (Toast used instead of Snackbar because Snackbar is destroyed on
-    // navigateUp; Toast survives the screen change).
+    // Navigate up when save is completed; briefly toast the success message.
+    // (Toast instead of Snackbar because Snackbar is destroyed on navigateUp.)
     LaunchedEffect(uiState.saveCompleted) {
         if (uiState.saveCompleted) {
             Timber.i("Alarm saved, navigating up")
@@ -87,44 +65,27 @@ fun AlarmEditScreen(
         }
     }
 
-    // Show Snackbar on save failure, then clear the trigger so it doesn't
-    // re-show on configuration change.
+    // Show Snackbar on save failure, then clear the trigger so it doesn't re-show
+    // on configuration change. errorMessageResId and saveFailedMessageResId share
+    // the same lifecycle and are both cleared via clearError().
     LaunchedEffect(saveFailedMessageResId) {
         saveFailedMessage?.let { msg ->
             snackbarHostState.showSnackbar(message = msg)
-            viewModel.clearSaveFailedMessage()
+            viewModel.clearError()
         }
     }
 
     // Clear inline form error as soon as user edits the playlist field
-    // (only after a prior submit attempt set the error — initial empty state
-    // is not an error).
+    // (only after a prior submit attempt set the error).
     LaunchedEffect(form.playlistId) {
         if (uiState.errorMessageResId != null) {
             viewModel.clearError()
         }
     }
 
-    // Intercept system back / navigation arrow only when user has unsaved
-    // edits. If OEM ROM predictive-back gesture conflicts, system gesture
-    // wins (BackHandler is bypassed when disabled).
-    BackHandler(enabled = hasUnsavedChanges) {
-        showDiscardDialog = true
-    }
-
-    // Collect one-time events from ViewModel
-    LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is AlarmEditEvent.ShowPermissionDialog -> showPermissionDialog = true
-                is AlarmEditEvent.ShowFullScreenIntentDialog -> showFullScreenIntentDialog = true
-                is AlarmEditEvent.ShowAutostartGuideDialog -> {
-                    autostartIntent = event.intent
-                    showAutostartGuideDialog = true
-                }
-                is AlarmEditEvent.ShowAutostartManualGuideDialog -> showAutostartManualGuideDialog = true
-            }
-        }
+    // Intercept system back / navigation arrow only when user has unsaved edits.
+    BackHandler(enabled = uiState.hasUnsavedChanges) {
+        viewModel.showDiscardDialog()
     }
 
     Scaffold(
@@ -141,8 +102,8 @@ fun AlarmEditScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = {
-                        if (hasUnsavedChanges) {
-                            showDiscardDialog = true
+                        if (uiState.hasUnsavedChanges) {
+                            viewModel.showDiscardDialog()
                         } else {
                             navController.navigateUp()
                         }
@@ -159,7 +120,7 @@ fun AlarmEditScreen(
         bottomBar = {
             SaveButtonBar(
                 isSaving = uiState.isSaving,
-                onSave = { onActionWithTracking(AlarmEditAction.OnSave) }
+                onSave = { viewModel.onAction(AlarmEditAction.OnSave) }
             )
         }
     ) { paddingValues ->
@@ -178,71 +139,43 @@ fun AlarmEditScreen(
             } else {
                 AlarmEditContent(
                     uiState = uiState,
-                    onTimeClick = { showTimePicker = true },
-                    onAction = onActionWithTracking
+                    onTimeClick = { viewModel.showTimePicker() },
+                    onAction = viewModel::onAction
                 )
             }
         }
     }
 
-    if (showTimePicker) {
-        TimePickerDialog(
+    // Single dialog state — mutually exclusive by construction.
+    when (val d = uiState.dialogState) {
+        null -> {}
+        AlarmEditDialogState.TimePicker -> TimePickerDialog(
             initialHour = form.hour,
             initialMinute = form.minute,
-            onDismiss = { showTimePicker = false },
+            onDismiss = { viewModel.dismissDialog() },
             onConfirm = { hour, minute ->
                 viewModel.onAction(AlarmEditAction.OnTimeChanged(hour, minute))
-                showTimePicker = false
+                viewModel.dismissDialog()
             }
         )
-    }
-
-    if (showPermissionDialog) {
-        PermissionDialog(
+        AlarmEditDialogState.Permission -> PermissionDialog(
             onConfirm = {
                 ExactAlarmPermissionHelper.openSettings(context)
-                showPermissionDialog = false
+                viewModel.dismissDialog()
             },
-            onDismiss = { showPermissionDialog = false },
+            onDismiss = { viewModel.dismissDialog() },
         )
-    }
-
-    if (showFullScreenIntentDialog) {
-        FullScreenIntentDialog(
+        AlarmEditDialogState.FullScreenIntent -> FullScreenIntentDialog(
             onConfirm = {
                 FullScreenIntentPermissionHelper.openSettings(context)
-                showFullScreenIntentDialog = false
+                viewModel.dismissDialog()
             },
-            onDismiss = { showFullScreenIntentDialog = false },
+            onDismiss = { viewModel.dismissDialog() },
         )
-    }
-
-    if (showAutostartGuideDialog) {
-        AutostartGuideDialog(
-            isManualGuide = false,
-            onDismiss = {
-                showAutostartGuideDialog = false
-                viewModel.onAutostartGuideDismissed()
-            },
-            onOpenSettings = {
-                autostartIntent?.let {
-                    try {
-                        context.startActivity(it)
-                    } catch (e: Exception) {
-                        Timber.e(e, "Failed to launch OEM autostart settings")
-                    }
-                }
-                showAutostartGuideDialog = false
-                viewModel.onAutostartGuideDismissed()
-            }
-        )
-    }
-
-    if (showAutostartManualGuideDialog) {
-        AutostartGuideDialog(
+        AlarmEditDialogState.AutostartManualGuide -> AutostartGuideDialog(
             isManualGuide = true,
             onDismiss = {
-                showAutostartManualGuideDialog = false
+                viewModel.dismissDialog()
                 viewModel.onAutostartGuideDismissed()
             },
             onOpenSettings = {
@@ -251,18 +184,35 @@ fun AlarmEditScreen(
                 } catch (e: Exception) {
                     Timber.e(e, "Failed to launch manual guide settings")
                 }
-                showAutostartManualGuideDialog = false
+                viewModel.dismissDialog()
                 viewModel.onAutostartGuideDismissed()
             }
         )
-    }
-
-    if (showDiscardDialog) {
-        DiscardDialog(
-            onDismiss = { showDiscardDialog = false },
+        is AlarmEditDialogState.AutostartGuide -> {
+            val guideIntent: Intent? = d.intent
+            AutostartGuideDialog(
+                isManualGuide = false,
+                onDismiss = {
+                    viewModel.dismissDialog()
+                    viewModel.onAutostartGuideDismissed()
+                },
+                onOpenSettings = {
+                    guideIntent?.let {
+                        try {
+                            context.startActivity(it)
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to launch OEM autostart settings")
+                        }
+                    }
+                    viewModel.dismissDialog()
+                    viewModel.onAutostartGuideDismissed()
+                }
+            )
+        }
+        AlarmEditDialogState.Discard -> DiscardDialog(
+            onDismiss = { viewModel.dismissDialog() },
             onConfirm = {
-                showDiscardDialog = false
-                hasUnsavedChanges = false
+                viewModel.dismissDialog()
                 navController.navigateUp()
             }
         )
