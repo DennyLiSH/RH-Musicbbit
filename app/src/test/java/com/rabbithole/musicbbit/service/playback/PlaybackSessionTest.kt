@@ -173,6 +173,31 @@ class PlaybackSessionTest {
         assertEquals(1, playerPort.pauseCalls.size)
     }
 
+    // -------- togglePlayPause() ----------------------------------------------
+
+    @Test
+    fun `togglePlayPause pauses when playing`() {
+        // Drive the session into a state where isPlaying=true via the same path
+        // the real player uses: a play() call followed by an IsPlayingChanged event.
+        playerPort.isPlayingValue = true
+        session.play(SONG_1, playlistId = 1L)
+        playerPort.emitEvent(PlayerEvent.IsPlayingChanged(true))
+
+        session.togglePlayPause()
+
+        assertEquals(1, playerPort.pauseCalls.size)
+    }
+
+    @Test
+    fun `togglePlayPause resumes when paused`() {
+        playerPort.isPlayingValue = false
+
+        session.togglePlayPause()
+
+        assertEquals(1, audioFocusPort.requestFocusCallCount)
+        assertEquals(1, playerPort.playCalls.size)
+    }
+
     // -------- resume() --------------------------------------------------------
 
     @Test

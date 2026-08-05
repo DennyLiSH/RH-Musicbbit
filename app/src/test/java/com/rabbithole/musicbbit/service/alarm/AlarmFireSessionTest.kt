@@ -611,12 +611,10 @@ class AlarmFireSessionTest {
     // -------- Helpers --------------------------------------------------------
 
     /** Drive the session through a successful fire so subsequent assertions can act on Playing.
-     *  Simulates the Service having already acquired the wake lock before calling fire(). */
+     *  The session itself acquires the wake lock as part of fire(isAlarmTrigger=true). */
     private suspend fun firePlaying(alarmId: Long, playlistId: Long) {
         alarmRepository.insert(repeatingAlarm(id = alarmId, playlistId = playlistId))
         playlistRepository.set(playlistId, threeSongPlaylist(id = playlistId))
-        // Simulate Service having already acquired the wake lock
-        wakeLockPort.acquire(10 * 60 * 1000L)
         session.fire(alarmId = alarmId, isAlarmTrigger = true)
         scope.runCurrent()
     }

@@ -221,7 +221,7 @@ class MusicPlaybackServiceTest {
         }
         service.onStartCommand(intent, 0, 0)
 
-        verify(mockPlaybackSession).pause()
+        verify(mockPlaybackSession).togglePlayPause()
     }
 
     @Test
@@ -241,7 +241,7 @@ class MusicPlaybackServiceTest {
         }
         service.onStartCommand(intent, 0, 0)
 
-        verify(mockPlaybackSession).resume()
+        verify(mockPlaybackSession).togglePlayPause()
     }
 
     @Test

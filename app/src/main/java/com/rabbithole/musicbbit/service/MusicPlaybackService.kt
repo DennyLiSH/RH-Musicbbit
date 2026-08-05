@@ -7,7 +7,6 @@ import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
 import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
-import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
 import com.rabbithole.musicbbit.di.MainDispatcher
 import com.rabbithole.musicbbit.service.playback.ForegroundNotificationController
 import com.rabbithole.musicbbit.service.playback.PlaybackSession
@@ -39,9 +38,6 @@ class MusicPlaybackService : Service(), ForegroundServicePort {
 
     @Inject
     lateinit var playbackSession: PlaybackSession
-
-    @Inject
-    lateinit var wakeLockPort: WakeLockPort
 
     @Inject
     lateinit var alarmFireSession: AlarmFireSession
@@ -93,20 +89,11 @@ class MusicPlaybackService : Service(), ForegroundServicePort {
             ACTION_PLAY_ALARM -> {
                 val alarmId = intent.getLongExtra(EXTRA_ALARM_ID, -1L)
                 val isAlarmTrigger = intent.getBooleanExtra(EXTRA_IS_ALARM_TRIGGER, false)
-                if (isAlarmTrigger) {
-                    wakeLockPort.acquire(ALARM_WAKE_LOCK_TIMEOUT_MS)
-                }
                 alarmFireSession.fire(alarmId, isAlarmTrigger)
             }
 
             ACTION_PREVIOUS -> playbackSession.previous()
-            ACTION_TOGGLE_PLAY_PAUSE -> {
-                if (playbackSession.playbackState.value.isPlaying) {
-                    playbackSession.pause()
-                } else {
-                    playbackSession.resume()
-                }
-            }
+            ACTION_TOGGLE_PLAY_PAUSE -> playbackSession.togglePlayPause()
 
             ACTION_NEXT -> playbackSession.next()
         }
@@ -118,7 +105,6 @@ class MusicPlaybackService : Service(), ForegroundServicePort {
         Timber.i("MusicPlaybackService destroyed")
         foregroundNotificationController.onDestroy()
         foregroundServiceBridge.detach(this)
-        wakeLockPort.release()
         serviceJob.cancel()
         super.onDestroy()
     }
@@ -135,7 +121,6 @@ class MusicPlaybackService : Service(), ForegroundServicePort {
 
     companion object {
         internal const val NOTIFICATION_ID = 1
-        private const val ALARM_WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
 
         const val ACTION_PLAY_ALARM = "com.rabbithole.musicbbit.action.PLAY_ALARM"
         const val ACTION_PREVIOUS = "com.rabbithole.musicbbit.action.PREVIOUS"

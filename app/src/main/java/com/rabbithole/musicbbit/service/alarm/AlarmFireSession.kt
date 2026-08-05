@@ -223,6 +223,12 @@ class AlarmFireSession @Inject constructor(
         alarmPlaybackSession.playAlarmQueue(songs, startIndex, alarm.playlistId)
 
         if (isAlarmTrigger) {
+            // Acquire the wake lock before playback so the device doesn't sleep through
+            // the alarm. Per CLAUDE.md "prefer errors over silent degradation", we do NOT
+            // wrap this in try/catch: SecurityException from the adapter propagates up to
+            // MusicPlaybackService.onStartCommand's main-thread call site, making the
+            // failure visible (vs. silently degrading into "alarm didn't fire").
+            wakeLockPort.acquire(ALARM_WAKE_LOCK_TIMEOUT_MS)
             volumeRampPort.startVolumeRamp(sessionScope)
             Timber.i("Started volume ramp for alarm playback")
         }
@@ -291,6 +297,10 @@ class AlarmFireSession @Inject constructor(
     }
 
     companion object {
-        // ALARM_WAKE_LOCK_TIMEOUT_MS moved to MusicPlaybackService
+        /**
+         * Hard cap on wake lock duration. The session releases on [stop] / [onPlaybackStopped]
+         * in normal flow; this is the safety net if release is missed (process kill, crash).
+         */
+        private const val ALARM_WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1000L
     }
 }

@@ -24,18 +24,17 @@ class AndroidWakeLockAdapter @Inject constructor(
         get() = wakeLock?.isHeld == true
 
     override fun acquire(timeoutMs: Long) {
-        try {
-            if (wakeLock == null) {
-                val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-                wakeLock = powerManager
-                    .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
-                    .apply { setReferenceCounted(false) }
-            }
-            wakeLock?.acquire(timeoutMs)
-            Timber.d("Alarm wake lock acquired (timeout=${timeoutMs}ms)")
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to acquire alarm wake lock")
+        if (wakeLock == null) {
+            val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = powerManager
+                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
+                .apply { setReferenceCounted(false) }
         }
+        // Per CLAUDE.md "prefer errors over silent degradation": propagate SecurityException
+        // and other failures to the caller (AlarmFireSession.fire). Silent degradation here
+        // would let the device sleep through the alarm with no signal to the user.
+        wakeLock?.acquire(timeoutMs)
+        Timber.d("Alarm wake lock acquired (timeout=${timeoutMs}ms)")
     }
 
     override fun release() {

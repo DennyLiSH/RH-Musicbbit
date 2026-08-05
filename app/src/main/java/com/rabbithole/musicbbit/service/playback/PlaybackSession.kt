@@ -299,6 +299,11 @@ class PlaybackSession @Inject constructor(
         _playbackState.update { it.copy(positionMs = positionMs) }
     }
 
+    /** Toggle play/pause based on the current state. Used by external action handlers (e.g. notification). */
+    fun togglePlayPause() {
+        if (_playbackState.value.isPlaying) pause() else resume()
+    }
+
     fun stop() {
         Timber.i("Stopping playback")
         audioFocusPort.abandonFocus()
