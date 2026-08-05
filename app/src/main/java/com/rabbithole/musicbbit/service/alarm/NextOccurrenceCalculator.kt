@@ -10,12 +10,12 @@ import timber.log.Timber
 /**
  * Calculates the next time an alarm should fire, with Chinese holiday / adjusted-workday awareness.
  *
- * Two paths:
- *  - [nextOccurrence] is the production path. It consults [HolidayRepository] to skip statutory
- *    holidays and to honour adjusted workdays (a weekend that the calendar promotes to a
- *    working day for a make-up shift).
- *  - [Companion.nextOccurrenceFallback] is the pure-Kotlin fallback used when the holiday
- *    source is unreachable or the search exceeds a hard cap. It is also exposed for tests.
+ * Single path: [nextOccurrence] consults [HolidayRepository] to skip statutory holidays and
+ * honour adjusted workdays. If no valid ring day is found within a 2-year search window, the
+ * function throws [IllegalStateException] — callers must handle this explicitly (the previous
+ * silent-fallback path was removed to comply with ADR 0007 "prefer errors over silent
+ * degradation"). [HolidayRepository.isWorkday] itself has a Room → assets fallback chain, so
+ * genuine "no data" scenarios are limited to "every selected day is excluded forever".
  */
 @Singleton
 class NextOccurrenceCalculator @Inject constructor(
@@ -65,42 +65,11 @@ class NextOccurrenceCalculator @Inject constructor(
             candidate.add(Calendar.DAY_OF_MONTH, 1)
 
             if (candidate.get(Calendar.YEAR) > now.get(Calendar.YEAR) + 1) {
-                Timber.w("Could not find valid workday within search window, falling back to basic calculation")
-                return nextOccurrenceFallback(hour, minute, repeatDays, now)
+                // Hard error per ADR 0007: do not silently fall back to a non-holiday-aware
+                // path. Caller (AlarmScheduler / AlarmStartupReconciler) is responsible for
+                // try/catch and skipping the offending alarm rather than aborting the batch.
+                throw IllegalStateException("No valid ring day found within 2-year search window")
             }
-        }
-    }
-
-    companion object {
-        /**
-         * Pure-Kotlin fallback that ignores holiday data. Test-visible: pass a fixed [now] for
-         * deterministic results.
-         */
-        fun nextOccurrenceFallback(
-            hour: Int,
-            minute: Int,
-            repeatDays: Set<DayOfWeek>,
-            now: Calendar,
-        ): Long {
-            val candidate = Calendar.getInstance().apply {
-                timeInMillis = now.timeInMillis
-                set(Calendar.HOUR_OF_DAY, hour)
-                set(Calendar.MINUTE, minute)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-
-            if (repeatDays.isEmpty()) {
-                if (candidate.before(now)) {
-                    candidate.add(Calendar.DAY_OF_MONTH, 1)
-                }
-            } else {
-                while (candidate.before(now) || candidate.toDayOfWeek() !in repeatDays) {
-                    candidate.add(Calendar.DAY_OF_MONTH, 1)
-                }
-            }
-
-            return candidate.timeInMillis
         }
     }
 }

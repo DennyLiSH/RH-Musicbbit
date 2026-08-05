@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
@@ -363,9 +364,11 @@ class NextOccurrenceCalculatorHolidayTest {
     }
 
     @Test
-    fun `nextOccurrence - fallback triggered when all days are non-workday`() = runTest {
+    fun `nextOccurrence - throws when all days are non-workday within 2-year window`() = runTest {
         // Simulate HolidayRepository.isWorkday returning false for every date.
-        // The while loop will iterate past year+1 and invoke the fallback path.
+        // After ADR 0007 follow-up, the silent fallback was removed: search beyond 2 years
+        // now throws IllegalStateException, and the caller (AlarmScheduler) is responsible
+        // for skipping the offending alarm rather than silently degrading.
         val now = fixedNow(day = 15, hour = 8)
         val holidayRepository = mock<HolidayRepository>()
         wheneverBlocking { holidayRepository.maybeRefreshHolidays(any()) } doReturn Result.success(Unit)
@@ -377,9 +380,10 @@ class NextOccurrenceCalculatorHolidayTest {
         val calculator = NextOccurrenceCalculator(holidayRepository, clock)
 
         val allDays = DayOfWeek.entries.toSet()
-        val result = calculator.nextOccurrence(10, 0, allDays, excludeHolidays = true)
-
-        // Fallback path should still return a positive timestamp
-        assertTrue("Fallback should return a positive timestamp, got $result", result > 0)
+        assertThrows(IllegalStateException::class.java) {
+            kotlinx.coroutines.runBlocking {
+                calculator.nextOccurrence(10, 0, allDays, excludeHolidays = true)
+            }
+        }
     }
 }

@@ -54,6 +54,11 @@ class AlarmScheduler @Inject constructor(
      * If the alarm is disabled, it will be cancelled instead.
      * Considers Chinese holidays and adjusted workdays when calculating the next trigger time.
      *
+     * If [NextOccurrenceCalculator.nextOccurrence] cannot find a valid ring day within the
+     * 2-year search window, it throws [IllegalStateException]; this method catches that
+     * exception, logs it, and skips scheduling this single alarm — letting callers
+     * (e.g. [AlarmStartupReconciler.reconcileAll]) continue with other alarms.
+     *
      * @param alarm The alarm to schedule.
      */
     suspend fun schedule(alarm: Alarm) {
@@ -63,12 +68,17 @@ class AlarmScheduler @Inject constructor(
             return
         }
 
-        val triggerTime = nextOccurrenceCalculator.nextOccurrence(
-            alarm.hour,
-            alarm.minute,
-            alarm.repeatDays,
-            alarm.excludeHolidays,
-        )
+        val triggerTime = try {
+            nextOccurrenceCalculator.nextOccurrence(
+                alarm.hour,
+                alarm.minute,
+                alarm.repeatDays,
+                alarm.excludeHolidays,
+            )
+        } catch (e: IllegalStateException) {
+            Timber.e(e, "Skipping alarm ${alarm.id}: no valid ring day within 2-year search window")
+            return
+        }
 
         val pendingIntent = createPendingIntent(alarm.id)
 
