@@ -21,8 +21,14 @@ interface SongDao {
     @Update
     suspend fun update(song: SongEntity)
 
+    @Update
+    suspend fun updateAll(songs: List<SongEntity>)
+
     @Delete
     suspend fun delete(song: SongEntity)
+
+    @Delete
+    suspend fun deleteAllSongs(songs: List<SongEntity>)
 
     @Query("SELECT * FROM songs")
     fun getAll(): Flow<List<SongEntity>>

@@ -6,8 +6,8 @@ import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
 import com.rabbithole.musicbbit.data.local.dao.SongDao
 import com.rabbithole.musicbbit.data.local.model.ScanDirectoryEntity
 import com.rabbithole.musicbbit.data.local.model.SongEntity
-import com.rabbithole.musicbbit.data.local.sync.SongDiff
 import com.rabbithole.musicbbit.data.local.sync.SongSyncEngine
+import com.rabbithole.musicbbit.data.local.sync.SyncResult
 import com.rabbithole.musicbbit.domain.model.Song
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -18,8 +18,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.any
-import org.mockito.kotlin.argThat
 import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verifyBlocking
 import org.mockito.kotlin.whenever
@@ -47,7 +47,6 @@ class MusicRepositoryImplTest {
     // Helpers
     // ------------------------------------------------------------------
 
-    /** Domain Song — used as MusicScanner output and test expectations. */
     private fun songDomain(
         id: Long = 1L,
         path: String = "/music/song.mp3",
@@ -62,7 +61,6 @@ class MusicRepositoryImplTest {
         album = album, durationMs = durationMs, dateAdded = dateAdded, coverUri = coverUri
     )
 
-    /** Entity Song — returned by mocked SongDao. */
     private fun songEntity(
         id: Long = 1L,
         path: String = "/music/song.mp3",
@@ -77,7 +75,6 @@ class MusicRepositoryImplTest {
         album = album, durationMs = durationMs, dateAdded = dateAdded, coverUri = coverUri
     )
 
-    /** Entity ScanDirectory — returned by mocked ScanDirectoryDao. */
     private fun scanDirEntity(
         id: Long = 1L,
         path: String = "/storage/Music"
@@ -100,59 +97,50 @@ class MusicRepositoryImplTest {
     }
 
     @Test
-    fun `refreshSongs inserts new songs`() = runTest(testDispatcher) {
+    fun `refreshSongs delegates diff application to songSyncEngine sync`() = runTest(testDispatcher) {
         val dir = scanDirEntity(path = "/storage/Music")
-        val newSong = songEntity(id = 0L, path = "/storage/Music/new.mp3", title = "New Song")
+        val newSong = songDomain(id = 0L, path = "/storage/Music/new.mp3", title = "New Song")
 
         whenever(scanDirectoryDao.getAll()).thenReturn(flowOf(listOf(dir)))
-        whenever(musicScanner.scanDirectories(listOf("/storage/Music"))).thenReturn(
-            listOf(songDomain(id = 0L, path = "/storage/Music/new.mp3", title = "New Song"))
-        )
+        whenever(musicScanner.scanDirectories(listOf("/storage/Music"))).thenReturn(listOf(newSong))
         whenever(songDao.getAll()).thenReturn(flowOf(emptyList()))
-        whenever(songSyncEngine.computeDiff(any(), any())).thenReturn(
-            SongDiff(
-                toInsert = listOf(newSong),
-                toDelete = emptyList(),
-                toUpdate = emptyList()
-            )
-        )
-        wheneverBlocking { songDao.insertAll(any()) } doReturn emptyList()
+        wheneverBlocking { songSyncEngine.sync(any(), any()) } doReturn SyncResult(inserted = 1, deleted = 0, updated = 0)
 
         val result = repository.refreshSongs()
 
         assertTrue(result.isSuccess)
-        verifyBlocking(songDao) {
-            insertAll(argThat { size == 1 && this[0].path == "/storage/Music/new.mp3" })
-        }
+        verifyBlocking(songSyncEngine) { sync(any(), any()) }
     }
 
     @Test
-    fun `refreshSongs deletes removed songs`() = runTest(testDispatcher) {
-        val dir = scanDirEntity(path = "/storage/Music")
+    fun `refreshDirectory delegates diff application to songSyncEngine sync`() = runTest(testDispatcher) {
         val existingSong = songEntity(id = 10L, path = "/storage/Music/old.mp3", title = "Old Song")
+        whenever(musicScanner.scanDirectories(listOf("/storage/Music"))).thenReturn(emptyList())
+        whenever(songDao.getByPathPrefix("/storage/Music")).thenReturn(flowOf(listOf(existingSong)))
+        wheneverBlocking { songSyncEngine.sync(any(), any()) } doReturn SyncResult(inserted = 0, deleted = 1, updated = 0)
 
+        val result = repository.refreshDirectory("/storage/Music")
+
+        assertTrue(result.isSuccess)
+        verifyBlocking(songSyncEngine) { sync(any(), any()) }
+    }
+
+    @Test
+    fun `refreshSongs returns failure when sync throws`() = runTest(testDispatcher) {
+        val dir = scanDirEntity(path = "/storage/Music")
         whenever(scanDirectoryDao.getAll()).thenReturn(flowOf(listOf(dir)))
         whenever(musicScanner.scanDirectories(listOf("/storage/Music"))).thenReturn(emptyList())
-        whenever(songDao.getAll()).thenReturn(flowOf(listOf(existingSong)))
-        whenever(songSyncEngine.computeDiff(any(), any())).thenReturn(
-            SongDiff(
-                toInsert = emptyList(),
-                toDelete = listOf(existingSong),
-                toUpdate = emptyList()
-            )
-        )
-        wheneverBlocking { songDao.delete(any()) } doReturn Unit
+        whenever(songDao.getAll()).thenReturn(flowOf(emptyList()))
+        wheneverBlocking { songSyncEngine.sync(any(), any()) } doThrow RuntimeException("DB error")
 
         val result = repository.refreshSongs()
 
-        assertTrue(result.isSuccess)
-        verifyBlocking(songDao) {
-            delete(argThat { id == 10L && path == "/storage/Music/old.mp3" })
-        }
+        assertTrue(result.isFailure)
+        assertEquals("DB error", result.exceptionOrNull()!!.message)
     }
 
     @Test
-    fun `refreshSongs returns failure on exception`() = runTest(testDispatcher) {
+    fun `refreshSongs returns failure on scanDirectory exception`() = runTest(testDispatcher) {
         whenever(scanDirectoryDao.getAll()).thenThrow(RuntimeException("DB error"))
 
         val result = repository.refreshSongs()
@@ -188,7 +176,6 @@ class MusicRepositoryImplTest {
         repository.getAllSongs().test {
             val first = awaitItem()
             assertEquals(2, first.size)
-            // Second identical List is filtered by distinctUntilChanged(); flow goes straight to Complete
             awaitComplete()
         }
     }
