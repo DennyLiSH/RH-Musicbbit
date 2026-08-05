@@ -43,7 +43,6 @@ import timber.log.Timber
 class PlaybackSession @Inject constructor(
     private val playerPort: PlayerPort,
     private val playbackProgressRepository: PlaybackProgressRepository,
-    private val musicNotificationPort: MusicNotificationPort,
     private val serviceStarter: ServiceStarter,
     private val audioFocusPort: AudioFocusPort,
     private val playbackCoordinator: PlaybackCoordinator,
@@ -80,7 +79,6 @@ class PlaybackSession @Inject constructor(
             is PlayerEvent.MediaItemTransition -> handleMediaItemTransition(event)
             is PlayerEvent.PlaybackReady -> {
                 _playbackState.update { it.copy(durationMs = event.durationMs) }
-                updateNotification()
             }
             is PlayerEvent.PositionDiscontinuity -> handlePositionDiscontinuity(event)
             is PlayerEvent.QueueEnded -> handleQueueEnded()
@@ -146,7 +144,6 @@ class PlaybackSession @Inject constructor(
             progressTracker.stopSaveLoop()
             progressTracker.saveProgress()
         }
-        updateNotification()
     }
 
     private fun handleMediaItemTransition(event: PlayerEvent.MediaItemTransition) {
@@ -163,7 +160,6 @@ class PlaybackSession @Inject constructor(
         if (event.reason == TransitionReason.AUTO) {
             _playbackTransitions.tryEmit(PlaybackTransition.SongCompleted(song?.id ?: -1))
         }
-        updateNotification()
     }
 
     private fun handlePositionDiscontinuity(event: PlayerEvent.PositionDiscontinuity) {
@@ -178,10 +174,6 @@ class PlaybackSession @Inject constructor(
     private fun handleQueueEnded() {
         Timber.i("Queue ended, stopping playback")
         stop()
-    }
-
-    private fun updateNotification() {
-        musicNotificationPort.buildAndNotify(_playbackState.value)
     }
 
     // -------- Public playback API --------------------------------------------

@@ -2,6 +2,7 @@ package com.rabbithole.musicbbit.service
 
 import android.app.NotificationManager
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
 import com.rabbithole.musicbbit.service.playback.ForegroundNotificationController
@@ -70,18 +71,17 @@ class MusicPlaybackServiceTest {
     }
 
     @Test
-    fun `onCreate attaches service to bridge`() {
+    fun `onCreate runs without crashing and creates playback channel`() {
+        // Hilt-injects the real ForegroundNotificationController, which attach()es the service
+        // and ensureChannelExists()s in onCreate. The attach contract itself is verified in
+        // ForegroundNotificationControllerTest; here we just confirm onCreate completes.
         service.onCreate()
 
-        val bridge = service.javaClass.getDeclaredField("foregroundServiceBridge").apply {
-            isAccessible = true
-        }.get(service) as MusicPlaybackServiceForegroundBridge
-
-        val attached = bridge.javaClass.getDeclaredField("service").apply {
-            isAccessible = true
-        }.get(bridge)
-
-        assertEquals("Bridge should attach the created service", service, attached)
+        val shadowNotificationManager = shadowOf(
+            RuntimeEnvironment.getApplication().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        )
+        val channels = shadowNotificationManager.notificationChannels
+        assertTrue("Expected at least one notification channel", channels.isNotEmpty())
     }
 
     @Test
@@ -245,7 +245,7 @@ class MusicPlaybackServiceTest {
     }
 
     @Test
-    fun `onDestroy calls controller onDestroy and detaches from bridge`() {
+    fun `onDestroy calls controller onDestroy and detaches controller`() {
         service.onCreate()
 
         val mockController = mock<ForegroundNotificationController>()
@@ -257,16 +257,7 @@ class MusicPlaybackServiceTest {
         service.onDestroy()
 
         verify(mockController).onDestroy()
-
-        val bridge = service.javaClass.getDeclaredField("foregroundServiceBridge").apply {
-            isAccessible = true
-        }.get(service) as MusicPlaybackServiceForegroundBridge
-
-        val attached = bridge.javaClass.getDeclaredField("service").apply {
-            isAccessible = true
-        }.get(bridge)
-
-        assertNull("Bridge should detach the destroyed service", attached)
+        verify(mockController).detach()
     }
 
     @Test

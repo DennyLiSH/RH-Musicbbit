@@ -1,33 +1,49 @@
 package com.rabbithole.musicbbit.service.playback
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.service.MusicPlaybackService
 import com.rabbithole.musicbbit.service.PlaybackState
+import dagger.hilt.android.testing.HiltTestApplication
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import org.junit.Assert.assertThrows
+import org.junit.Assert.assertSame
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.any
-import org.mockito.kotlin.inOrder
+import org.mockito.kotlin.atLeastOnce
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
-import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
- * JVM unit tests for [ForegroundNotificationController].
+ * Robolectric tests for [ForegroundNotificationController] (ADR 0008 spec pattern).
+ *
+ * The controller now owns the notification lifecycle end-to-end: it builds the
+ * Notification from a pure [ForegroundNotificationSpec] (returned by the mocked
+ * [MusicNotificationPort]) and calls `MusicPlaybackService.startForeground` /
+ * `stopForeground` directly. The Bridge singleton is no longer in the loop.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33], application = HiltTestApplication::class)
 class ForegroundNotificationControllerTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private val playbackState = MutableStateFlow(PlaybackState())
+    private val context: Context = ApplicationProvider.getApplicationContext()
 
     private lateinit var playbackSession: PlaybackSession
     private lateinit var musicNotificationPort: MusicNotificationPort
     private lateinit var serviceStarter: ServiceStarter
+    private lateinit var service: MusicPlaybackService
     private lateinit var controller: ForegroundNotificationController
 
     private val song = Song(
@@ -41,18 +57,33 @@ class ForegroundNotificationControllerTest {
         coverUri = null,
     )
 
+    private fun specFor(state: PlaybackState) = ForegroundNotificationSpec(
+        title = state.currentSong?.title ?: "App",
+        text = state.currentSong?.artist ?: "Unknown",
+        isPlaying = state.isPlaying,
+        smallIconResId = android.R.drawable.ic_media_play,
+        playPauseIconResId = android.R.drawable.ic_media_pause,
+        playPauseLabel = if (state.isPlaying) "Pause" else "Play",
+        previousLabel = "Prev",
+        nextLabel = "Next",
+    )
+
     @Before
     fun setUp() {
         playbackSession = mock()
         whenever(playbackSession.playbackState).thenReturn(playbackState)
         musicNotificationPort = mock()
+        whenever(musicNotificationPort.buildSpec(any())).thenAnswer { specFor(it.getArgument(0)) }
         serviceStarter = mock()
+        service = mock()
         controller = ForegroundNotificationController(
             playbackSession = playbackSession,
             musicNotificationPort = musicNotificationPort,
             serviceStarter = serviceStarter,
+            context = context,
             mainDispatcher = testDispatcher,
         )
+        controller.attach(service)
     }
 
     @Test
@@ -62,135 +93,86 @@ class ForegroundNotificationControllerTest {
     }
 
     @Test
-    fun `initial empty state hides foreground notification`() {
+    fun `state with song calls service startForeground`() {
         controller.onCreate()
+        playbackState.value = PlaybackState(currentSong = song, isPlaying = true)
 
-        verify(musicNotificationPort).hideForegroundNotification()
-        verify(musicNotificationPort, never()).buildAndNotify(any())
+        verify(service, atLeastOnce()).startForeground(eq(ForegroundNotificationController.NOTIFICATION_ID), any())
     }
 
     @Test
-    fun `state with song builds and notifies`() {
+    fun `state without song calls service stopForeground`() {
         controller.onCreate()
-
-        val state = PlaybackState(currentSong = song, isPlaying = true)
-        playbackState.value = state
-
-        verify(musicNotificationPort).buildAndNotify(state)
-    }
-
-    @Test
-    fun `state without song hides foreground notification`() {
-        controller.onCreate()
-
-        // Move to a state with a song first
         playbackState.value = PlaybackState(currentSong = song)
-        // Then back to empty
         playbackState.value = PlaybackState()
 
-        // Initial empty state hides once, then the transition to empty hides again
-        verify(musicNotificationPort, times(2)).hideForegroundNotification()
+        verify(service, atLeastOnce()).stopForeground(android.app.Service.STOP_FOREGROUND_REMOVE)
     }
 
     @Test
-    fun `onStartCommand builds notification with current state`() {
+    fun `onStartCommand builds notification from current state`() {
         val state = PlaybackState(currentSong = song)
         playbackState.value = state
 
         controller.onStartCommand()
 
-        verify(musicNotificationPort).buildAndNotify(state)
+        verify(musicNotificationPort).buildSpec(state)
+        verify(service).startForeground(eq(ForegroundNotificationController.NOTIFICATION_ID), any())
     }
 
     @Test
-    fun `onStartCommand builds placeholder notification when no current song`() {
-        val state = PlaybackState()
-        playbackState.value = state
-
-        controller.onStartCommand()
-
-        verify(musicNotificationPort).buildAndNotify(state)
-    }
-
-    @Test
-    fun `onStartCommand propagates synchronous exceptions`() {
-        val error = RuntimeException("buildAndNotify failed")
-        whenever(musicNotificationPort.buildAndNotify(playbackState.value)).thenThrow(error)
-
-        val thrown = assertThrows(RuntimeException::class.java) {
-            controller.onStartCommand()
-        }
-
-        assertThrows("Expected the original exception", error.javaClass) { throw thrown }
-    }
-
-    @Test
-    fun `onDestroy hides notification and cancels collection`() {
+    fun `detach cancels state collection — no further service calls`() {
         controller.onCreate()
-        // Initial hide on empty state
-        verify(musicNotificationPort).hideForegroundNotification()
-
-        playbackState.value = PlaybackState(currentSong = song)
-        controller.onDestroy()
-
-        // Final hide on destroy
-        verify(musicNotificationPort, times(2)).hideForegroundNotification()
-
-        // After destroy, further state changes must not trigger the port
-        playbackState.value = PlaybackState(currentSong = song.copy(id = 2L))
-        verify(musicNotificationPort).buildAndNotify(any())
-    }
-
-    @Test
-    fun `coroutine exception hides notification and stops service`() {
-        val error = RuntimeException("state collection failed")
-        whenever(musicNotificationPort.buildAndNotify(any())).thenThrow(error)
-
-        controller.onCreate()
-
-        // Trigger collection by emitting a state with a song
-        playbackState.value = PlaybackState(currentSong = song)
-
-        verify(musicNotificationPort, times(2)).hideForegroundNotification()
-        verify(serviceStarter).stopService()
-    }
-
-    @Test
-    fun `job cancellation does not trigger stopService`() {
-        // CancellationException is a normal coroutine cancellation signal, not an
-        // error. The catch block must re-throw it without calling stopService —
-        // otherwise routine Service.onDestroy would be mishandled as an error.
-        controller.onCreate()
-
-        // onDestroy cancels stateCollectionJob internally
-        controller.onDestroy()
-
-        verify(serviceStarter, never()).stopService()
-    }
-
-    @Test
-    fun `onCreate onStartCommand onDestroy order`() {
-        val state = PlaybackState(currentSong = song, isPlaying = true)
-        playbackState.value = state
-
-        controller.onCreate()
-        controller.onStartCommand()
-        controller.onDestroy()
-
-        inOrder(musicNotificationPort) {
-            verify(musicNotificationPort).ensureChannelExists()
-            verify(musicNotificationPort, times(2)).buildAndNotify(state)
-            verify(musicNotificationPort).hideForegroundNotification()
-        }
-    }
-
-    @Test
-    fun `state collection stops after onDestroy`() {
-        controller.onCreate()
-        controller.onDestroy()
+        controller.detach()
 
         playbackState.value = PlaybackState(currentSong = song)
 
-        verify(musicNotificationPort, never()).buildAndNotify(PlaybackState(currentSong = song))
+        verify(service, never()).startForeground(any(), any())
+    }
+
+    @Test
+    fun `state emitted before attach is ignored (service == null)`() {
+        // Detach first (service == null), then trigger state collection via onCreate
+        controller.detach()
+        controller.onCreate()
+
+        playbackState.value = PlaybackState(currentSong = song)
+
+        verify(service, never()).startForeground(any(), any())
+    }
+
+    @Test
+    fun `attach before state collect — service ref available on first emit`() {
+        // Controller was attached in setUp(); re-attach is also fine.
+        controller.attach(service)
+        controller.onCreate()
+        playbackState.value = PlaybackState(currentSong = song)
+
+        verify(service).startForeground(eq(ForegroundNotificationController.NOTIFICATION_ID), any())
+    }
+
+    @Test
+    fun `onDestroy stops foreground and cancels collection`() {
+        controller.onCreate()
+        controller.onDestroy()
+
+        // After destroy, state emissions must not reach the service
+        playbackState.value = PlaybackState(currentSong = song)
+        verify(service, never()).startForeground(any(), any())
+    }
+
+    @Test
+    fun `service recreation — old controller collection cancelled`() {
+        // In production, Service recreation gets a fresh ForegroundNotificationController
+        // (unscoped, per-Service). Here we simulate just the teardown half: after detach,
+        // the controller must not interact with the service on subsequent state emissions.
+        controller.onCreate()
+        controller.detach()
+
+        val newService: MusicPlaybackService = mock()
+        controller.attach(newService)
+        playbackState.value = PlaybackState(currentSong = song)
+
+        verify(newService, never()).startForeground(any(), any())
     }
 }

@@ -34,7 +34,6 @@ class PlaybackSessionAlarmHandoffTest {
     private lateinit var playerPort: FakePlayerPort
     private lateinit var audioFocusPort: FakeAudioFocusPort
     private lateinit var progressRepository: FakeProgressRepository
-    private lateinit var musicNotificationPort: MusicNotificationPort
     private lateinit var serviceStarter: FakeServiceStarter
     private lateinit var coordinator: PlaybackCoordinator
     private lateinit var userSession: PlaybackSession
@@ -68,7 +67,6 @@ class PlaybackSessionAlarmHandoffTest {
         playerPort = FakePlayerPort()
         audioFocusPort = FakeAudioFocusPort()
         progressRepository = FakeProgressRepository()
-        musicNotificationPort = mock()
         serviceStarter = FakeServiceStarter()
         coordinator = PlaybackCoordinator(
             playerPort = playerPort,
@@ -78,7 +76,6 @@ class PlaybackSessionAlarmHandoffTest {
         userSession = PlaybackSession(
             playerPort = playerPort,
             playbackProgressRepository = progressRepository,
-            musicNotificationPort = musicNotificationPort,
             serviceStarter = serviceStarter,
             audioFocusPort = audioFocusPort,
             playbackCoordinator = coordinator,

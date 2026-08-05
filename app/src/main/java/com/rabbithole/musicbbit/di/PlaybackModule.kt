@@ -2,9 +2,7 @@ package com.rabbithole.musicbbit.di
 
 import com.rabbithole.musicbbit.service.AndroidServiceStarter
 import com.rabbithole.musicbbit.service.AudioFocusManager
-import com.rabbithole.musicbbit.service.ForegroundServicePort
 import com.rabbithole.musicbbit.service.MusicNotificationManager
-import com.rabbithole.musicbbit.service.MusicPlaybackServiceForegroundBridge
 import com.rabbithole.musicbbit.service.playback.AudioFocusPort
 import androidx.media3.common.util.UnstableApi
 import com.rabbithole.musicbbit.service.playback.ExoPlayerAdapter
@@ -38,10 +36,4 @@ internal abstract class PlaybackModule {
     @Binds
     @Singleton
     abstract fun bindServiceStarter(impl: AndroidServiceStarter): ServiceStarter
-
-    @Binds
-    @Singleton
-    abstract fun bindForegroundServicePort(
-        impl: MusicPlaybackServiceForegroundBridge
-    ): ForegroundServicePort
 }

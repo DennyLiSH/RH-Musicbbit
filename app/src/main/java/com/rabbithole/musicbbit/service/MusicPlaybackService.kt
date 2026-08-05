@@ -1,6 +1,5 @@
 package com.rabbithole.musicbbit.service
 
-import android.app.Notification
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -25,16 +24,13 @@ import timber.log.Timber
  *
  * Responsibilities:
  * 1. Android Service lifecycle (onCreate/onBind/onStartCommand/onDestroy)
- * 2. Foreground notification management via [startForeground] / [stopForeground]
- * 3. Notification button click handling (Previous / PlayPause / Next)
- * 4. Forwarding [ACTION_PLAY_ALARM] intent for [AlarmFireSession]
- *
- * The actual notification state coordination lives in
- * [ForegroundNotificationController]; this class only executes the Android
- * foreground lifecycle calls through [ForegroundServicePort].
+ * 2. Forwarding intent actions (Previous / TogglePlayPause / Next / PlayAlarm)
+ * 3. Hand-off to [ForegroundNotificationController] (which owns the notification
+ *    lifecycle and calls `startForeground` / `stopForeground` directly — per
+ *    ADR 0008, the Bridge/ForegroundServicePort seam is gone).
  */
 @AndroidEntryPoint
-class MusicPlaybackService : Service(), ForegroundServicePort {
+class MusicPlaybackService : Service() {
 
     @Inject
     lateinit var playbackSession: PlaybackSession
@@ -44,9 +40,6 @@ class MusicPlaybackService : Service(), ForegroundServicePort {
 
     @Inject
     lateinit var foregroundNotificationController: ForegroundNotificationController
-
-    @Inject
-    lateinit var foregroundServiceBridge: MusicPlaybackServiceForegroundBridge
 
     @MainDispatcher
     @Inject
@@ -63,8 +56,9 @@ class MusicPlaybackService : Service(), ForegroundServicePort {
 
     override fun onCreate() {
         super.onCreate()
+        // attach must run before any state collection drives a notification render
+        foregroundNotificationController.attach(this)
         Timber.i("MusicPlaybackService created")
-        foregroundServiceBridge.attach(this)
         foregroundNotificationController.onCreate()
     }
 
@@ -104,24 +98,12 @@ class MusicPlaybackService : Service(), ForegroundServicePort {
     override fun onDestroy() {
         Timber.i("MusicPlaybackService destroyed")
         foregroundNotificationController.onDestroy()
-        foregroundServiceBridge.detach(this)
+        foregroundNotificationController.detach()
         serviceJob.cancel()
         super.onDestroy()
     }
 
-    override fun startForeground(notification: Notification) {
-        Timber.i("MusicPlaybackService entering foreground")
-        startForeground(NOTIFICATION_ID, notification)
-    }
-
-    override fun stopForeground() {
-        Timber.i("MusicPlaybackService leaving foreground")
-        stopForeground(STOP_FOREGROUND_REMOVE)
-    }
-
     companion object {
-        internal const val NOTIFICATION_ID = 1
-
         const val ACTION_PLAY_ALARM = "com.rabbithole.musicbbit.action.PLAY_ALARM"
         const val ACTION_PREVIOUS = "com.rabbithole.musicbbit.action.PREVIOUS"
         const val ACTION_TOGGLE_PLAY_PAUSE = "com.rabbithole.musicbbit.action.TOGGLE_PLAY_PAUSE"

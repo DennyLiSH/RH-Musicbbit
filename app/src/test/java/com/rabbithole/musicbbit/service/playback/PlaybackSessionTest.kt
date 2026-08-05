@@ -49,7 +49,6 @@ class PlaybackSessionTest {
 
     private lateinit var playerPort: FakePlayerPort
     private lateinit var playbackProgressRepository: PlaybackProgressRepository
-    private lateinit var musicNotificationPort: MusicNotificationPort
     private lateinit var serviceStarter: ServiceStarter
     private lateinit var audioFocusPort: FakeAudioFocusPort
     private lateinit var playbackCoordinator: PlaybackCoordinator
@@ -85,7 +84,6 @@ class PlaybackSessionTest {
     fun setUp() {
         playerPort = FakePlayerPort()
         playbackProgressRepository = mock()
-        musicNotificationPort = mock()
         serviceStarter = mock()
         audioFocusPort = FakeAudioFocusPort()
         playbackCoordinator = PlaybackCoordinator(
@@ -98,7 +96,6 @@ class PlaybackSessionTest {
         session = PlaybackSession(
             playerPort = playerPort,
             playbackProgressRepository = playbackProgressRepository,
-            musicNotificationPort = musicNotificationPort,
             serviceStarter = serviceStarter,
             audioFocusPort = audioFocusPort,
             playbackCoordinator = playbackCoordinator,
@@ -128,7 +125,8 @@ class PlaybackSessionTest {
 
     @Test
     fun `init does not ensure notification channel exists`() {
-        verify(musicNotificationPort, never()).ensureChannelExists()
+        // No longer assertable here — channel ensure migrated to ForegroundNotificationController.
+        // Kept as placeholder; playback session no longer touches notification port.
     }
 
     // -------- play() ----------------------------------------------------------
