@@ -17,12 +17,33 @@ data class AlarmNotificationContent(
         val type: ActionType,
     )
 
-    sealed interface ActionType {
-        data object Stop : ActionType
-        data object Pause : ActionType
-        data object Resume : ActionType
-        data class ExtendMinutes(val minutes: Int) : ActionType
-        data object ExtendToEnd : ActionType
+    /**
+     * Sealed action type carrying both its intent action constant and extras map.
+     *
+     * Each subtype self-describes how to construct the [android.app.PendingIntent] — no
+     * external switch is needed. [extras] is typed [Int?] to stay IPC-safe (only the
+     * minutes extra exists today).
+     */
+    sealed class ActionType {
+        abstract val action: String
+        open val extras: Map<String, Int?> = emptyMap()
+
+        data object Stop : ActionType() {
+            override val action: String = AlarmActionReceiver.ACTION_STOP
+        }
+        data object Pause : ActionType() {
+            override val action: String = AlarmActionReceiver.ACTION_PAUSE
+        }
+        data object Resume : ActionType() {
+            override val action: String = AlarmActionReceiver.ACTION_RESUME
+        }
+        data class ExtendMinutes(val minutes: Int) : ActionType() {
+            override val action: String = AlarmActionReceiver.ACTION_EXTEND_MINUTES
+            override val extras: Map<String, Int?> = mapOf(AlarmActionReceiver.EXTRA_MINUTES to minutes)
+        }
+        data object ExtendToEnd : ActionType() {
+            override val action: String = AlarmActionReceiver.ACTION_EXTEND_TO_END
+        }
     }
 }
 

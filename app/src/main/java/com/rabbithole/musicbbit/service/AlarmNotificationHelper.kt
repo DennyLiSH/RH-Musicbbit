@@ -131,41 +131,24 @@ class AlarmNotificationHelper @Inject constructor(
             builder.addAction(
                 action.iconResId,
                 action.label,
-                createActionPendingIntentForType(alarmId, action.type)
+                createActionPendingIntent(alarmId, action.type.action, action.type.extras)
             )
         }
 
         return builder.build()
     }
 
-    private fun createActionPendingIntentForType(
-        alarmId: Long,
-        type: AlarmNotificationContent.ActionType
-    ): PendingIntent {
-        val (action, minutes) = when (type) {
-            is AlarmNotificationContent.ActionType.Stop ->
-                AlarmActionReceiver.ACTION_STOP to null
-            is AlarmNotificationContent.ActionType.Pause ->
-                AlarmActionReceiver.ACTION_PAUSE to null
-            is AlarmNotificationContent.ActionType.Resume ->
-                AlarmActionReceiver.ACTION_RESUME to null
-            is AlarmNotificationContent.ActionType.ExtendMinutes ->
-                AlarmActionReceiver.ACTION_EXTEND_MINUTES to type.minutes
-            is AlarmNotificationContent.ActionType.ExtendToEnd ->
-                AlarmActionReceiver.ACTION_EXTEND_TO_END to null
-        }
-        return createActionPendingIntent(alarmId, action, minutes)
-    }
-
     private fun createActionPendingIntent(
         alarmId: Long,
         action: String,
-        minutes: Int? = null
+        extras: Map<String, Int?> = emptyMap(),
     ): PendingIntent {
         val intent = Intent(context, AlarmActionReceiver::class.java).apply {
             this.action = action
             putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
-            minutes?.let { putExtra(AlarmActionReceiver.EXTRA_MINUTES, it) }
+            extras.forEach { (key, value) ->
+                value?.let { putExtra(key, it) }
+            }
         }
         return PendingIntent.getBroadcast(
             context,
