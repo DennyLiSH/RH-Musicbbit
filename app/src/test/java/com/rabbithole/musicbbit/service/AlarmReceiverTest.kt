@@ -211,7 +211,7 @@ class AlarmReceiverTest {
         val serviceIntent = shadowOf(context).peekNextStartedService()
         assertNotNull("Service should have been started", serviceIntent)
 
-        val service = Robolectric.setupService(MusicPlaybackService::class.java)
+        val service = Robolectric.buildService(MusicPlaybackService::class.java).get()
         service.onCreate()
         service.onStartCommand(serviceIntent, 0, 0)
 

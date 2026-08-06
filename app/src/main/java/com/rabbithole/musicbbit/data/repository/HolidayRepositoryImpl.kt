@@ -58,6 +58,9 @@ class HolidayRepositoryImpl @Inject constructor(
             }
 
             val entities = response.holiday.map { (_, entry) ->
+                // Validate ISO date format. LocalDate.parse throws DateTimeParseException on
+                // malformed input; the outer catch (line ~75) converts it to Result.failure.
+                LocalDate.parse(entry.date)
                 HolidayEntity(
                     date = entry.date,
                     year = year,
@@ -82,8 +85,8 @@ class HolidayRepositoryImpl @Inject constructor(
         val localDate = try {
             LocalDate.parse(date)
         } catch (e: Exception) {
-            Timber.w("Invalid date format: $date")
-            return@withContext true // Default to workday on parse error
+            Timber.e(e, "Invalid date format: $date")
+            throw IllegalStateException("Invalid date format: $date", e)
         }
 
         val dayOfWeek = localDate.dayOfWeek
@@ -132,8 +135,11 @@ class HolidayRepositoryImpl @Inject constructor(
                 val jsonString = inputStream.bufferedReader().use { it.readText() }
                 val response = json.decodeFromString<HolidayResponseDto>(jsonString)
 
-                val entities = response.holiday.map { (_, entry) ->
-                    val year = entry.date.substringBefore("-").toInt()
+                val entities = response.holiday.mapNotNull { (_, entry) ->
+                    val year = entry.date.substringBefore("-").toIntOrNull() ?: run {
+                        Timber.d("Skipping fallback entry with malformed year: ${entry.date}")
+                        return@mapNotNull null
+                    }
                     entry.date to HolidayEntity(
                         date = entry.date,
                         year = year,

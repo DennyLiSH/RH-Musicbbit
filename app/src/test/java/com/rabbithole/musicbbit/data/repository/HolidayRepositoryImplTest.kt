@@ -101,11 +101,15 @@ class HolidayRepositoryImplTest {
         assertTrue(result)
     }
 
-    @Test
-    fun `isWorkday defaults to true for invalid date`() = runTest(testDispatcher) {
-        val result = repository.isWorkday("not-a-date")
+    @Test(expected = IllegalStateException::class)
+    fun `isWorkday throws IllegalStateException for invalid date`() = runTest(testDispatcher) {
+        repository.isWorkday("not-a-date")
+    }
 
-        assertTrue(result)
+    @Test(expected = IllegalStateException::class)
+    fun `isWorkday throws IllegalStateException for semantically invalid date`() = runTest(testDispatcher) {
+        // Valid ISO format but Feb 30 does not exist
+        repository.isWorkday("2026-02-30")
     }
 
     @Test
@@ -142,6 +146,48 @@ class HolidayRepositoryImplTest {
         val result = repository.refreshHolidays(2026)
 
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `refreshHolidays with malformed entry date returns failure`() = runTest(testDispatcher) {
+        // entry.date not valid ISO date → LocalDate.parse throws DateTimeParseException → outer catch converts to Result.failure
+        val badJson = """{"code":0,"holiday":{"01-01":{"holiday":true,"name":"元旦","date":"not-a-date","wage":3,"rest":1}}}"""
+        wheneverBlocking { holidayApi.getHolidaysForYear(2026) } doReturn badJson
+
+        val result = repository.refreshHolidays(2026)
+
+        assertTrue(result.isFailure)
+        verifyBlocking(holidayDao, org.mockito.Mockito.never()) { deleteByYear(any()) }
+        verifyBlocking(holidayDao, org.mockito.Mockito.never()) { insertAll(any()) }
+    }
+
+    @Test
+    fun `refreshHolidays with mixed valid and malformed entries returns failure`() = runTest(testDispatcher) {
+        // Any malformed entry triggers overall failure (no partial retention), per Step 3 改动 A semantics
+        val mixedJson = """{"code":0,"holiday":{"01-01":{"holiday":true,"name":"元旦","date":"2026-01-01","wage":3,"rest":1},"02-30":{"holiday":true,"name":"坏数据","date":"not-a-date","wage":1,"rest":1}}}"""
+        wheneverBlocking { holidayApi.getHolidaysForYear(2026) } doReturn mixedJson
+
+        val result = repository.refreshHolidays(2026)
+
+        assertTrue(result.isFailure)
+        verifyBlocking(holidayDao, org.mockito.Mockito.never()) { insertAll(any()) }
+    }
+
+    @Test
+    fun `loadFallbackHolidays skips malformed entries and returns valid ones`() = runTest(testDispatcher) {
+        // Inject test asset with 1 valid entry + 1 malformed entry; verify mapNotNull skips the bad one
+        val testJson = """{"code":0,"holiday":{"01-01":{"holiday":true,"name":"元旦","date":"2026-01-01","wage":3,"rest":1},"bad":{"holiday":false,"name":"坏","date":"not-a-date","wage":1,"rest":1}}}"""
+        val mockAssets = org.mockito.kotlin.mock<android.content.res.AssetManager> {
+            on { open("holidays_fallback.json") } doReturn testJson.byteInputStream()
+        }
+        whenever(context.assets).thenReturn(mockAssets)
+        // Cache miss → triggers loadFallbackHolidays path
+        wheneverBlocking { holidayDao.getHolidayByDate("2026-01-01") } doReturn null
+
+        // 2026-01-01 is a Thursday (workday); fallback asset marks it holiday=true → isWorkday=false
+        val result = repository.isWorkday("2026-01-01")
+
+        assertFalse(result)
     }
 
     @Test

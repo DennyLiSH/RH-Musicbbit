@@ -26,8 +26,12 @@ interface HolidayRepository {
     /**
      * Check if the given date is a workday, considering holidays and adjusted workdays.
      *
-     * @param date ISO date string (YYYY-MM-DD)
+     * @param date ISO date string (YYYY-MM-DD). Callers must ensure [date] is well-formed
+     *   (e.g., produced by `NextOccurrenceCalculator.formatDate` or equivalent ISO validation).
      * @return true if the date is a workday
+     * @throws IllegalStateException if [date] is not a parseable ISO date. Per ADR 0007
+     *   (prefer errors over silent degradation), parse failures surface explicitly
+     *   rather than defaulting to a workday value.
      */
     suspend fun isWorkday(date: String): Boolean
 
