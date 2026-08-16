@@ -65,7 +65,7 @@ class AlarmSaveOrchestratorTest {
             // Already initialized — safe to ignore.
         }
         orchestrator = AlarmSaveOrchestrator(alarmRepository, permissionOrchestrator)
-        whenever(permissionOrchestrator.checkPermissions()).thenReturn(
+        whenever(permissionOrchestrator.checkPermissions(any())).thenReturn(
             AlarmEditPermissionOrchestrator.PermissionCheckResult.AllGranted
         )
     }
@@ -84,7 +84,7 @@ class AlarmSaveOrchestratorTest {
 
     @Test
     fun `needs exact alarm permission short-circuits`() = runTest {
-        whenever(permissionOrchestrator.checkPermissions()).thenReturn(
+        whenever(permissionOrchestrator.checkPermissions(any())).thenReturn(
             AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsExactAlarm
         )
 
@@ -95,13 +95,25 @@ class AlarmSaveOrchestratorTest {
 
     @Test
     fun `needs full screen intent permission short-circuits`() = runTest {
-        whenever(permissionOrchestrator.checkPermissions()).thenReturn(
+        whenever(permissionOrchestrator.checkPermissions(any())).thenReturn(
             AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsFullScreenIntent
         )
 
         val outcome = orchestrator.save(validAlarm, playlistId = 5L)
 
         assertTrue(outcome is AlarmSaveOrchestrator.SaveOutcome.NeedsFullScreenIntentPermission)
+    }
+
+    @Test
+    fun `needs dnd access permission short-circuits without saving`() = runTest {
+        whenever(permissionOrchestrator.checkPermissions(any())).thenReturn(
+            AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsDndAccess
+        )
+
+        val outcome = orchestrator.save(validAlarm, playlistId = 5L)
+
+        assertTrue(outcome is AlarmSaveOrchestrator.SaveOutcome.NeedsDndAccessPermission)
+        org.mockito.kotlin.verifyNoInteractions(alarmRepository)
     }
 
     @Test

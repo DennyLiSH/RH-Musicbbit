@@ -3,7 +3,9 @@ package com.rabbithole.musicbbit.presentation.alarm
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.service.AlarmScheduler
+import com.rabbithole.musicbbit.service.DndAccessPermissionHelper
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -23,14 +25,22 @@ class AlarmEditPermissionOrchestrator @Inject constructor(
         data object AllGranted : PermissionCheckResult
         data object NeedsExactAlarm : PermissionCheckResult
         data object NeedsFullScreenIntent : PermissionCheckResult
+        data object NeedsDndAccess : PermissionCheckResult
     }
 
-    fun checkPermissions(): PermissionCheckResult {
+    /**
+     * @param alarm the alarm being saved; only alarms with [Alarm.ignoreQuietMode] need
+     *   Do Not Disturb access for their notification channel to break through DND.
+     */
+    fun checkPermissions(alarm: Alarm): PermissionCheckResult {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmScheduler.canScheduleExactAlarms()) {
             return PermissionCheckResult.NeedsExactAlarm
         }
         if (!FullScreenIntentPermissionHelper.isGranted(context)) {
             return PermissionCheckResult.NeedsFullScreenIntent
+        }
+        if (alarm.ignoreQuietMode && !DndAccessPermissionHelper.isGranted(context)) {
+            return PermissionCheckResult.NeedsDndAccess
         }
         return PermissionCheckResult.AllGranted
     }

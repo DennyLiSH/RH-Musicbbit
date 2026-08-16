@@ -52,6 +52,28 @@ internal fun FullScreenIntentDialog(
 }
 
 @Composable
+internal fun DndAccessDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.dnd_permission_title)) },
+        text = { Text(stringResource(R.string.dnd_permission_message)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.dnd_permission_grant))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+@Composable
 internal fun DiscardDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,

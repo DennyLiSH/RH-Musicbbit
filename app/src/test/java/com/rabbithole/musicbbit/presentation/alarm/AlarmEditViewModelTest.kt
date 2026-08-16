@@ -83,7 +83,7 @@ class AlarmEditViewModelTest {
         playlistRepository = mock()
         alarmRingSettingsRepository = mock()
         permissionOrchestrator = mock()
-        whenever(permissionOrchestrator.checkPermissions()).thenReturn(
+        whenever(permissionOrchestrator.checkPermissions(any())).thenReturn(
             AlarmEditPermissionOrchestrator.PermissionCheckResult.AllGranted
         )
         whenever(permissionOrchestrator.checkAutostartGuide()).thenReturn(
@@ -345,7 +345,7 @@ class AlarmEditViewModelTest {
         whenever(playlistRepository.getAllPlaylists()).thenReturn(
             flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
         )
-        whenever(permissionOrchestrator.checkPermissions()).thenReturn(
+        whenever(permissionOrchestrator.checkPermissions(any())).thenReturn(
             AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsExactAlarm
         )
 
@@ -369,7 +369,7 @@ class AlarmEditViewModelTest {
         whenever(playlistRepository.getAllPlaylists()).thenReturn(
             flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
         )
-        whenever(permissionOrchestrator.checkPermissions()).thenReturn(
+        whenever(permissionOrchestrator.checkPermissions(any())).thenReturn(
             AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsFullScreenIntent
         )
 
@@ -383,6 +383,30 @@ class AlarmEditViewModelTest {
         assertEquals(
             "dialogState should be FullScreenIntent when fsi permission needed",
             AlarmEditDialogState.FullScreenIntent,
+            viewModel.uiState.value.dialogState
+        )
+        assertFalse("saveCompleted should be false", viewModel.uiState.value.saveCompleted)
+    }
+
+    @Test
+    fun `save sets dialogState=DndAccess when dnd access needed`() = runTest {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(
+            flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
+        )
+        whenever(permissionOrchestrator.checkPermissions(any())).thenReturn(
+            AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsDndAccess
+        )
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        viewModel.onAction(AlarmEditAction.OnPlaylistSelected(10L))
+        viewModel.onAction(AlarmEditAction.OnSave)
+        advanceUntilIdle()
+
+        assertEquals(
+            "dialogState should be DndAccess when dnd access needed",
+            AlarmEditDialogState.DndAccess,
             viewModel.uiState.value.dialogState
         )
         assertFalse("saveCompleted should be false", viewModel.uiState.value.saveCompleted)

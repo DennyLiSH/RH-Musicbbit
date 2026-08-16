@@ -71,6 +71,7 @@ sealed interface AlarmEditDialogState {
     data object TimePicker : AlarmEditDialogState
     data object Permission : AlarmEditDialogState
     data object FullScreenIntent : AlarmEditDialogState
+    data object DndAccess : AlarmEditDialogState
     data class AutostartGuide(val intent: Intent?) : AlarmEditDialogState
     data object AutostartManualGuide : AlarmEditDialogState
     data object Discard : AlarmEditDialogState
@@ -306,6 +307,9 @@ class AlarmEditViewModel @Inject constructor(
                 }
                 is AlarmSaveOrchestrator.SaveOutcome.NeedsFullScreenIntentPermission -> {
                     _uiState.update { it.copy(isSaving = false, dialogState = AlarmEditDialogState.FullScreenIntent) }
+                }
+                is AlarmSaveOrchestrator.SaveOutcome.NeedsDndAccessPermission -> {
+                    _uiState.update { it.copy(isSaving = false, dialogState = AlarmEditDialogState.DndAccess) }
                 }
                 is AlarmSaveOrchestrator.SaveOutcome.Success -> {
                     _uiState.update { it.copy(isSaving = false) }

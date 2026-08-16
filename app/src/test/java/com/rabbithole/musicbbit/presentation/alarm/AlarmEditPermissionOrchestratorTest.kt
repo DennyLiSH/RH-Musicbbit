@@ -2,7 +2,9 @@ package com.rabbithole.musicbbit.presentation.alarm
 
 import android.content.Context
 import android.content.Intent
+import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.service.AlarmScheduler
+import com.rabbithole.musicbbit.service.DndAccessPermissionHelper
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import org.mockito.MockedStatic
 import org.mockito.Mockito.mockStatic
@@ -30,6 +32,7 @@ class AlarmEditPermissionOrchestratorTest {
     private lateinit var orchestrator: AlarmEditPermissionOrchestrator
 
     private var fsiMock: MockedStatic<FullScreenIntentPermissionHelper>? = null
+    private var dndMock: MockedStatic<DndAccessPermissionHelper>? = null
     private var autostartMock: MockedStatic<AutostartHelper>? = null
 
     @Before
@@ -39,21 +42,37 @@ class AlarmEditPermissionOrchestratorTest {
         orchestrator = AlarmEditPermissionOrchestrator(context, alarmScheduler)
 
         fsiMock = mockStatic(FullScreenIntentPermissionHelper::class.java)
+        dndMock = mockStatic(DndAccessPermissionHelper::class.java)
         autostartMock = mockStatic(AutostartHelper::class.java)
     }
 
     @After
     fun tearDown() {
         fsiMock?.close()
+        dndMock?.close()
         autostartMock?.close()
     }
 
+    private fun alarm(ignoreQuietMode: Boolean = true): Alarm = Alarm(
+        id = 1L,
+        hour = 7,
+        minute = 0,
+        repeatDays = emptySet(),
+        playlistId = 1L,
+        isEnabled = true,
+        label = null,
+        autoStop = null,
+        lastTriggeredAt = null,
+        ignoreQuietMode = ignoreQuietMode,
+    )
+
     @Test
-    fun `checkPermissions returns AllGranted when both permissions granted`() {
+    fun `checkPermissions returns AllGranted when all permissions granted`() {
         whenever(alarmScheduler.canScheduleExactAlarms()).thenReturn(true)
         fsiMock!!.`when`<Boolean> { FullScreenIntentPermissionHelper.isGranted(any()) }.thenReturn(true)
+        dndMock!!.`when`<Boolean> { DndAccessPermissionHelper.isGranted(any()) }.thenReturn(true)
 
-        val result = orchestrator.checkPermissions()
+        val result = orchestrator.checkPermissions(alarm())
 
         assertTrue(result is AlarmEditPermissionOrchestrator.PermissionCheckResult.AllGranted)
     }
@@ -63,7 +82,7 @@ class AlarmEditPermissionOrchestratorTest {
         whenever(alarmScheduler.canScheduleExactAlarms()).thenReturn(false)
         fsiMock!!.`when`<Boolean> { FullScreenIntentPermissionHelper.isGranted(any()) }.thenReturn(true)
 
-        val result = orchestrator.checkPermissions()
+        val result = orchestrator.checkPermissions(alarm())
 
         assertTrue(result is AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsExactAlarm)
     }
@@ -73,7 +92,7 @@ class AlarmEditPermissionOrchestratorTest {
         whenever(alarmScheduler.canScheduleExactAlarms()).thenReturn(true)
         fsiMock!!.`when`<Boolean> { FullScreenIntentPermissionHelper.isGranted(any()) }.thenReturn(false)
 
-        val result = orchestrator.checkPermissions()
+        val result = orchestrator.checkPermissions(alarm())
 
         assertTrue(result is AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsFullScreenIntent)
     }
@@ -83,7 +102,40 @@ class AlarmEditPermissionOrchestratorTest {
         whenever(alarmScheduler.canScheduleExactAlarms()).thenReturn(false)
         fsiMock!!.`when`<Boolean> { FullScreenIntentPermissionHelper.isGranted(any()) }.thenReturn(false)
 
-        val result = orchestrator.checkPermissions()
+        val result = orchestrator.checkPermissions(alarm())
+
+        assertTrue(result is AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsExactAlarm)
+    }
+
+    @Test
+    fun `checkPermissions returns NeedsDndAccess when ignoreQuietMode true and dnd not granted`() {
+        whenever(alarmScheduler.canScheduleExactAlarms()).thenReturn(true)
+        fsiMock!!.`when`<Boolean> { FullScreenIntentPermissionHelper.isGranted(any()) }.thenReturn(true)
+        dndMock!!.`when`<Boolean> { DndAccessPermissionHelper.isGranted(any()) }.thenReturn(false)
+
+        val result = orchestrator.checkPermissions(alarm(ignoreQuietMode = true))
+
+        assertTrue(result is AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsDndAccess)
+    }
+
+    @Test
+    fun `checkPermissions skips dnd check when ignoreQuietMode false`() {
+        whenever(alarmScheduler.canScheduleExactAlarms()).thenReturn(true)
+        fsiMock!!.`when`<Boolean> { FullScreenIntentPermissionHelper.isGranted(any()) }.thenReturn(true)
+        dndMock!!.`when`<Boolean> { DndAccessPermissionHelper.isGranted(any()) }.thenReturn(false)
+
+        val result = orchestrator.checkPermissions(alarm(ignoreQuietMode = false))
+
+        assertTrue(result is AlarmEditPermissionOrchestrator.PermissionCheckResult.AllGranted)
+    }
+
+    @Test
+    fun `checkPermissions checks exact alarm before dnd`() {
+        whenever(alarmScheduler.canScheduleExactAlarms()).thenReturn(false)
+        fsiMock!!.`when`<Boolean> { FullScreenIntentPermissionHelper.isGranted(any()) }.thenReturn(true)
+        dndMock!!.`when`<Boolean> { DndAccessPermissionHelper.isGranted(any()) }.thenReturn(false)
+
+        val result = orchestrator.checkPermissions(alarm(ignoreQuietMode = true))
 
         assertTrue(result is AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsExactAlarm)
     }

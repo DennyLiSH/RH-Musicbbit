@@ -28,11 +28,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.service.DndAccessPermissionHelper
 import com.rabbithole.musicbbit.service.ExactAlarmPermissionHelper
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import com.rabbithole.musicbbit.presentation.alarm.components.AlarmEditContent
 import com.rabbithole.musicbbit.presentation.alarm.components.AutostartGuideDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.DiscardDialog
+import com.rabbithole.musicbbit.presentation.alarm.components.DndAccessDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.FullScreenIntentDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.PermissionDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.SaveButtonBar
@@ -168,6 +170,13 @@ fun AlarmEditScreen(
         AlarmEditDialogState.FullScreenIntent -> FullScreenIntentDialog(
             onConfirm = {
                 FullScreenIntentPermissionHelper.openSettings(context)
+                viewModel.dismissDialog()
+            },
+            onDismiss = { viewModel.dismissDialog() },
+        )
+        AlarmEditDialogState.DndAccess -> DndAccessDialog(
+            onConfirm = {
+                DndAccessPermissionHelper.openSettings(context)
                 viewModel.dismissDialog()
             },
             onDismiss = { viewModel.dismissDialog() },

@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import com.rabbithole.musicbbit.service.DndAccessPermissionHelper
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
@@ -58,5 +59,9 @@ class AndroidPermissionAdapter @Inject constructor(
         } else {
             true
         }
+    }
+
+    override fun isNotificationPolicyAccessGranted(): Boolean {
+        return DndAccessPermissionHelper.isGranted(context)
     }
 }

@@ -42,4 +42,10 @@ interface PermissionPort {
      * Whether the app can schedule exact alarms (API 31+). Always true on older versions.
      */
     fun canScheduleExactAlarms(): Boolean
+
+    /**
+     * Whether the user has granted this app Do Not Disturb access (Notification Policy
+     * Access), the prerequisite for a notification channel to bypass DND.
+     */
+    fun isNotificationPolicyAccessGranted(): Boolean
 }

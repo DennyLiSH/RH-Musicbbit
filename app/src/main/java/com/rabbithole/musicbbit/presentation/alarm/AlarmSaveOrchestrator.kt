@@ -24,6 +24,8 @@ class AlarmSaveOrchestrator(
         data object NeedsExactAlarmPermission : SaveOutcome
         /** Full-screen intent permission is required. */
         data object NeedsFullScreenIntentPermission : SaveOutcome
+        /** Do Not Disturb access is required (alarm has ignoreQuietMode enabled). */
+        data object NeedsDndAccessPermission : SaveOutcome
         /** Save succeeded; may need autostart guidance. */
         data class Success(val autostart: AutostartOutcome) : SaveOutcome
         /** Save failed. */
@@ -49,12 +51,15 @@ class AlarmSaveOrchestrator(
             return SaveOutcome.MissingPlaylist
         }
 
-        when (val permissionResult = permissionOrchestrator.checkPermissions()) {
+        when (val permissionResult = permissionOrchestrator.checkPermissions(alarm)) {
             is AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsExactAlarm -> {
                 return SaveOutcome.NeedsExactAlarmPermission
             }
             is AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsFullScreenIntent -> {
                 return SaveOutcome.NeedsFullScreenIntentPermission
+            }
+            is AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsDndAccess -> {
+                return SaveOutcome.NeedsDndAccessPermission
             }
             is AlarmEditPermissionOrchestrator.PermissionCheckResult.AllGranted -> {
                 // proceed
