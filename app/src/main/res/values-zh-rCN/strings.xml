@@ -43,6 +43,11 @@
     <string name="fsi_permission_title">需要全屏闹钟权限</string>
     <string name="fsi_permission_message">在 Android 14 及以上版本，应用需要权限才能在锁屏界面显示闹钟。否则闹钟仍会播放音乐，但无法显示全屏响铃界面。</string>
     <string name="fsi_permission_grant">授予权限</string>
+    <string name="dnd_permission_title">需要勿扰权限</string>
+    <string name="dnd_permission_message">若要让该闹钟在勿扰模式下响铃并显示通知，请在系统设置中授予「勿扰模式使用权限」。注意：任何应用都无法突破「完全静音」模式。</string>
+    <string name="dnd_permission_grant">授予权限</string>
+    <string name="dnd_access_banner_title">未授予勿扰权限</string>
+    <string name="dnd_access_banner_message">开启了「无视静音/勿扰」的闹钟在勿扰模式下可能无法显示通知。请授予勿扰权限，让这些闹钟正常响铃。</string>
     <string name="now_playing">正在播放…</string>
     <string name="alarm_active_banner_title">闹钟播放中</string>
     <string name="alarm_active_banner_stop">停止闹钟</string>
@@ -51,6 +56,7 @@
     <string name="stop">停止</string>
     <string name="notification_channel_name">音乐闹钟</string>
     <string name="notification_alarm_channel_desc">音乐闹钟通知</string>
+    <string name="notification_channel_bypass_dnd_name">音乐闹钟（穿透勿扰模式）</string>
     <string name="notification_music_channel_desc">音乐播放通知</string>
     <string name="notification_default_alarm_label">音乐闹钟</string>
     <string name="notification_unknown_artist">未知艺术家</string>
@@ -93,6 +99,9 @@
     <string name="alarm_edit_ring_mode_normal_summary">闹钟响起时显示通知</string>
     <string name="alarm_edit_ring_mode_full_screen">全屏响铃</string>
     <string name="alarm_edit_ring_mode_full_screen_summary">唤醒屏幕并显示响铃界面</string>
+    <string name="alarm_edit_section_ignore_quiet_mode">静音/勿扰</string>
+    <string name="alarm_edit_ignore_quiet_mode_label">无视静音/勿扰模式</string>
+    <string name="alarm_edit_ignore_quiet_mode_hint">开启后即使手机处于静音或勿扰模式，闹钟仍会响铃；关闭后勿扰模式将静音该闹钟。</string>
     <string name="alarm_edit_repeat_daily">每天</string>
     <string name="alarm_edit_repeat_weekdays">工作日</string>
     <string name="alarm_edit_repeat_except_holidays">除节假日外</string>

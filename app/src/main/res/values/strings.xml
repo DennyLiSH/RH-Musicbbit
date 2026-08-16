@@ -43,6 +43,11 @@
     <string name="fsi_permission_title">Full-screen alarm permission required</string>
     <string name="fsi_permission_message">On Android 14 and above, the app needs permission to display alarms over the lock screen. Without it, alarms will still play music but cannot show the full-screen ring interface.</string>
     <string name="fsi_permission_grant">Grant permission</string>
+    <string name="dnd_permission_title">Do Not Disturb access required</string>
+    <string name="dnd_permission_message">To make this alarm ring and show its notification while Do Not Disturb is on, grant Do Not Disturb access in system settings. Note: no app can break through \"Total silence\" mode.</string>
+    <string name="dnd_permission_grant">Grant access</string>
+    <string name="dnd_access_banner_title">Do Not Disturb access missing</string>
+    <string name="dnd_access_banner_message">Alarms set to ignore silent/DND mode may not show their notification while Do Not Disturb is on. Grant access so they ring through.</string>
     <string name="now_playing">Now playing…</string>
     <string name="alarm_active_banner_title">Alarm playing</string>
     <string name="alarm_active_banner_stop">Stop alarm</string>
@@ -51,6 +56,7 @@
     <string name="stop">Stop</string>
     <string name="notification_channel_name">Music Alarm</string>
     <string name="notification_alarm_channel_desc">Music alarm notifications</string>
+    <string name="notification_channel_bypass_dnd_name">Music Alarm (bypasses Do Not Disturb)</string>
     <string name="notification_music_channel_desc">Music playback notification</string>
     <string name="notification_default_alarm_label">Music Alarm</string>
     <string name="notification_unknown_artist">Unknown artist</string>
@@ -93,6 +99,9 @@
     <string name="alarm_edit_ring_mode_normal_summary">Show a notification when alarm rings</string>
     <string name="alarm_edit_ring_mode_full_screen">Full-screen alarm</string>
     <string name="alarm_edit_ring_mode_full_screen_summary">Wake the screen and show the ring interface</string>
+    <string name="alarm_edit_section_ignore_quiet_mode">Silent / Do Not Disturb</string>
+    <string name="alarm_edit_ignore_quiet_mode_label">Ignore silent and Do Not Disturb</string>
+    <string name="alarm_edit_ignore_quiet_mode_hint">On: the alarm rings even in silent mode and most Do Not Disturb modes. Off: Do Not Disturb mutes this alarm.</string>
     <string name="alarm_edit_repeat_daily">Daily</string>
     <string name="alarm_edit_repeat_weekdays">Weekdays</string>
     <string name="alarm_edit_repeat_except_holidays">Except holidays</string>

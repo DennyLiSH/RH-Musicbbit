@@ -43,6 +43,11 @@
     <string name="fsi_permission_title">全画面アラーム権限が必要です</string>
     <string name="fsi_permission_message">Android 14 以上では、ロック画面にアラームを表示するために権限が必要です。権限がない場合、音楽は再生されますが全画面画面は表示されません。</string>
     <string name="fsi_permission_grant">権限を付与</string>
+    <string name="dnd_permission_title">通知拒否アクセスが必要です</string>
+    <string name="dnd_permission_message">通知拒否モード中にアラームを鳴らし通知を表示するには、システム設定で「通知拒否アクセス」を許可してください。注意：どのアプリも「完全なサイレント」モードを突破することはできません。</string>
+    <string name="dnd_permission_grant">アクセスを許可</string>
+    <string name="dnd_access_banner_title">通知拒否アクセスが未許可</string>
+    <string name="dnd_access_banner_message">「サイレント・通知拒否を無視」が有効なアラームは、通知拒否モード中に通知が表示されない場合があります。確実に鳴るようアクセスを許可してください。</string>
     <string name="now_playing">再生中…</string>
     <string name="alarm_active_banner_title">アラーム再生中</string>
     <string name="alarm_active_banner_stop">アラーム停止</string>
@@ -51,6 +56,7 @@
     <string name="stop">停止</string>
     <string name="notification_channel_name">音楽アラーム</string>
     <string name="notification_alarm_channel_desc">音楽アラーム通知</string>
+    <string name="notification_channel_bypass_dnd_name">音楽アラーム（通知拒否を回避）</string>
     <string name="notification_music_channel_desc">音楽再生通知</string>
     <string name="notification_default_alarm_label">音楽アラーム</string>
     <string name="notification_unknown_artist">不明なアーティスト</string>
@@ -93,6 +99,9 @@
     <string name="alarm_edit_ring_mode_normal_summary">アラーム鳴動時に通知を表示</string>
     <string name="alarm_edit_ring_mode_full_screen">全画面アラーム</string>
     <string name="alarm_edit_ring_mode_full_screen_summary">画面を起こしてアラーム画面を表示</string>
+    <string name="alarm_edit_section_ignore_quiet_mode">サイレント／通知拒否</string>
+    <string name="alarm_edit_ignore_quiet_mode_label">サイレントと通知拒否を無視</string>
+    <string name="alarm_edit_ignore_quiet_mode_hint">オンの場合、サイレントモードやほとんどの通知拒否モードでもアラームが鳴ります。オフの場合、通知拒否モード中はこのアラームは消音されます。</string>
     <string name="alarm_edit_repeat_daily">毎日</string>
     <string name="alarm_edit_repeat_weekdays">平日</string>
     <string name="alarm_edit_repeat_except_holidays">祝日を除く</string>
