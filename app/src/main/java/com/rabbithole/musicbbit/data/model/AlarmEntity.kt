@@ -19,7 +19,8 @@ data class AlarmEntity(
     val autoStop: String?,
     val lastTriggeredAt: Long?,
     val resumePlayback: Boolean = true,
-    val ringMode: String = "NORMAL"
+    val ringMode: String = "NORMAL",
+    val ignoreQuietMode: Boolean = true
 )
 
 object AutoStopConverter {

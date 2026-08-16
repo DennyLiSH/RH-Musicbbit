@@ -18,7 +18,8 @@ internal fun AlarmEntity.toDomain(): Alarm = Alarm(
     autoStop = AutoStopConverter.toAutoStop(autoStop),
     lastTriggeredAt = lastTriggeredAt,
     resumePlayback = resumePlayback,
-    ringMode = ringMode.toAlarmRingMode()
+    ringMode = ringMode.toAlarmRingMode(),
+    ignoreQuietMode = ignoreQuietMode
 )
 
 internal fun Alarm.toEntity(): AlarmEntity = AlarmEntity(
@@ -33,7 +34,8 @@ internal fun Alarm.toEntity(): AlarmEntity = AlarmEntity(
     autoStop = AutoStopConverter.fromAutoStop(autoStop),
     lastTriggeredAt = lastTriggeredAt,
     resumePlayback = resumePlayback,
-    ringMode = ringMode.name.uppercase()
+    ringMode = ringMode.name.uppercase(),
+    ignoreQuietMode = ignoreQuietMode
 )
 
 private fun String.toAlarmRingMode(): AlarmRingMode =

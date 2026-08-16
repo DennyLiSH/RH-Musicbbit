@@ -40,6 +40,7 @@ class AlarmMapperTest {
         assertEquals(1_700_000_000_000L, domain.lastTriggeredAt)
         assertEquals(true, domain.resumePlayback)
         assertEquals(AlarmRingMode.Normal, domain.ringMode)
+        assertEquals(true, domain.ignoreQuietMode)
     }
 
     @Test
@@ -96,6 +97,7 @@ class AlarmMapperTest {
         assertEquals(1_700_000_000_000L, entity.lastTriggeredAt)
         assertEquals(true, entity.resumePlayback)
         assertEquals("NORMAL", entity.ringMode)
+        assertEquals(true, entity.ignoreQuietMode)
     }
 
     @Test
@@ -112,7 +114,8 @@ class AlarmMapperTest {
             autoStop = AutoStop.ByMinutes(5),
             lastTriggeredAt = null,
             resumePlayback = false,
-            ringMode = AlarmRingMode.FullScreen
+            ringMode = AlarmRingMode.FullScreen,
+            ignoreQuietMode = false
         )
 
         val entity = original.toEntity()

@@ -29,7 +29,7 @@ import com.rabbithole.musicbbit.data.model.PlaylistSongEntity
         ScanDirectoryEntity::class,
         HolidayEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 @TypeConverters(AutoStopConverter::class)

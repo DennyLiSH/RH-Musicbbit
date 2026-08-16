@@ -17,6 +17,9 @@ import java.time.DayOfWeek
  * @property lastTriggeredAt Unix timestamp (ms) of the last trigger, or null
  * @property resumePlayback Whether to resume the playlist from the last saved position.
  * @property ringMode How the alarm surfaces when it fires.
+ * @property ignoreQuietMode Whether playback bypasses silent/DND mode (alarm audio stream
+ *   plus DND-bypassing notification channel). When false, playback uses the media stream
+ *   and is muted by Do-Not-Disturb.
  */
 data class Alarm(
     val id: Long = 0,
@@ -31,5 +34,6 @@ data class Alarm(
     val lastTriggeredAt: Long?,
     val resumePlayback: Boolean = true,
     val ringMode: AlarmRingMode = AlarmRingMode.Normal,
+    val ignoreQuietMode: Boolean = true,
 )
 
