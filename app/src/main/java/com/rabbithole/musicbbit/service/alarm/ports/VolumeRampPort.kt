@@ -5,7 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 /**
  * Abstraction over the alarm volume-ramp feature.
  *
- * The ramp gradually raises the music stream volume from a low starting level toward the
+ * The ramp gradually raises the target stream volume from a low starting level toward the
  * device maximum, aborting if the user adjusts volume manually.
  *
  * Production adapter: [com.rabbithole.musicbbit.service.AlarmVolumeController].
@@ -15,8 +15,11 @@ interface VolumeRampPort {
 
     /**
      * Begin the volume ramp. Long-running work runs in the supplied [scope].
+     *
+     * @param useAlarmStream true ramps the alarm stream (matches playback routed with
+     *   alarm audio usage); false ramps the music stream.
      */
-    fun startVolumeRamp(scope: CoroutineScope)
+    fun startVolumeRamp(scope: CoroutineScope, useAlarmStream: Boolean)
 
     /**
      * Cancel any in-flight ramp and restore the user's previous (or last manually-adjusted)

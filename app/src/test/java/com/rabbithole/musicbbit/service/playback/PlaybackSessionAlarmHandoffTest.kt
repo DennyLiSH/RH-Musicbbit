@@ -110,6 +110,7 @@ class PlaybackSessionAlarmHandoffTest {
             listOf(ALARM_SONG_1, ALARM_SONG_2),
             startIndex = 0,
             playlistId = 100L,
+            useAlarmStream = true,
         )
 
         // userSession should be marked inactive (isPlaying=false via onDeactivated)
@@ -143,6 +144,7 @@ class PlaybackSessionAlarmHandoffTest {
             listOf(ALARM_SONG_1),
             startIndex = 0,
             playlistId = 100L,
+            useAlarmStream = true,
         )
 
         // Critical assertion: handoff must NOT trigger a saveProgress that would
@@ -172,6 +174,7 @@ class PlaybackSessionAlarmHandoffTest {
             listOf(ALARM_SONG_1),
             startIndex = 0,
             playlistId = 100L,
+            useAlarmStream = true,
         )
 
         // Player events emitted after handoff should be handled by alarmSession, not userSession.
@@ -196,6 +199,7 @@ class PlaybackSessionAlarmHandoffTest {
             listOf(ALARM_SONG_1),
             startIndex = 0,
             playlistId = 100L,
+            useAlarmStream = true,
         )
         playerPort.emitEvent(PlayerEvent.IsPlayingChanged(true))
 
@@ -218,6 +222,7 @@ class PlaybackSessionAlarmHandoffTest {
             listOf(ALARM_SONG_1, ALARM_SONG_2),
             startIndex = 0,
             playlistId = 100L,
+            useAlarmStream = true,
         )
         playerPort.emitEvent(PlayerEvent.IsPlayingChanged(true))
         assertTrue(alarmSession.playbackState.value.isPlaying)
@@ -244,6 +249,7 @@ class PlaybackSessionAlarmHandoffTest {
             listOf(ALARM_SONG_1),
             startIndex = 0,
             playlistId = 100L,
+            useAlarmStream = true,
         )
 
         // userSession.onDeactivated runs but has nothing to do — no crash, no save.

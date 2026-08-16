@@ -69,7 +69,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `playAlarmQueue requests focus starts service sets queue and plays`() {
-        session.playAlarmQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         assertEquals(1, audioFocusPort.requestFocusCallCount)
         assertTrue(serviceStarter.startCalled)
@@ -88,8 +88,15 @@ class AlarmPlaybackSessionTest {
     }
 
     @Test
+    fun `playAlarmQueue with useAlarmStream false configures media stream`() {
+        session.playAlarmQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L, useAlarmStream = false)
+
+        assertFalse(playerPort.alarmPlaybackConfigured)
+    }
+
+    @Test
     fun `playAlarmQueue coerces startIndex to valid range`() {
-        session.playAlarmQueue(listOf(SONG_1, SONG_2), startIndex = 5, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1, SONG_2), startIndex = 5, playlistId = 10L, useAlarmStream = true)
 
         assertEquals(1, playerPort.queueCalls[0].startIndex)
         assertEquals(SONG_2, session.playbackState.value.currentSong)
@@ -97,7 +104,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `playAlarmQueue is no-op for empty songs`() {
-        session.playAlarmQueue(emptyList(), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(emptyList(), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         assertEquals(0, audioFocusPort.requestFocusCallCount)
         assertFalse(serviceStarter.startCalled)
@@ -106,7 +113,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `playAlarmQueue is no-op for invalid playlistId`() {
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = -1L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = -1L, useAlarmStream = true)
 
         assertEquals(0, audioFocusPort.requestFocusCallCount)
         assertFalse(serviceStarter.startCalled)
@@ -117,7 +124,7 @@ class AlarmPlaybackSessionTest {
     fun `playAlarmQueue does nothing when focus request fails`() {
         audioFocusPort.setRequestFocusResult(false)
 
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         assertFalse(serviceStarter.startCalled)
         assertEquals(0, playerPort.queueCalls.size)
@@ -126,7 +133,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `pause pauses player and saves progress`() {
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         session.pause()
 
@@ -136,7 +143,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `resume requests focus and plays when not playing`() {
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
         playerPort.isPlayingValue = false
 
         session.resume()
@@ -147,7 +154,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `resume does nothing when focus request fails`() {
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
         audioFocusPort.setRequestFocusResult(false)
 
         session.resume()
@@ -158,7 +165,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `stop abandons focus stops player clears queue and deactivates`() {
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         session.stop()
 
@@ -178,7 +185,7 @@ class AlarmPlaybackSessionTest {
         // Queue-ended path: handleQueueEnded sets queueEndedPending=true; the subsequent
         // stop() call (driven by AlarmFireSession upon receiving QueueEnded) must skip
         // saveProgress to avoid writing the just-finished song's end position.
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         playerPort.emitEvent(PlayerEvent.QueueEnded)
         // Calling stop here simulates AlarmFireSession's response to QueueEnded.
@@ -191,7 +198,7 @@ class AlarmPlaybackSessionTest {
     @Test
     fun `stop without prior queueEnded saves progress`() = runBlocking {
         // Non-queue-ended stop path (manual stop): saveProgress should still run.
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         session.stop()
 
@@ -200,7 +207,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `stop emits PlaybackStopped transition`() = runBlocking {
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
         val transitions = mutableListOf<PlaybackTransition>()
         val collectJob = launch(dispatcher) {
             session.playbackTransitions.collect { transitions.add(it) }
@@ -214,7 +221,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `seekTo delegates to playerPort and updates state`() {
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         session.seekTo(45_000L)
 
@@ -225,7 +232,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `IsPlayingChanged updates state`() {
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         playerPort.emitEvent(PlayerEvent.IsPlayingChanged(false))
 
@@ -234,7 +241,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `MediaItemTransition updates current song and queueIndex`() {
-        session.playAlarmQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         playerPort.emitEvent(
             PlayerEvent.MediaItemTransition(
@@ -252,7 +259,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `MediaItemTransition AUTO emits SongCompleted`() = runBlocking {
-        session.playAlarmQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L, useAlarmStream = true)
         val transitions = mutableListOf<PlaybackTransition>()
         val collectJob = launch(dispatcher) {
             session.playbackTransitions.collect { transitions.add(it) }
@@ -274,7 +281,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `PlaybackReady updates duration`() {
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         playerPort.emitEvent(PlayerEvent.PlaybackReady(durationMs = 200_000L))
 
@@ -283,7 +290,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `PositionDiscontinuity updates position and queueIndex`() {
-        session.playAlarmQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         playerPort.emitEvent(
             PlayerEvent.PositionDiscontinuity(newPositionMs = 30_000L, itemIndex = 1)
@@ -296,7 +303,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `QueueEnded emits QueueEnded transition with playlistId`() = runBlocking {
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
         val transitions = mutableListOf<PlaybackTransition>()
         val collectJob = launch(dispatcher) {
             session.playbackTransitions.collect { transitions.add(it) }
@@ -317,7 +324,7 @@ class AlarmPlaybackSessionTest {
         // so we verify indirectly: QueueEnded alone must NOT reset state (Fix 2 moved the
         // reset into stop()'s path). State reset happens when AlarmFireSession receives
         // the QueueEnded transition and calls stop().
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         playerPort.emitEvent(PlayerEvent.QueueEnded)
 
@@ -333,7 +340,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `focus loss pauses playback when playing`() {
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         audioFocusPort.simulateFocusLoss()
 
@@ -342,7 +349,7 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `focus gain resumes playback after focus loss pause`() {
-        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L)
+        session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
         playerPort.isPlayingValue = false
 
         audioFocusPort.simulateFocusLoss()

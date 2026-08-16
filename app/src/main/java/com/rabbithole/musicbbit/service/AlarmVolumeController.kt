@@ -28,23 +28,28 @@ class AlarmVolumeController @Inject constructor(
     private var userAdjustedVolume: Int = -1
     private var userAdjusted: Boolean = false
 
-    private val maxVolume: Int
-        get() = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+    // Stream targeted by the current ramp; set at startVolumeRamp so every read/write
+    // below operates on the same stream the player actually outputs to.
+    private var stream: Int = AudioManager.STREAM_MUSIC
 
-    override fun startVolumeRamp(scope: CoroutineScope) {
-        originalVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+    private val maxVolume: Int
+        get() = audioManager.getStreamMaxVolume(stream)
+
+    override fun startVolumeRamp(scope: CoroutineScope, useAlarmStream: Boolean) {
+        stream = if (useAlarmStream) AudioManager.STREAM_ALARM else AudioManager.STREAM_MUSIC
+        originalVolume = audioManager.getStreamVolume(stream)
 
         volumeJob = scope.launch {
             val durationSeconds = alarmRingSettingsRepository.getVolumeRampDurationSeconds().first()
 
             if (durationSeconds == 0) {
-                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, 0)
+                audioManager.setStreamVolume(stream, maxVolume, 0)
                 Timber.i("Volume ramp disabled, set to max immediately")
                 return@launch
             }
 
             val startVolume = (maxVolume * 0.3f).toInt().coerceAtLeast(1)
-            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, startVolume, 0)
+            audioManager.setStreamVolume(stream, startVolume, 0)
             Timber.d("Starting volume ramp from $startVolume to $maxVolume over ${durationSeconds}s")
 
             val steps = 10
@@ -54,7 +59,7 @@ class AlarmVolumeController @Inject constructor(
             repeat(steps) { i ->
                 delay(delayMs)
 
-                val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                val currentVolume = audioManager.getStreamVolume(stream)
                 val expectedVolume = (startVolume + volumeStep * i).toInt().coerceIn(0, maxVolume)
 
                 if (currentVolume != expectedVolume) {
@@ -66,7 +71,7 @@ class AlarmVolumeController @Inject constructor(
 
                 val newVolume = (startVolume + volumeStep * (i + 1)).toInt()
                 audioManager.setStreamVolume(
-                    AudioManager.STREAM_MUSIC,
+                    stream,
                     newVolume.coerceIn(0, maxVolume),
                     0
                 )
@@ -91,7 +96,7 @@ class AlarmVolumeController @Inject constructor(
             else -> return
         }
 
-        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVolume, 0)
+        audioManager.setStreamVolume(stream, targetVolume, 0)
 
         // Reset all state
         originalVolume = -1

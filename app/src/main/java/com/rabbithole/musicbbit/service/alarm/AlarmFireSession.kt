@@ -220,7 +220,12 @@ class AlarmFireSession @Inject constructor(
             alarmPlaybackSession.preloadFirstSong(songs.first().path)
         }
 
-        alarmPlaybackSession.playAlarmQueue(songs, startIndex, alarm.playlistId)
+        alarmPlaybackSession.playAlarmQueue(
+            songs,
+            startIndex,
+            alarm.playlistId,
+            useAlarmStream = alarm.ignoreQuietMode
+        )
 
         if (isAlarmTrigger) {
             // Acquire the wake lock before playback so the device doesn't sleep through
@@ -229,7 +234,7 @@ class AlarmFireSession @Inject constructor(
             // MusicPlaybackService.onStartCommand's main-thread call site, making the
             // failure visible (vs. silently degrading into "alarm didn't fire").
             wakeLockPort.acquire(ALARM_WAKE_LOCK_TIMEOUT_MS)
-            volumeRampPort.startVolumeRamp(sessionScope)
+            volumeRampPort.startVolumeRamp(sessionScope, useAlarmStream = alarm.ignoreQuietMode)
             Timber.i("Started volume ramp for alarm playback")
         }
 

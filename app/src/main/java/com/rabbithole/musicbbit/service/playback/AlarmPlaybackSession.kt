@@ -75,8 +75,10 @@ class AlarmPlaybackSession @Inject constructor(
      * @param songs Non-empty list of songs to play.
      * @param startIndex Initial item index, coerced to `[0, songs.lastIndex]`.
      * @param playlistId Playlist identifier. Must be positive.
+     * @param useAlarmStream true routes audio through the alarm stream (bypasses silent mode
+     *   and most DND filters); false uses the media stream, which DND mutes.
      */
-    fun playAlarmQueue(songs: List<Song>, startIndex: Int, playlistId: Long) {
+    fun playAlarmQueue(songs: List<Song>, startIndex: Int, playlistId: Long, useAlarmStream: Boolean) {
         if (songs.isEmpty()) {
             Timber.w("playAlarmQueue called with empty list")
             return
@@ -98,7 +100,7 @@ class AlarmPlaybackSession @Inject constructor(
         Timber.i(
             "Playing alarm queue of ${songs.size} songs, startIndex=$safeIndex, playlistId=$playlistId"
         )
-        playerPort.configureForAlarmPlayback(true)
+        playerPort.configureForAlarmPlayback(useAlarmStream)
         serviceStarter.startService()
 
         val mediaItems = songs.map { song ->

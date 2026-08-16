@@ -131,12 +131,14 @@ class AlarmFireSessionTest {
                 any<List<Song>>(),
                 any<Int>(),
                 any<Long>(),
+                any<Boolean>(),
             )
         ).thenAnswer { invocation ->
             fakeControls.playAlarmQueue(
                 invocation.getArgument(0),
                 invocation.getArgument(1),
                 invocation.getArgument(2),
+                invocation.getArgument(3),
             )
         }
         whenever(alarmPlaybackSession.preloadFirstSong(any<String>())).thenAnswer { invocation ->
@@ -197,6 +199,30 @@ class AlarmFireSessionTest {
 
         val updated = alarmRepository.getById(2L)
         assertFalse("one-time alarm must be disabled after firing", updated!!.isEnabled)
+    }
+
+    @Test
+    fun `fire passes useAlarmStream true when ignoreQuietMode enabled`() = scope.runTest {
+        alarmRepository.insert(repeatingAlarm(id = 21L, playlistId = 210L))
+        playlistRepository.set(210L, threeSongPlaylist(id = 210L))
+
+        session.fire(alarmId = 21L, isAlarmTrigger = true)
+        runCurrent()
+
+        assertEquals(true, fakeControls.lastUseAlarmStream)
+        assertEquals(true, volumeRampPort.lastUseAlarmStream)
+    }
+
+    @Test
+    fun `fire passes useAlarmStream false when ignoreQuietMode disabled`() = scope.runTest {
+        alarmRepository.insert(repeatingAlarm(id = 22L, playlistId = 220L).copy(ignoreQuietMode = false))
+        playlistRepository.set(220L, threeSongPlaylist(id = 220L))
+
+        session.fire(alarmId = 22L, isAlarmTrigger = true)
+        runCurrent()
+
+        assertEquals(false, fakeControls.lastUseAlarmStream)
+        assertEquals(false, volumeRampPort.lastUseAlarmStream)
     }
 
     @Test
@@ -717,9 +743,12 @@ class AlarmFireSessionTest {
             private set
         var restoreCount = 0
             private set
+        var lastUseAlarmStream: Boolean? = null
+            private set
 
-        override fun startVolumeRamp(scope: CoroutineScope) {
+        override fun startVolumeRamp(scope: CoroutineScope, useAlarmStream: Boolean) {
             startCount++
+            lastUseAlarmStream = useAlarmStream
         }
 
         override fun restoreVolume() {
@@ -743,6 +772,8 @@ class AlarmFireSessionTest {
         var stopCount = 0
             private set
         var playAlarmQueueCount = 0
+            private set
+        var lastUseAlarmStream: Boolean? = null
             private set
 
         private val _playbackTransitions = MutableSharedFlow<PlaybackTransition>(extraBufferCapacity = 64)
@@ -768,8 +799,10 @@ class AlarmFireSessionTest {
             songs: List<Song>,
             startIndex: Int,
             playlistId: Long,
+            useAlarmStream: Boolean,
         ) {
             lastStartIndex = startIndex
+            lastUseAlarmStream = useAlarmStream
             playAlarmQueueCount++
         }
 
