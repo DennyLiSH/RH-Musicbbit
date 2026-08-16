@@ -45,27 +45,45 @@ class AlarmNotificationHelper @Inject constructor(
         playbackPausedText = resources.getString(R.string.notification_playback_paused, "Playback has been paused"),
     )
 
+    // Channel chosen by the last showAlarmPlaying call; showAlarmPaused reuses it so the
+    // paused update lands on the same channel the user saw. Reset in cancel() — valid
+    // only within a single fire session (Playing always precedes Paused).
+    private var lastChannelId: String? = null
+
     override fun showAlarmPlaying(alarm: Alarm, song: Song) {
+        // setBypassDnd is a no-op without Notification Policy Access, so the bypass
+        // channel is only used when the access is actually granted.
+        val useBypassChannel = alarm.ignoreQuietMode && DndAccessPermissionHelper.isGranted(context)
+        val channelId = if (useBypassChannel) CHANNEL_BYPASS_DND_ID else CHANNEL_ID
+        lastChannelId = channelId
         channelFactory.ensureChannel(
-            channelId = CHANNEL_ID,
-            nameRes = R.string.notification_channel_name,
-            nameFallback = "Music Alarm",
+            channelId = channelId,
+            nameRes = if (useBypassChannel) {
+                R.string.notification_channel_bypass_dnd_name
+            } else {
+                R.string.notification_channel_name
+            },
+            nameFallback = if (useBypassChannel) "Music Alarm (bypasses Do Not Disturb)" else "Music Alarm",
             descRes = R.string.notification_alarm_channel_desc,
             descFallback = "Music alarm notifications",
-            importance = NotificationManager.IMPORTANCE_HIGH
+            importance = NotificationManager.IMPORTANCE_HIGH,
+            bypassDnd = useBypassChannel
         )
         val showFullScreen = alarm.ringMode == AlarmRingMode.FullScreen
         val content = contentBuilder.buildPlaying(alarm.label, song.title, song.artist, showFullScreen)
-        val notification = renderNotification(content, alarm.id)
+        val notification = renderNotification(content, alarm.id, channelId)
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
             as NotificationManager
         notificationManager.notify(alarm.id.toInt(), notification)
-        Timber.d("Alarm notification shown for alarmId=${alarm.id}")
+        Timber.d("Alarm notification shown for alarmId=${alarm.id}, channel=$channelId")
     }
 
     override fun showAlarmPaused(alarmId: Long) {
+        val channelId = requireNotNull(lastChannelId) {
+            "showAlarmPaused must be preceded by showAlarmPlaying in the same fire session"
+        }
         val content = contentBuilder.buildPaused()
-        val notification = renderNotification(content, alarmId)
+        val notification = renderNotification(content, alarmId, channelId)
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
             as NotificationManager
         notificationManager.notify(alarmId.toInt(), notification)
@@ -76,10 +94,13 @@ class AlarmNotificationHelper @Inject constructor(
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
             as NotificationManager
         notificationManager.cancel(alarmId.toInt())
+        lastChannelId = null
         Timber.d("Alarm notification cancelled for alarmId=$alarmId")
     }
 
     override fun showError(notificationId: Int, title: String, message: String) {
+        // Deliberate trade-off: error notifications are not urgent and never bypass DND,
+        // keeping the bypass surface minimal.
         channelFactory.ensureChannel(
             channelId = CHANNEL_ID,
             nameRes = R.string.notification_channel_name,
@@ -89,17 +110,17 @@ class AlarmNotificationHelper @Inject constructor(
             importance = NotificationManager.IMPORTANCE_HIGH
         )
         val content = contentBuilder.buildError(title, message)
-        val notification = renderNotification(content, alarmId = notificationId.toLong())
+        val notification = renderNotification(content, alarmId = notificationId.toLong(), channelId = CHANNEL_ID)
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
             as NotificationManager
         notificationManager.notify(notificationId, notification)
         Timber.d("Error notification shown: $message")
     }
 
-    private fun renderNotification(content: AlarmNotificationContent, alarmId: Long): Notification {
+    private fun renderNotification(content: AlarmNotificationContent, alarmId: Long, channelId: String): Notification {
         val contentIntent = mainActivityIntentFactory.create(0)
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification_small)
             .setContentTitle(content.title)
             .setContentText(content.text)
@@ -160,5 +181,6 @@ class AlarmNotificationHelper @Inject constructor(
 
     companion object {
         private const val CHANNEL_ID = "alarm_channel"
+        private const val CHANNEL_BYPASS_DND_ID = "alarm_channel_bypass_dnd"
     }
 }
