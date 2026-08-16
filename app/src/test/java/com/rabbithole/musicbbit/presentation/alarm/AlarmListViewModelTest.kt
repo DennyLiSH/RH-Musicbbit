@@ -53,6 +53,7 @@ class AlarmListViewModelTest {
         permissionPort = mock {
             whenever(it.isFullScreenIntentGranted()).thenReturn(true)
             whenever(it.isIgnoringBatteryOptimizations()).thenReturn(true)
+            whenever(it.isNotificationPolicyAccessGranted()).thenReturn(true)
         }
         alarmRepository = mock {
             whenever(it.getAllAlarms()).thenReturn(flowOf(emptyList()))
@@ -107,6 +108,28 @@ class AlarmListViewModelTest {
         viewModel.refreshFullScreenIntentStatus()
 
         assertTrue(viewModel.isFullScreenIntentGranted.value)
+    }
+
+    @Test
+    fun `isDndAccessGranted reflects permission port result`() {
+        whenever(permissionPort.isNotificationPolicyAccessGranted()).thenReturn(false)
+
+        val viewModel = createViewModel()
+
+        assertFalse(viewModel.isDndAccessGranted.value)
+    }
+
+    @Test
+    fun `refreshDndAccessStatus updates state after grant`() {
+        whenever(permissionPort.isNotificationPolicyAccessGranted()).thenReturn(false)
+        val viewModel = createViewModel()
+        assertFalse(viewModel.isDndAccessGranted.value)
+
+        // User grants DND access in settings, then returns to the app (ON_RESUME)
+        whenever(permissionPort.isNotificationPolicyAccessGranted()).thenReturn(true)
+        viewModel.refreshDndAccessStatus()
+
+        assertTrue(viewModel.isDndAccessGranted.value)
     }
 
     // -------- Alarm list loading tests ---------------------------------------

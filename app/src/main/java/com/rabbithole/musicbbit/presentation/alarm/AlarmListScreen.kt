@@ -60,6 +60,7 @@ import com.rabbithole.musicbbit.presentation.components.performHapticSafe
 import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.navigation.AlarmEdit
+import com.rabbithole.musicbbit.service.DndAccessPermissionHelper
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalAnimationApi
@@ -85,11 +86,13 @@ fun AlarmListScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isIgnoringBatteryOptimizations by viewModel.isIgnoringBatteryOptimizations.collectAsStateWithLifecycle()
     val isFullScreenIntentGranted by viewModel.isFullScreenIntentGranted.collectAsStateWithLifecycle()
+    val isDndAccessGranted by viewModel.isDndAccessGranted.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refreshBatteryOptimizationStatus()
         viewModel.refreshFullScreenIntentStatus()
+        viewModel.refreshDndAccessStatus()
     }
 
     Scaffold(
@@ -134,13 +137,17 @@ fun AlarmListScreen(
 
                     is AlarmListUiState.Success -> {
                         Column(modifier = Modifier.fillMaxSize()) {
-                            if (!isIgnoringBatteryOptimizations || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !isFullScreenIntentGranted)) {
+                            val showBatteryBanner = !isIgnoringBatteryOptimizations
+                            val showFsiBanner = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !isFullScreenIntentGranted
+                            val showDndBanner = !isDndAccessGranted &&
+                                state.alarms.any { it.alarm.isEnabled && it.alarm.ignoreQuietMode }
+                            if (showBatteryBanner || showFsiBanner || showDndBanner) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 8.dp, bottom = 8.dp)
                                 ) {
-                                    if (!isIgnoringBatteryOptimizations) {
+                                    if (showBatteryBanner) {
                                         BatteryOptimizationBanner(
                                             onClick = {
                                                 val intent = viewModel.createBatteryOptimizationIntent()
@@ -150,13 +157,23 @@ fun AlarmListScreen(
                                             }
                                         )
                                     }
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !isFullScreenIntentGranted) {
-                                        if (!isIgnoringBatteryOptimizations) {
+                                    if (showFsiBanner) {
+                                        if (showBatteryBanner) {
                                             Spacer(modifier = Modifier.height(8.dp))
                                         }
                                         FullScreenIntentBanner(
                                             onClick = {
                                                 FullScreenIntentPermissionHelper.openSettings(context)
+                                            }
+                                        )
+                                    }
+                                    if (showDndBanner) {
+                                        if (showBatteryBanner || showFsiBanner) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                        }
+                                        DndAccessBanner(
+                                            onClick = {
+                                                DndAccessPermissionHelper.openSettings(context)
                                             }
                                         )
                                     }
@@ -205,6 +222,15 @@ private fun FullScreenIntentBanner(onClick: () -> Unit) {
     InfoBanner(
         title = R.string.full_screen_intent_banner_title,
         message = R.string.full_screen_intent_banner_message,
+        onClick = onClick,
+    )
+}
+
+@Composable
+private fun DndAccessBanner(onClick: () -> Unit) {
+    InfoBanner(
+        title = R.string.dnd_access_banner_title,
+        message = R.string.dnd_access_banner_message,
         onClick = onClick,
     )
 }

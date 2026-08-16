@@ -66,6 +66,9 @@ class AlarmListViewModel @Inject constructor(
     private val _isFullScreenIntentGranted = MutableStateFlow(checkFullScreenIntentStatus())
     val isFullScreenIntentGranted: StateFlow<Boolean> = _isFullScreenIntentGranted.asStateFlow()
 
+    private val _isDndAccessGranted = MutableStateFlow(permissionPort.isNotificationPolicyAccessGranted())
+    val isDndAccessGranted: StateFlow<Boolean> = _isDndAccessGranted.asStateFlow()
+
     private val _uiState = MutableStateFlow<AlarmListUiState>(AlarmListUiState.Loading)
     val uiState: StateFlow<AlarmListUiState> = _uiState.asStateFlow()
 
@@ -186,6 +189,10 @@ class AlarmListViewModel @Inject constructor(
      */
     fun refreshFullScreenIntentStatus() {
         _isFullScreenIntentGranted.value = checkFullScreenIntentStatus()
+    }
+
+    fun refreshDndAccessStatus() {
+        _isDndAccessGranted.value = permissionPort.isNotificationPolicyAccessGranted()
     }
 
     /**
