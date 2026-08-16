@@ -44,6 +44,7 @@ data class AlarmFormState(
     val isEnabled: Boolean = true,
     val resumePlayback: Boolean = true,
     val ringMode: AlarmRingMode = AlarmRingMode.Normal,
+    val ignoreQuietMode: Boolean = true,
 )
 
 data class AlarmEditUiState(
@@ -89,6 +90,7 @@ sealed interface AlarmEditAction {
     data class OnAutoStopChanged(val autoStop: AutoStop?) : AlarmEditAction
     data class OnResumePlaybackChanged(val resume: Boolean) : AlarmEditAction
     data class OnRingModeChanged(val ringMode: AlarmRingMode) : AlarmEditAction
+    data class OnIgnoreQuietModeChanged(val ignore: Boolean) : AlarmEditAction
     data object OnSave : AlarmEditAction
 }
 
@@ -169,6 +171,7 @@ class AlarmEditViewModel @Inject constructor(
                                 isEnabled = alarm.isEnabled,
                                 resumePlayback = alarm.resumePlayback,
                                 ringMode = alarm.ringMode,
+                                ignoreQuietMode = alarm.ignoreQuietMode,
                             ),
                             isLoading = false,
                             isNewAlarm = false
@@ -246,6 +249,12 @@ class AlarmEditViewModel @Inject constructor(
                     it.copy(form = it.form.copy(ringMode = action.ringMode), errorMessageResId = null, hasUnsavedChanges = true)
                 }
             }
+            is AlarmEditAction.OnIgnoreQuietModeChanged -> {
+                Timber.d("Ignore quiet mode changed: %s", action.ignore)
+                _uiState.update {
+                    it.copy(form = it.form.copy(ignoreQuietMode = action.ignore), errorMessageResId = null, hasUnsavedChanges = true)
+                }
+            }
             is AlarmEditAction.OnSave -> saveAlarm()
         }
     }
@@ -293,6 +302,7 @@ class AlarmEditViewModel @Inject constructor(
             lastTriggeredAt = null,
             resumePlayback = form.resumePlayback,
             ringMode = form.ringMode,
+            ignoreQuietMode = form.ignoreQuietMode,
         )
 
         _uiState.update { it.copy(isSaving = true, errorMessageResId = null) }

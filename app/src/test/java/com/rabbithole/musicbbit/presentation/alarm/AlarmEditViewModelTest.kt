@@ -186,6 +186,19 @@ class AlarmEditViewModelTest {
     }
 
     @Test
+    fun `OnIgnoreQuietModeChanged updates form and marks unsaved`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        viewModel.onAction(AlarmEditAction.OnIgnoreQuietModeChanged(false))
+
+        assertEquals(false, viewModel.uiState.value.form.ignoreQuietMode)
+        assertTrue("hasUnsavedChanges should be true", viewModel.uiState.value.hasUnsavedChanges)
+    }
+
+    @Test
     fun `saveAlarm carries resumePlayback and ringMode to repository`() = runTest {
         whenever(playlistRepository.getAllPlaylists()).thenReturn(
             flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))

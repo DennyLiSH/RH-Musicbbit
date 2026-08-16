@@ -53,6 +53,9 @@ internal fun AlarmEditContent(
     val onRingModeChanged = remember(onAction) {
         { mode: AlarmRingMode -> onAction(AlarmEditAction.OnRingModeChanged(mode)) }
     }
+    val onIgnoreQuietModeChanged = remember(onAction) {
+        { ignore: Boolean -> onAction(AlarmEditAction.OnIgnoreQuietModeChanged(ignore)) }
+    }
     val onAutoStopChanged = remember(onAction) {
         { autoStop: AutoStop? -> onAction(AlarmEditAction.OnAutoStopChanged(autoStop)) }
     }
@@ -121,6 +124,14 @@ internal fun AlarmEditContent(
             RingModeSelector(
                 selectedMode = form.ringMode,
                 onModeChanged = onRingModeChanged
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SectionTitle(title = stringResource(R.string.alarm_edit_section_ignore_quiet_mode))
+            IgnoreQuietModeSwitch(
+                checked = form.ignoreQuietMode,
+                onCheckedChange = onIgnoreQuietModeChanged
             )
 
             Spacer(modifier = Modifier.height(16.dp))
