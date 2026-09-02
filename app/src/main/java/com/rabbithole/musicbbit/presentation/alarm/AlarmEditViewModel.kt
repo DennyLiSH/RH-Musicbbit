@@ -16,6 +16,7 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
+import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,6 +57,8 @@ data class AlarmEditUiState(
     val errorMessageResId: Int? = null,
     val form: AlarmFormState = AlarmFormState(),
     val playlists: List<Playlist> = emptyList(),
+    val playlistsLoading: Boolean = true,
+    val isDndAccessGranted: Boolean = false,
     val volumeRampDurationSeconds: Int = 0,
     val dialogState: AlarmEditDialogState? = null,
     val hasUnsavedChanges: Boolean = false,
@@ -72,7 +75,6 @@ sealed interface AlarmEditDialogState {
     data object TimePicker : AlarmEditDialogState
     data object Permission : AlarmEditDialogState
     data object FullScreenIntent : AlarmEditDialogState
-    data object DndAccess : AlarmEditDialogState
     data class AutostartGuide(val intent: Intent?) : AlarmEditDialogState
     data object AutostartManualGuide : AlarmEditDialogState
     data object Discard : AlarmEditDialogState
@@ -102,6 +104,7 @@ class AlarmEditViewModel @Inject constructor(
     private val playlistRepository: PlaylistRepository,
     private val alarmRingSettingsRepository: AlarmRingSettingsRepository,
     private val permissionOrchestrator: AlarmEditPermissionOrchestrator,
+    private val permissionPort: PermissionPort,
 ) : ViewModel() {
 
     private val alarmSaveOrchestrator = AlarmSaveOrchestrator(alarmRepository, permissionOrchestrator)
@@ -111,7 +114,8 @@ class AlarmEditViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(
         AlarmEditUiState(
             isLoading = alarmId != 0L,
-            isNewAlarm = alarmId == 0L
+            isNewAlarm = alarmId == 0L,
+            isDndAccessGranted = permissionPort.isNotificationPolicyAccessGranted()
         )
     )
     val uiState: StateFlow<AlarmEditUiState> = _uiState.asStateFlow()
@@ -125,15 +129,26 @@ class AlarmEditViewModel @Inject constructor(
         }
     }
 
+    /** Re-check DND access when returning from system settings (ON_RESUME). */
+    fun refreshDndAccessStatus() {
+        _uiState.update { it.copy(isDndAccessGranted = permissionPort.isNotificationPolicyAccessGranted()) }
+    }
+
     private fun observePlaylists() {
         playlistRepository.getAllPlaylists()
             .onEach { playlists ->
                 Timber.d("Loaded %d playlists", playlists.size)
-                _uiState.update { it.copy(playlists = playlists) }
+                _uiState.update { it.copy(playlists = playlists, playlistsLoading = false) }
             }
             .catch { e ->
                 Timber.e(e, "Failed to load playlists")
-                _uiState.update { it.copy(isLoading = false, errorMessageResId = R.string.error_load_failed) }
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        playlistsLoading = false,
+                        errorMessageResId = R.string.error_load_failed
+                    )
+                }
             }
             .launchIn(viewModelScope)
     }
@@ -318,9 +333,6 @@ class AlarmEditViewModel @Inject constructor(
                 is AlarmSaveOrchestrator.SaveOutcome.NeedsFullScreenIntentPermission -> {
                     _uiState.update { it.copy(isSaving = false, dialogState = AlarmEditDialogState.FullScreenIntent) }
                 }
-                is AlarmSaveOrchestrator.SaveOutcome.NeedsDndAccessPermission -> {
-                    _uiState.update { it.copy(isSaving = false, dialogState = AlarmEditDialogState.DndAccess) }
-                }
                 is AlarmSaveOrchestrator.SaveOutcome.Success -> {
                     _uiState.update { it.copy(isSaving = false) }
                     when (val autostart = outcome.autostart) {
@@ -337,7 +349,7 @@ class AlarmEditViewModel @Inject constructor(
                 }
                 is AlarmSaveOrchestrator.SaveOutcome.Failure -> {
                     _uiState.update {
-                        it.copy(isSaving = false, saveFailedMessageResId = R.string.alarm_save_failed)
+                        it.copy(isSaving = false, saveFailedMessageResId = outcome.errorResId)
                     }
                 }
             }

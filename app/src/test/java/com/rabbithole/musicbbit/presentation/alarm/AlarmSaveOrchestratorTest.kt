@@ -25,7 +25,9 @@ import org.robolectric.annotation.Config
 import java.time.DayOfWeek
 
 /**
- * Unit tests for [AlarmSaveOrchestrator] covering all five [SaveOutcome] branches.
+ * Unit tests for [AlarmSaveOrchestrator] covering all five [SaveOutcome] branches
+ * (MissingPlaylist, NeedsExactAlarmPermission, NeedsFullScreenIntentPermission,
+ * Success, Failure).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -102,18 +104,6 @@ class AlarmSaveOrchestratorTest {
         val outcome = orchestrator.save(validAlarm, playlistId = 5L)
 
         assertTrue(outcome is AlarmSaveOrchestrator.SaveOutcome.NeedsFullScreenIntentPermission)
-    }
-
-    @Test
-    fun `needs dnd access permission short-circuits without saving`() = runTest {
-        whenever(permissionOrchestrator.checkPermissions(any())).thenReturn(
-            AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsDndAccess
-        )
-
-        val outcome = orchestrator.save(validAlarm, playlistId = 5L)
-
-        assertTrue(outcome is AlarmSaveOrchestrator.SaveOutcome.NeedsDndAccessPermission)
-        org.mockito.kotlin.verifyNoInteractions(alarmRepository)
     }
 
     @Test

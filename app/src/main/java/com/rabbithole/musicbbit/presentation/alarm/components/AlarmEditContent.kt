@@ -8,14 +8,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.AlarmRingMode
@@ -29,6 +27,8 @@ internal fun AlarmEditContent(
     uiState: AlarmEditUiState,
     onTimeClick: () -> Unit,
     onAction: (AlarmEditAction) -> Unit,
+    onCreatePlaylist: () -> Unit,
+    onRequestDndAccess: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val form = uiState.form
@@ -92,7 +92,10 @@ internal fun AlarmEditContent(
             PlaylistSelector(
                 playlists = uiState.playlists,
                 selectedPlaylistId = form.playlistId,
-                onPlaylistSelected = onPlaylistSelected
+                isLoading = uiState.playlistsLoading,
+                isError = uiState.errorMessageResId == R.string.alarm_edit_error_select_playlist,
+                onPlaylistSelected = onPlaylistSelected,
+                onCreatePlaylist = onCreatePlaylist
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -106,7 +109,7 @@ internal fun AlarmEditContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        SettingsGroup(
+        CollapsibleSettingsGroup(
             title = stringResource(R.string.alarm_edit_section_advanced)
         ) {
             SectionTitle(title = stringResource(R.string.alarm_edit_section_label))
@@ -131,7 +134,9 @@ internal fun AlarmEditContent(
             SectionTitle(title = stringResource(R.string.alarm_edit_section_ignore_quiet_mode))
             IgnoreQuietModeSwitch(
                 checked = form.ignoreQuietMode,
-                onCheckedChange = onIgnoreQuietModeChanged
+                onCheckedChange = onIgnoreQuietModeChanged,
+                showDndAccessHint = !uiState.isDndAccessGranted,
+                onRequestDndAccess = onRequestDndAccess
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -146,17 +151,6 @@ internal fun AlarmEditContent(
 
             VolumeRampHint(
                 durationSeconds = uiState.volumeRampDurationSeconds
-            )
-        }
-
-        if (uiState.errorMessageResId != null) {
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = stringResource(uiState.errorMessageResId),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
             )
         }
 

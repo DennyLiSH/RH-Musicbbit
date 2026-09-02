@@ -1,5 +1,9 @@
 package com.rabbithole.musicbbit.presentation.alarm.components
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -8,7 +12,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -16,24 +25,32 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.AutoStop
+import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import com.rabbithole.musicbbit.ui.theme.timeDisplayStandard
+import java.util.Locale
 
 @Composable
 internal fun SaveButtonBar(
@@ -75,16 +92,83 @@ internal fun SettingsGroup(
     Column(modifier = modifier.fillMaxWidth()) {
         SectionTitle(title = title)
         Spacer(modifier = Modifier.height(12.dp))
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surfaceVariant
+        SettingsGroupSurface(content = content)
+    }
+}
+
+/**
+ * Collapsible variant of [SettingsGroup]. Expansion state survives configuration
+ * changes ([rememberSaveable]) and is ephemeral UI state — it is deliberately not
+ * part of the form and never marks the screen as having unsaved changes.
+ *
+ * Note: if a validation error is ever attached to a field inside this group,
+ * the group must auto-expand to reveal it (current errors all live in Basic).
+ */
+@Composable
+internal fun CollapsibleSettingsGroup(
+    title: String,
+    modifier: Modifier = Modifier,
+    initiallyExpanded: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    var isExpanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        animationSpec = tween(
+            durationMillis = MotionTokens.DurationShort,
+            easing = MotionTokens.EasingEmphasized
+        ),
+        label = "chevronRotation"
+    )
+
+    Column(modifier = modifier.fillMaxWidth().animateContentSize(
+        animationSpec = tween(
+            durationMillis = MotionTokens.DurationMedium,
+            easing = MotionTokens.EasingEmphasized
+        )
+    )) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { isExpanded = !isExpanded }
+                .semantics { role = Role.Button }
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                content = content
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = Icons.Filled.KeyboardArrowDown,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.rotate(chevronRotation)
             )
         }
+        if (isExpanded) {
+            Spacer(modifier = Modifier.height(4.dp))
+            SettingsGroupSurface(content = content)
+        }
+    }
+}
+
+@Composable
+private fun SettingsGroupSurface(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            content = content
+        )
     }
 }
 
@@ -123,36 +207,69 @@ internal fun ResumePlaybackSwitch(
 internal fun IgnoreQuietModeSwitch(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    showDndAccessHint: Boolean,
+    onRequestDndAccess: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .toggleable(
-                value = checked,
-                onValueChange = onCheckedChange,
-                role = Role.Switch
-            )
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = stringResource(R.string.alarm_edit_ignore_quiet_mode_label),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = stringResource(R.string.alarm_edit_ignore_quiet_mode_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .toggleable(
+                    value = checked,
+                    onValueChange = onCheckedChange,
+                    role = Role.Switch
+                )
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.alarm_edit_ignore_quiet_mode_label),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = stringResource(R.string.alarm_edit_ignore_quiet_mode_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = null
             )
         }
-        Switch(
-            checked = checked,
-            onCheckedChange = null
-        )
+
+        // Inline permission status: shown only when the switch is on and DND access
+        // is missing, so the cost of the choice is visible where the choice is made.
+        // Refreshed on ON_RESUME so granting in system settings clears the hint.
+        if (checked && showDndAccessHint) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.alarm_edit_dnd_access_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = onRequestDndAccess) {
+                    Text(stringResource(R.string.go_to_settings))
+                }
+            }
+        }
     }
 }
 
@@ -165,7 +282,9 @@ internal fun TimeDisplay(
 ) {
     Surface(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics { role = Role.Button },
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.primaryContainer
     ) {
@@ -176,7 +295,7 @@ internal fun TimeDisplay(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = String.format("%02d:%02d", hour, minute),
+                text = String.format(Locale.US, "%02d:%02d", hour, minute),
                 style = timeDisplayStandard,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
@@ -184,7 +303,7 @@ internal fun TimeDisplay(
             Text(
                 text = stringResource(R.string.alarm_edit_tap_to_change_time),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
     }

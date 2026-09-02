@@ -14,6 +14,7 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
+import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -63,6 +64,7 @@ class AlarmEditViewModelTest {
     private lateinit var playlistRepository: PlaylistRepository
     private lateinit var alarmRingSettingsRepository: AlarmRingSettingsRepository
     private lateinit var permissionOrchestrator: AlarmEditPermissionOrchestrator
+    private lateinit var permissionPort: PermissionPort
 
     @Before
     fun setUp() {
@@ -83,12 +85,14 @@ class AlarmEditViewModelTest {
         playlistRepository = mock()
         alarmRingSettingsRepository = mock()
         permissionOrchestrator = mock()
+        permissionPort = mock()
         whenever(permissionOrchestrator.checkPermissions(any())).thenReturn(
             AlarmEditPermissionOrchestrator.PermissionCheckResult.AllGranted
         )
         whenever(permissionOrchestrator.checkAutostartGuide()).thenReturn(
             AlarmEditPermissionOrchestrator.AutostartGuideResult.NotApplicable
         )
+        whenever(permissionPort.isNotificationPolicyAccessGranted()).thenReturn(true)
     }
 
     @Test
@@ -318,8 +322,8 @@ class AlarmEditViewModelTest {
 
         val state = viewModel.uiState.value
         assertEquals(
-            "saveFailedMessageResId should be set to alarm_save_failed",
-            R.string.alarm_save_failed,
+            "saveFailedMessageResId should carry the orchestrator's errorResId",
+            R.string.alarm_edit_error_save_failed,
             state.saveFailedMessageResId
         )
         assertFalse("saveCompleted should be false on save failure", state.saveCompleted)
@@ -402,13 +406,14 @@ class AlarmEditViewModelTest {
     }
 
     @Test
-    fun `save sets dialogState=DndAccess when dnd access needed`() = runTest {
+    fun `save with ignoreQuietMode true does not block on missing dnd access`() = runTest {
+        // DND access no longer gates save: the missing permission is surfaced inline
+        // next to the ignore-quiet-mode switch instead of a save-time dialog.
         whenever(playlistRepository.getAllPlaylists()).thenReturn(
             flowOf(listOf(Playlist(10L, "Morning Mix", 0L, 0L)))
         )
-        whenever(permissionOrchestrator.checkPermissions(any())).thenReturn(
-            AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsDndAccess
-        )
+        whenever(permissionPort.isNotificationPolicyAccessGranted()).thenReturn(false)
+        wheneverBlocking { alarmRepository.saveAlarm(any()) } doReturn Result.success(1L)
 
         val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
         val viewModel = createViewModel(savedStateHandle)
@@ -417,12 +422,14 @@ class AlarmEditViewModelTest {
         viewModel.onAction(AlarmEditAction.OnSave)
         advanceUntilIdle()
 
-        assertEquals(
-            "dialogState should be DndAccess when dnd access needed",
-            AlarmEditDialogState.DndAccess,
-            viewModel.uiState.value.dialogState
+        assertTrue(
+            "Save should complete despite missing DND access",
+            viewModel.uiState.value.saveCompleted
         )
-        assertFalse("saveCompleted should be false", viewModel.uiState.value.saveCompleted)
+        assertFalse(
+            "isDndAccessGranted should expose the missing grant for the inline hint",
+            viewModel.uiState.value.isDndAccessGranted
+        )
     }
 
     @Test
@@ -605,6 +612,49 @@ class AlarmEditViewModelTest {
         )
     }
 
+    @Test
+    fun `playlistsLoading stays true until the playlist flow emits`() {
+        // A flow that never emits keeps the selector in its loading state,
+        // preventing the empty-list guidance from flashing before data arrives.
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flow { })
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        assertTrue(
+            "playlistsLoading should be true before the first emission",
+            viewModel.uiState.value.playlistsLoading
+        )
+    }
+
+    @Test
+    fun `playlistsLoading clears after the playlist flow emits`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        assertFalse(
+            "playlistsLoading should be false after the first emission",
+            viewModel.uiState.value.playlistsLoading
+        )
+    }
+
+    @Test
+    fun `refreshDndAccessStatus updates isDndAccessGranted`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+        val savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L))
+        val viewModel = createViewModel(savedStateHandle)
+
+        whenever(permissionPort.isNotificationPolicyAccessGranted()).thenReturn(false)
+        viewModel.refreshDndAccessStatus()
+        assertFalse(viewModel.uiState.value.isDndAccessGranted)
+
+        whenever(permissionPort.isNotificationPolicyAccessGranted()).thenReturn(true)
+        viewModel.refreshDndAccessStatus()
+        assertTrue(viewModel.uiState.value.isDndAccessGranted)
+    }
+
     private fun createViewModel(savedStateHandle: SavedStateHandle): AlarmEditViewModel {
         return AlarmEditViewModel(
             context = context,
@@ -612,7 +662,8 @@ class AlarmEditViewModelTest {
             alarmRepository = alarmRepository,
             playlistRepository = playlistRepository,
             alarmRingSettingsRepository = alarmRingSettingsRepository,
-            permissionOrchestrator = permissionOrchestrator
+            permissionOrchestrator = permissionOrchestrator,
+            permissionPort = permissionPort
         )
     }
 }

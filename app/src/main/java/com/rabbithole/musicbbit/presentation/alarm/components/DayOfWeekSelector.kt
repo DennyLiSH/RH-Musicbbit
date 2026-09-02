@@ -1,7 +1,10 @@
 package com.rabbithole.musicbbit.presentation.alarm.components
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +23,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.rabbithole.musicbbit.R
@@ -35,15 +41,27 @@ private val ALL_DAYS = listOf(
     DayOfWeek.SUNDAY
 )
 
-private val DAY_LABELS = mapOf(
-    DayOfWeek.MONDAY to "M",
-    DayOfWeek.TUESDAY to "T",
-    DayOfWeek.WEDNESDAY to "W",
-    DayOfWeek.THURSDAY to "T",
-    DayOfWeek.FRIDAY to "F",
-    DayOfWeek.SATURDAY to "S",
-    DayOfWeek.SUNDAY to "S"
-)
+@StringRes
+private fun dayShortLabelRes(day: DayOfWeek): Int = when (day) {
+    DayOfWeek.MONDAY -> R.string.alarm_day_short_mon
+    DayOfWeek.TUESDAY -> R.string.alarm_day_short_tue
+    DayOfWeek.WEDNESDAY -> R.string.alarm_day_short_wed
+    DayOfWeek.THURSDAY -> R.string.alarm_day_short_thu
+    DayOfWeek.FRIDAY -> R.string.alarm_day_short_fri
+    DayOfWeek.SATURDAY -> R.string.alarm_day_short_sat
+    DayOfWeek.SUNDAY -> R.string.alarm_day_short_sun
+}
+
+@StringRes
+private fun dayFullNameRes(day: DayOfWeek): Int = when (day) {
+    DayOfWeek.MONDAY -> R.string.alarm_monday
+    DayOfWeek.TUESDAY -> R.string.alarm_tuesday
+    DayOfWeek.WEDNESDAY -> R.string.alarm_wednesday
+    DayOfWeek.THURSDAY -> R.string.alarm_thursday
+    DayOfWeek.FRIDAY -> R.string.alarm_friday
+    DayOfWeek.SATURDAY -> R.string.alarm_saturday
+    DayOfWeek.SUNDAY -> R.string.alarm_sunday
+}
 
 private val WEEKDAYS = setOf(
     DayOfWeek.MONDAY,
@@ -60,11 +78,15 @@ private val EVERYDAY = ALL_DAYS.toSet()
  * Displays 7 circular day buttons, quick-select shortcuts, and an optional
  * "excluding holidays" checkbox.
  *
+ * Shortcuts only change the day set; `excludeHolidays` is owned exclusively by
+ * the checkbox so a preset never silently overwrites the user's holiday choice.
+ *
  * @param selectedDays Currently selected days
  * @param excludeHolidays Whether to skip statutory holidays and weekends
  * @param onDaysChanged Callback when day selection changes
  * @param onExcludeHolidaysChanged Callback when exclude-holidays toggle changes
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DayOfWeekSelector(
     selectedDays: Set<DayOfWeek>,
@@ -101,34 +123,20 @@ fun DayOfWeekSelector(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Quick select shortcuts
-        Row(
+        // Quick select shortcuts — FlowRow keeps buttons reachable at large font scales
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
         ) {
             ShortcutButton(
                 label = stringResource(R.string.alarm_edit_repeat_daily),
-                selected = selectedDays == EVERYDAY && !excludeHolidays,
-                onClick = {
-                    onDaysChanged(EVERYDAY)
-                    onExcludeHolidaysChanged(false)
-                }
+                isSelected = selectedDays == EVERYDAY,
+                onClick = { onDaysChanged(EVERYDAY) }
             )
             ShortcutButton(
                 label = stringResource(R.string.alarm_edit_repeat_weekdays),
-                selected = selectedDays == WEEKDAYS && !excludeHolidays,
-                onClick = {
-                    onDaysChanged(WEEKDAYS)
-                    onExcludeHolidaysChanged(false)
-                }
-            )
-            ShortcutButton(
-                label = stringResource(R.string.alarm_edit_repeat_except_holidays),
-                selected = selectedDays == EVERYDAY && excludeHolidays,
-                onClick = {
-                    onDaysChanged(EVERYDAY)
-                    onExcludeHolidaysChanged(true)
-                }
+                isSelected = selectedDays == WEEKDAYS,
+                onClick = { onDaysChanged(WEEKDAYS) }
             )
         }
 
@@ -183,10 +191,16 @@ private fun DayButton(
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }
+    val dayName = stringResource(dayFullNameRes(day))
 
     TextButton(
         onClick = onClick,
-        modifier = modifier.size(44.dp),
+        modifier = modifier
+            .size(48.dp)
+            .semantics {
+                contentDescription = dayName
+                selected = isSelected
+            },
         shape = CircleShape,
         colors = ButtonDefaults.textButtonColors(
             containerColor = containerColor,
@@ -194,9 +208,10 @@ private fun DayButton(
         )
     ) {
         Text(
-            text = DAY_LABELS[day] ?: "",
+            text = stringResource(dayShortLabelRes(day)),
             style = MaterialTheme.typography.labelLarge,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            maxLines = 1
         )
     }
 }
@@ -204,16 +219,16 @@ private fun DayButton(
 @Composable
 private fun ShortcutButton(
     label: String,
-    selected: Boolean,
+    isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val containerColor = if (selected) {
+    val containerColor = if (isSelected) {
         MaterialTheme.colorScheme.primaryContainer
     } else {
         MaterialTheme.colorScheme.surfaceVariant
     }
-    val contentColor = if (selected) {
+    val contentColor = if (isSelected) {
         MaterialTheme.colorScheme.onPrimaryContainer
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
@@ -221,7 +236,7 @@ private fun ShortcutButton(
 
     TextButton(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.semantics { selected = isSelected },
         colors = ButtonDefaults.textButtonColors(
             containerColor = containerColor,
             contentColor = contentColor

@@ -25,16 +25,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.navigation.PlaylistList
 import com.rabbithole.musicbbit.service.DndAccessPermissionHelper
 import com.rabbithole.musicbbit.service.ExactAlarmPermissionHelper
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import com.rabbithole.musicbbit.presentation.alarm.components.AlarmEditContent
 import com.rabbithole.musicbbit.presentation.alarm.components.AutostartGuideDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.DiscardDialog
-import com.rabbithole.musicbbit.presentation.alarm.components.DndAccessDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.FullScreenIntentDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.PermissionDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.SaveButtonBar
@@ -55,6 +57,8 @@ fun AlarmEditScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMessageResId = uiState.saveFailedMessageResId
     val saveFailedMessage = saveFailedMessageResId?.let { stringResource(it) }
+    val errorMessageResId = uiState.errorMessageResId
+    val errorMessage = errorMessageResId?.let { stringResource(it) }
     val alarmSavedMessage = stringResource(R.string.alarm_saved)
 
     // Navigate up when save is completed; briefly toast the success message.
@@ -77,12 +81,31 @@ fun AlarmEditScreen(
         }
     }
 
+    // Validation and page-level errors surface via Snackbar: the inline error used to
+    // live at the bottom of the scrollable form where it was invisible after tapping
+    // Save from anywhere on the page. Unlike saveFailedMessageResId, errorMessageResId
+    // is NOT cleared here — it also drives the isError highlight on the playlist field,
+    // which must persist until the user edits the form (any action clears it in the VM).
+    LaunchedEffect(errorMessageResId) {
+        errorMessage?.let { msg ->
+            snackbarHostState.showSnackbar(message = msg)
+        }
+    }
+
     // Clear inline form error as soon as user edits the playlist field
-    // (only after a prior submit attempt set the error).
+    // (only after a prior submit attempt set the error). The Snackbar above clears
+    // errorMessageResId immediately after display; isError on the field persists via
+    // this same state until the user changes the selection.
     LaunchedEffect(form.playlistId) {
         if (uiState.errorMessageResId != null) {
             viewModel.clearError()
         }
+    }
+
+    // Re-check DND access when returning from system settings, so the inline
+    // permission hint next to the ignore-quiet-mode switch clears once granted.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshDndAccessStatus()
     }
 
     // Intercept system back / navigation arrow only when user has unsaved edits.
@@ -142,7 +165,9 @@ fun AlarmEditScreen(
                 AlarmEditContent(
                     uiState = uiState,
                     onTimeClick = { viewModel.showTimePicker() },
-                    onAction = viewModel::onAction
+                    onAction = viewModel::onAction,
+                    onCreatePlaylist = { navController.navigate(PlaylistList) },
+                    onRequestDndAccess = { DndAccessPermissionHelper.openSettings(context) }
                 )
             }
         }
@@ -170,13 +195,6 @@ fun AlarmEditScreen(
         AlarmEditDialogState.FullScreenIntent -> FullScreenIntentDialog(
             onConfirm = {
                 FullScreenIntentPermissionHelper.openSettings(context)
-                viewModel.dismissDialog()
-            },
-            onDismiss = { viewModel.dismissDialog() },
-        )
-        AlarmEditDialogState.DndAccess -> DndAccessDialog(
-            onConfirm = {
-                DndAccessPermissionHelper.openSettings(context)
                 viewModel.dismissDialog()
             },
             onDismiss = { viewModel.dismissDialog() },

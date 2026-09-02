@@ -5,7 +5,6 @@ import android.content.Intent
 import android.os.Build
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.service.AlarmScheduler
-import com.rabbithole.musicbbit.service.DndAccessPermissionHelper
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -15,6 +14,11 @@ import javax.inject.Inject
  *
  * This is a deep module: a lot of Android-version-specific branching and OEM intent resolution
  * behind a tiny interface (`checkPermissions` / `checkAutostartGuide`).
+ *
+ * Do Not Disturb access is intentionally NOT checked here: an alarm with
+ * [Alarm.ignoreQuietMode] simply routes to the normal notification channel at fire
+ * time when access is missing. The edit screen surfaces the missing permission inline
+ * next to the switch instead of blocking save.
  */
 class AlarmEditPermissionOrchestrator @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -25,22 +29,14 @@ class AlarmEditPermissionOrchestrator @Inject constructor(
         data object AllGranted : PermissionCheckResult
         data object NeedsExactAlarm : PermissionCheckResult
         data object NeedsFullScreenIntent : PermissionCheckResult
-        data object NeedsDndAccess : PermissionCheckResult
     }
 
-    /**
-     * @param alarm the alarm being saved; only alarms with [Alarm.ignoreQuietMode] need
-     *   Do Not Disturb access for their notification channel to break through DND.
-     */
     fun checkPermissions(alarm: Alarm): PermissionCheckResult {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmScheduler.canScheduleExactAlarms()) {
             return PermissionCheckResult.NeedsExactAlarm
         }
         if (!FullScreenIntentPermissionHelper.isGranted(context)) {
             return PermissionCheckResult.NeedsFullScreenIntent
-        }
-        if (alarm.ignoreQuietMode && !DndAccessPermissionHelper.isGranted(context)) {
-            return PermissionCheckResult.NeedsDndAccess
         }
         return PermissionCheckResult.AllGranted
     }
