@@ -5,6 +5,7 @@ import com.rabbithole.musicbbit.service.AudioFocusManager
 import com.rabbithole.musicbbit.service.MusicNotificationManager
 import com.rabbithole.musicbbit.service.playback.AudioFocusPort
 import androidx.media3.common.util.UnstableApi
+import com.rabbithole.musicbbit.service.playback.AudioStreamPort
 import com.rabbithole.musicbbit.service.playback.ExoPlayerAdapter
 import com.rabbithole.musicbbit.service.playback.MusicNotificationPort
 import com.rabbithole.musicbbit.service.playback.PlayerPort
@@ -24,6 +25,10 @@ internal abstract class PlaybackModule {
     @Binds
     @Singleton
     abstract fun bindPlayerPort(impl: ExoPlayerAdapter): PlayerPort
+
+    @Binds
+    @Singleton
+    abstract fun bindAudioStreamPort(impl: ExoPlayerAdapter): AudioStreamPort
 
     @Binds
     @Singleton

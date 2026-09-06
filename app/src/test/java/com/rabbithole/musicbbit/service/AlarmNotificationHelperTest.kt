@@ -5,22 +5,19 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.Song
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.MockedStatic
-import org.mockito.Mockito.mockStatic
-import org.mockito.kotlin.any
-import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
- * Verifies [AlarmNotificationHelper] routes notifications to the DND-bypass channel only
- * when the alarm ignores quiet mode AND Do Not Disturb access is actually granted.
+ * Verifies [AlarmNotificationHelper] routes notifications to the DND-bypass channel when
+ * the caller passes bypassDnd=true. The bypass decision itself (ignoreQuietMode + DND
+ * access) lives in QuietModeBypassResolver and is covered by its own test — this helper
+ * only renders what it is told.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
@@ -46,8 +43,6 @@ class AlarmNotificationHelperTest {
     private lateinit var notificationManager: NotificationManager
     private lateinit var helper: AlarmNotificationHelper
 
-    private var dndMock: MockedStatic<DndAccessPermissionHelper>? = null
-
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
@@ -59,12 +54,6 @@ class AlarmNotificationHelperTest {
             channelFactory = NotificationChannelFactory(context, resources),
             mainActivityIntentFactory = MainActivityIntentFactory(context),
         )
-        dndMock = mockStatic(DndAccessPermissionHelper::class.java)
-    }
-
-    @After
-    fun tearDown() {
-        dndMock?.close()
     }
 
     private fun alarm(ignoreQuietMode: Boolean): Alarm = Alarm(
@@ -84,37 +73,23 @@ class AlarmNotificationHelperTest {
         shadowOf(notificationManager).allNotifications.last().channelId
 
     @Test
-    fun `playing with ignoreQuietMode and dnd granted posts to bypass channel`() {
-        dndMock!!.`when`<Boolean> { DndAccessPermissionHelper.isGranted(any()) }.thenReturn(true)
-
-        helper.showAlarmPlaying(alarm(ignoreQuietMode = true), SONG)
+    fun `playing with bypassDnd true posts to bypass channel`() {
+        helper.showAlarmPlaying(alarm(ignoreQuietMode = true), SONG, bypassDnd = true)
 
         assertEquals(BYPASS_CHANNEL, latestNotificationChannelId())
         assertEquals(true, notificationManager.getNotificationChannel(BYPASS_CHANNEL).canBypassDnd())
     }
 
     @Test
-    fun `playing with ignoreQuietMode but dnd not granted falls back to normal channel`() {
-        dndMock!!.`when`<Boolean> { DndAccessPermissionHelper.isGranted(any()) }.thenReturn(false)
-
-        helper.showAlarmPlaying(alarm(ignoreQuietMode = true), SONG)
-
-        assertEquals(NORMAL_CHANNEL, latestNotificationChannelId())
-    }
-
-    @Test
-    fun `playing without ignoreQuietMode posts to normal channel`() {
-        dndMock!!.`when`<Boolean> { DndAccessPermissionHelper.isGranted(any()) }.thenReturn(true)
-
-        helper.showAlarmPlaying(alarm(ignoreQuietMode = false), SONG)
+    fun `playing with bypassDnd false posts to normal channel`() {
+        helper.showAlarmPlaying(alarm(ignoreQuietMode = true), SONG, bypassDnd = false)
 
         assertEquals(NORMAL_CHANNEL, latestNotificationChannelId())
     }
 
     @Test
     fun `paused notification reuses the channel chosen by playing`() {
-        dndMock!!.`when`<Boolean> { DndAccessPermissionHelper.isGranted(any()) }.thenReturn(true)
-        helper.showAlarmPlaying(alarm(ignoreQuietMode = true), SONG)
+        helper.showAlarmPlaying(alarm(ignoreQuietMode = true), SONG, bypassDnd = true)
 
         helper.showAlarmPaused(alarmId = 7L)
 
@@ -123,8 +98,7 @@ class AlarmNotificationHelperTest {
 
     @Test
     fun `cancel resets channel memory and showError always uses normal channel`() {
-        dndMock!!.`when`<Boolean> { DndAccessPermissionHelper.isGranted(any()) }.thenReturn(true)
-        helper.showAlarmPlaying(alarm(ignoreQuietMode = true), SONG)
+        helper.showAlarmPlaying(alarm(ignoreQuietMode = true), SONG, bypassDnd = true)
         helper.cancel(alarmId = 7L)
 
         helper.showError(notificationId = 99, title = "Error", message = "Playback failed")

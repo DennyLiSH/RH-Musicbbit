@@ -53,15 +53,26 @@ interface PlayerPort {
     fun setRepeatMode(mode: PlayerRepeatMode)
 
     /**
-     * Configure the player for alarm playback (USAGE_ALARM) or normal media playback (USAGE_MEDIA).
-     * Alarm audio attributes ensure playback continues even when the device is in silent/do-not-disturb mode.
-     */
-    fun configureForAlarmPlayback(enabled: Boolean)
-
-    /**
      * Release underlying resources. Idempotent — safe to call multiple times.
      */
     fun release()
+}
+
+/**
+ * Which audio output stream the playback runtime targets: USAGE_ALARM (bypasses silent
+ * mode and most DND filters) or USAGE_MEDIA. Kept off [PlayerPort] — stream selection is
+ * an alarm-specific concern, not queue-player semantics.
+ *
+ * Production adapter: the same [ExoPlayerAdapter] instance that fills [PlayerPort].
+ * Test adapter: a fake recording the last stream choice.
+ */
+interface AudioStreamPort {
+
+    /**
+     * @param alarmStream true routes audio through the alarm stream; false restores the
+     *   media stream. Must be called before playback starts on the new stream.
+     */
+    fun setAlarmStream(alarmStream: Boolean)
 }
 
 /**

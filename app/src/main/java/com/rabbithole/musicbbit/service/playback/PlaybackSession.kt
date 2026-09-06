@@ -42,6 +42,7 @@ import timber.log.Timber
 @Singleton
 class PlaybackSession @Inject constructor(
     private val playerPort: PlayerPort,
+    private val audioStreamPort: AudioStreamPort,
     private val playbackProgressRepository: PlaybackProgressRepository,
     private val serviceStarter: ServiceStarter,
     private val audioFocusPort: AudioFocusPort,
@@ -186,7 +187,7 @@ class PlaybackSession @Inject constructor(
         Timber.i("Playing single song: ${song.title}, playlistId=$playlistId")
 
         playbackCoordinator.activate(this)
-        playerPort.configureForAlarmPlayback(false)
+        audioStreamPort.setAlarmStream(false)
         serviceStarter.startService()
 
         playerPort.setQueue(
@@ -221,7 +222,7 @@ class PlaybackSession @Inject constructor(
         )
 
         playbackCoordinator.activate(this)
-        playerPort.configureForAlarmPlayback(false)
+        audioStreamPort.setAlarmStream(false)
         serviceStarter.startService()
 
         val mediaItems = songs.map { song ->

@@ -60,6 +60,7 @@ import com.rabbithole.musicbbit.presentation.components.performHapticSafe
 import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.navigation.AlarmEdit
+import com.rabbithole.musicbbit.service.alarm.QuietModeBypassResolver
 import com.rabbithole.musicbbit.service.DndAccessPermissionHelper
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 import androidx.compose.animation.Crossfade
@@ -140,7 +141,7 @@ fun AlarmListScreen(
                             val showBatteryBanner = !isIgnoringBatteryOptimizations
                             val showFsiBanner = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !isFullScreenIntentGranted
                             val showDndBanner = !isDndAccessGranted &&
-                                state.alarms.any { it.alarm.isEnabled && it.alarm.ignoreQuietMode }
+                                QuietModeBypassResolver.needsDndAccessBanner(state.alarms.map { it.alarm })
                             if (showBatteryBanner || showFsiBanner || showDndBanner) {
                                 Column(
                                     modifier = Modifier

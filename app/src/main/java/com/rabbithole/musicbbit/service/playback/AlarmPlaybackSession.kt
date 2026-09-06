@@ -31,6 +31,7 @@ import timber.log.Timber
 @Singleton
 class AlarmPlaybackSession @Inject constructor(
     private val playerPort: PlayerPort,
+    private val audioStreamPort: AudioStreamPort,
     private val playbackProgressRepository: PlaybackProgressRepository,
     private val audioFocusPort: AudioFocusPort,
     private val serviceStarter: ServiceStarter,
@@ -100,7 +101,7 @@ class AlarmPlaybackSession @Inject constructor(
         Timber.i(
             "Playing alarm queue of ${songs.size} songs, startIndex=$safeIndex, playlistId=$playlistId"
         )
-        playerPort.configureForAlarmPlayback(useAlarmStream)
+        audioStreamPort.setAlarmStream(useAlarmStream)
         serviceStarter.startService()
 
         val mediaItems = songs.map { song ->

@@ -95,6 +95,7 @@ class PlaybackSessionTest {
 
         session = PlaybackSession(
             playerPort = playerPort,
+            audioStreamPort = FakeAudioStreamPort(),
             playbackProgressRepository = playbackProgressRepository,
             serviceStarter = serviceStarter,
             audioFocusPort = audioFocusPort,

@@ -27,7 +27,7 @@ import timber.log.Timber
 @Singleton
 class ExoPlayerAdapter @Inject constructor(
     @param:ApplicationContext private val context: Context,
-) : PlayerPort {
+) : PlayerPort, AudioStreamPort {
 
     private val _events = MutableSharedFlow<PlayerEvent>(
         replay = 0,
@@ -172,14 +172,14 @@ class ExoPlayerAdapter @Inject constructor(
         }
     }
 
-    override fun configureForAlarmPlayback(enabled: Boolean) {
+    override fun setAlarmStream(alarmStream: Boolean) {
         ensureAlive()
         val audioAttributes = AudioAttributes.Builder()
-            .setUsage(if (enabled) C.USAGE_ALARM else C.USAGE_MEDIA)
+            .setUsage(if (alarmStream) C.USAGE_ALARM else C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
         exoPlayer.setAudioAttributes(audioAttributes, false)
-        Timber.d("ExoPlayer audio attributes set to %s", if (enabled) "USAGE_ALARM" else "USAGE_MEDIA")
+        Timber.d("ExoPlayer audio attributes set to %s", if (alarmStream) "USAGE_ALARM" else "USAGE_MEDIA")
     }
 
     override fun release() {

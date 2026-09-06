@@ -27,8 +27,6 @@ class FakePlayerPort : PlayerPort {
         private set
     var lastRepeatMode: PlayerRepeatMode = PlayerRepeatMode.OFF
         private set
-    var alarmPlaybackConfigured: Boolean = false
-        private set
 
     data class QueueCall(
         val items: List<PlayItem>,
@@ -100,10 +98,6 @@ class FakePlayerPort : PlayerPort {
 
     override fun setRepeatMode(mode: PlayerRepeatMode) {
         lastRepeatMode = mode
-    }
-
-    override fun configureForAlarmPlayback(enabled: Boolean) {
-        alarmPlaybackConfigured = enabled
     }
 
     override fun release() {

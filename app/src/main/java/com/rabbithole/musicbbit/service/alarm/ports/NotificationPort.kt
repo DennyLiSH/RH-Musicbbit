@@ -14,8 +14,12 @@ interface NotificationPort {
 
     /**
      * Show the playing-state alarm notification with playback controls.
+     *
+     * @param bypassDnd Whether to use the DND-bypass channel. Computed once per fire by
+     *   QuietModeBypassResolver (ignoreQuietMode + Notification Policy Access); this
+     *   adapter does not re-check the permission.
      */
-    fun showAlarmPlaying(alarm: Alarm, song: Song)
+    fun showAlarmPlaying(alarm: Alarm, song: Song, bypassDnd: Boolean)
 
     /**
      * Update the existing alarm notification to a paused state.

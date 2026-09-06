@@ -50,10 +50,10 @@ class AlarmNotificationHelper @Inject constructor(
     // only within a single fire session (Playing always precedes Paused).
     private var lastChannelId: String? = null
 
-    override fun showAlarmPlaying(alarm: Alarm, song: Song) {
-        // setBypassDnd is a no-op without Notification Policy Access, so the bypass
-        // channel is only used when the access is actually granted.
-        val useBypassChannel = alarm.ignoreQuietMode && DndAccessPermissionHelper.isGranted(context)
+    override fun showAlarmPlaying(alarm: Alarm, song: Song, bypassDnd: Boolean) {
+        // bypassDnd is passed in from AlarmBypassPlan — computed once per fire by
+        // QuietModeBypassResolver (ignoreQuietMode + Notification Policy Access).
+        val useBypassChannel = bypassDnd
         val channelId = if (useBypassChannel) CHANNEL_BYPASS_DND_ID else CHANNEL_ID
         lastChannelId = channelId
         channelFactory.ensureChannel(

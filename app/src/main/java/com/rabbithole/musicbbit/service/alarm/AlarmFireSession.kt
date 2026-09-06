@@ -51,6 +51,7 @@ class AlarmFireSession @Inject constructor(
     private val volumeRampPort: VolumeRampPort,
     private val alarmPlaybackSession: AlarmPlaybackSession,
     private val autoStopController: AutoStopController,
+    private val bypassPlanResolver: QuietModeBypassResolver,
     @MainDispatcher private val mainDispatcher: CoroutineDispatcher,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
@@ -209,6 +210,9 @@ class AlarmFireSession @Inject constructor(
         val songs = result.songs
         val startIndex = result.startIndex
         val startSong = result.startSong
+        // One audibility decision for the whole fire — player stream, volume ramp and
+        // notification channel all consume this plan.
+        val bypassPlan = bypassPlanResolver.resolve(alarm)
 
         if (isAlarmTrigger && songs.isNotEmpty()) {
             // Preload first song to start buffering before the full queue is set.
@@ -224,7 +228,7 @@ class AlarmFireSession @Inject constructor(
             songs,
             startIndex,
             alarm.playlistId,
-            useAlarmStream = alarm.ignoreQuietMode
+            useAlarmStream = bypassPlan.useAlarmStream
         )
 
         if (isAlarmTrigger) {
@@ -234,7 +238,7 @@ class AlarmFireSession @Inject constructor(
             // MusicPlaybackService.onStartCommand's main-thread call site, making the
             // failure visible (vs. silently degrading into "alarm didn't fire").
             wakeLockPort.acquire(ALARM_WAKE_LOCK_TIMEOUT_MS)
-            volumeRampPort.startVolumeRamp(sessionScope, useAlarmStream = alarm.ignoreQuietMode)
+            volumeRampPort.startVolumeRamp(sessionScope, useAlarmStream = bypassPlan.useAlarmStream)
             Timber.i("Started volume ramp for alarm playback")
         }
 
@@ -242,7 +246,7 @@ class AlarmFireSession @Inject constructor(
             alarmPlaybackSession.stop()
         }
 
-        notificationPort.showAlarmPlaying(alarm, startSong)
+        notificationPort.showAlarmPlaying(alarm, startSong, bypassDnd = bypassPlan.useBypassNotificationChannel)
         Timber.i("Alarm notification shown for alarm id=${alarm.id}, song=${startSong.title}")
 
         _state.value = AlarmFireState.Playing(

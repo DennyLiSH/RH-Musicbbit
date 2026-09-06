@@ -11,6 +11,7 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
+import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
 import com.rabbithole.musicbbit.service.alarm.ports.VolumeRampPort
 import com.rabbithole.musicbbit.service.alarm.ports.WakeLockPort
 import com.rabbithole.musicbbit.service.playback.AlarmPlaybackSession
@@ -154,6 +155,7 @@ class AlarmFireSessionTest {
         val autoStopController = AutoStopController(defaultDispatcher = testDispatcher)
 
         session = AlarmFireSession(
+            bypassPlanResolver = QuietModeBypassResolver(noDndPermissionPort),
             alarmRepository = alarmRepository,
             alarmPlaybackResolver = alarmPlaybackResolver,
             playbackProgressRepository = progressRepository,
@@ -662,6 +664,7 @@ class AlarmFireSessionTest {
             volumeRampPort = volumeRampPort,
             alarmPlaybackSession = alarmPlaybackSession,
             autoStopController = autoStopController,
+            bypassPlanResolver = QuietModeBypassResolver(noDndPermissionPort),
             mainDispatcher = testDispatcher,
             ioDispatcher = testDispatcher,
         )
@@ -688,6 +691,16 @@ class AlarmFireSessionTest {
     )
 
     // -------- Fakes ---------------------------------------------------------
+
+    private val noDndPermissionPort = object : PermissionPort {
+        override fun isIgnoringBatteryOptimizations() = false
+        override fun createBatteryOptimizationIntent() = android.content.Intent()
+        override fun isFullScreenIntentGranted() = false
+        override fun checkPermission(permission: String) = false
+        override fun canScheduleExactAlarms() = false
+        override fun isNotificationPolicyAccessGranted() = false
+    }
+
 
     private class FakeWakeLockPort : WakeLockPort {
         var acquireCount = 0
@@ -720,9 +733,12 @@ class AlarmFireSessionTest {
             private set
         var playingCount = 0
             private set
+        var lastBypassDnd: Boolean = false
+            private set
 
-        override fun showAlarmPlaying(alarm: Alarm, song: Song) {
+        override fun showAlarmPlaying(alarm: Alarm, song: Song, bypassDnd: Boolean) {
             playingCount++
+            lastBypassDnd = bypassDnd
         }
 
         override fun showAlarmPaused(alarmId: Long) {

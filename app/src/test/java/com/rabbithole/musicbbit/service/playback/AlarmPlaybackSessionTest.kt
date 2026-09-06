@@ -20,6 +20,7 @@ class AlarmPlaybackSessionTest {
 
     private val dispatcher = UnconfinedTestDispatcher()
     private lateinit var playerPort: FakePlayerPort
+    private lateinit var audioStreamPort: FakeAudioStreamPort
     private lateinit var progressRepository: FakeProgressRepository
     private lateinit var audioFocusPort: FakeAudioFocusPort
     private lateinit var serviceStarter: FakeServiceStarter
@@ -43,6 +44,7 @@ class AlarmPlaybackSessionTest {
     @Before
     fun setUp() {
         playerPort = FakePlayerPort()
+        audioStreamPort = FakeAudioStreamPort()
         progressRepository = FakeProgressRepository()
         audioFocusPort = FakeAudioFocusPort()
         serviceStarter = FakeServiceStarter()
@@ -53,6 +55,7 @@ class AlarmPlaybackSessionTest {
         )
         session = AlarmPlaybackSession(
             playerPort = playerPort,
+            audioStreamPort = audioStreamPort,
             playbackProgressRepository = progressRepository,
             audioFocusPort = audioFocusPort,
             serviceStarter = serviceStarter,
@@ -77,7 +80,7 @@ class AlarmPlaybackSessionTest {
         assertEquals(2, playerPort.queueCalls[0].items.size)
         assertEquals(0, playerPort.queueCalls[0].startIndex)
         assertEquals(1, playerPort.playCalls.size)
-        assertTrue(playerPort.alarmPlaybackConfigured)
+        assertTrue(audioStreamPort.lastAlarmStream)
 
         val state = session.playbackState.value
         assertEquals(SONG_1, state.currentSong)
@@ -91,7 +94,7 @@ class AlarmPlaybackSessionTest {
     fun `playAlarmQueue with useAlarmStream false configures media stream`() {
         session.playAlarmQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L, useAlarmStream = false)
 
-        assertFalse(playerPort.alarmPlaybackConfigured)
+        assertFalse(audioStreamPort.lastAlarmStream)
     }
 
     @Test
@@ -371,5 +374,13 @@ class AlarmPlaybackSessionTest {
         override fun stopService() {
             stopCalled = true
         }
+    }
+}
+
+/** Records the last stream choice made by the session under test. */
+class FakeAudioStreamPort : AudioStreamPort {
+    var lastAlarmStream: Boolean = false
+    override fun setAlarmStream(alarmStream: Boolean) {
+        lastAlarmStream = alarmStream
     }
 }

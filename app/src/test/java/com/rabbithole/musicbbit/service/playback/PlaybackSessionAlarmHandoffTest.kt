@@ -32,6 +32,7 @@ class PlaybackSessionAlarmHandoffTest {
     private val dispatcher = UnconfinedTestDispatcher()
 
     private lateinit var playerPort: FakePlayerPort
+    private val audioStreamPort = FakeAudioStreamPort()
     private lateinit var audioFocusPort: FakeAudioFocusPort
     private lateinit var progressRepository: FakeProgressRepository
     private lateinit var serviceStarter: FakeServiceStarter
@@ -75,6 +76,7 @@ class PlaybackSessionAlarmHandoffTest {
         )
         userSession = PlaybackSession(
             playerPort = playerPort,
+            audioStreamPort = audioStreamPort,
             playbackProgressRepository = progressRepository,
             serviceStarter = serviceStarter,
             audioFocusPort = audioFocusPort,
@@ -83,6 +85,7 @@ class PlaybackSessionAlarmHandoffTest {
         )
         alarmSession = AlarmPlaybackSession(
             playerPort = playerPort,
+            audioStreamPort = audioStreamPort,
             playbackProgressRepository = progressRepository,
             audioFocusPort = audioFocusPort,
             serviceStarter = serviceStarter,
