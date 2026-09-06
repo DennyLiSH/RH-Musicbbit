@@ -64,4 +64,21 @@ class AndroidPermissionAdapter @Inject constructor(
     override fun isNotificationPolicyAccessGranted(): Boolean {
         return DndAccessPermissionHelper.isGranted(context)
     }
+
+    override fun createDndAccessSettingsIntent(): Intent {
+        return Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+    }
+
+    override fun createFullScreenIntentSettingsIntent(): Intent {
+        return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            Intent() // API < 34: permission is granted at install time; nothing to open
+        } else {
+            Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                data = Uri.parse("package:${context.packageName}")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        }
+    }
 }

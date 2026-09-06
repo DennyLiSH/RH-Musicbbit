@@ -7,7 +7,8 @@ import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.HolidayRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
-import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
+import com.rabbithole.musicbbit.presentation.permissions.PermissionStatus
+import com.rabbithole.musicbbit.presentation.permissions.PermissionStatusMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,17 +58,23 @@ class AlarmListViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val holidayRepository: HolidayRepository,
     private val playlistRepository: PlaylistRepository,
-    private val permissionPort: PermissionPort
+    private val permissionMonitor: PermissionStatusMonitor,
 ) : ViewModel() {
 
-    private val _isIgnoringBatteryOptimizations = MutableStateFlow(checkBatteryOptimizationStatus())
-    val isIgnoringBatteryOptimizations: StateFlow<Boolean> = _isIgnoringBatteryOptimizations.asStateFlow()
+    /** Single observable snapshot of every permission gate shown as a banner. */
+    val permissionStatus: StateFlow<PermissionStatus> = permissionMonitor.status
 
-    private val _isFullScreenIntentGranted = MutableStateFlow(checkFullScreenIntentStatus())
-    val isFullScreenIntentGranted: StateFlow<Boolean> = _isFullScreenIntentGranted.asStateFlow()
+    /** Re-read every permission flag from the system; call on ON_RESUME. */
+    fun refreshPermissionStatus() = permissionMonitor.refresh()
 
-    private val _isDndAccessGranted = MutableStateFlow(permissionPort.isNotificationPolicyAccessGranted())
-    val isDndAccessGranted: StateFlow<Boolean> = _isDndAccessGranted.asStateFlow()
+    /** Intent that opens the system "ignore battery optimizations" dialog for this app. */
+    fun createBatteryOptimizationIntent() = permissionMonitor.createBatteryOptimizationIntent()
+
+    /** Intent that opens the system page granting Do Not Disturb access. */
+    fun createDndAccessSettingsIntent() = permissionMonitor.createDndAccessSettingsIntent()
+
+    /** Intent that opens the system page granting USE_FULL_SCREEN_INTENT. */
+    fun createFullScreenIntentSettingsIntent() = permissionMonitor.createFullScreenIntentSettingsIntent()
 
     private val _uiState = MutableStateFlow<AlarmListUiState>(AlarmListUiState.Loading)
     val uiState: StateFlow<AlarmListUiState> = _uiState.asStateFlow()
@@ -161,45 +168,6 @@ class AlarmListViewModel @Inject constructor(
                 // Navigation is handled in the UI layer
             }
         }
-    }
-
-    /**
-     * Check whether the app is ignoring battery optimizations.
-     */
-    private fun checkBatteryOptimizationStatus(): Boolean {
-        return permissionPort.isIgnoringBatteryOptimizations()
-    }
-
-    /**
-     * Refresh the battery optimization status.
-     */
-    fun refreshBatteryOptimizationStatus() {
-        _isIgnoringBatteryOptimizations.value = checkBatteryOptimizationStatus()
-    }
-
-    /**
-     * Check whether the app can use full-screen intents.
-     */
-    private fun checkFullScreenIntentStatus(): Boolean {
-        return permissionPort.isFullScreenIntentGranted()
-    }
-
-    /**
-     * Refresh the full-screen intent permission status.
-     */
-    fun refreshFullScreenIntentStatus() {
-        _isFullScreenIntentGranted.value = checkFullScreenIntentStatus()
-    }
-
-    fun refreshDndAccessStatus() {
-        _isDndAccessGranted.value = permissionPort.isNotificationPolicyAccessGranted()
-    }
-
-    /**
-     * Create an intent to request the user to ignore battery optimizations for this app.
-     */
-    fun createBatteryOptimizationIntent(): Intent {
-        return permissionPort.createBatteryOptimizationIntent()
     }
 
     /**

@@ -31,9 +31,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.navigation.PlaylistList
-import com.rabbithole.musicbbit.service.DndAccessPermissionHelper
+
 import com.rabbithole.musicbbit.service.ExactAlarmPermissionHelper
-import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
+import com.rabbithole.musicbbit.presentation.permissions.launchSettingsSafely
 import com.rabbithole.musicbbit.presentation.alarm.components.AlarmEditContent
 import com.rabbithole.musicbbit.presentation.alarm.components.AutostartGuideDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.DiscardDialog
@@ -167,7 +167,9 @@ fun AlarmEditScreen(
                     onTimeClick = { viewModel.showTimePicker() },
                     onAction = viewModel::onAction,
                     onCreatePlaylist = { navController.navigate(PlaylistList) },
-                    onRequestDndAccess = { DndAccessPermissionHelper.openSettings(context) }
+                    onRequestDndAccess = {
+                    launchSettingsSafely(context, viewModel.createDndAccessSettingsIntent())
+                }
                 )
             }
         }
@@ -194,7 +196,7 @@ fun AlarmEditScreen(
         )
         AlarmEditDialogState.FullScreenIntent -> FullScreenIntentDialog(
             onConfirm = {
-                FullScreenIntentPermissionHelper.openSettings(context)
+                launchSettingsSafely(context, viewModel.createFullScreenIntentSettingsIntent())
                 viewModel.dismissDialog()
             },
             onDismiss = { viewModel.dismissDialog() },

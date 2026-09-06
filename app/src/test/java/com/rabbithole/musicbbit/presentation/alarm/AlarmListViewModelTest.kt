@@ -6,6 +6,7 @@ import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.HolidayRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
+import com.rabbithole.musicbbit.presentation.permissions.PermissionStatusMonitor
 import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -75,7 +76,7 @@ class AlarmListViewModelTest {
 
         val viewModel = createViewModel()
 
-        assertTrue(viewModel.isFullScreenIntentGranted.value)
+        assertTrue(viewModel.permissionStatus.value.isFullScreenIntentGranted)
     }
 
     @Test
@@ -84,7 +85,7 @@ class AlarmListViewModelTest {
 
         val viewModel = createViewModel()
 
-        assertTrue(viewModel.isFullScreenIntentGranted.value)
+        assertTrue(viewModel.permissionStatus.value.isFullScreenIntentGranted)
     }
 
     @Test
@@ -93,7 +94,7 @@ class AlarmListViewModelTest {
 
         val viewModel = createViewModel()
 
-        assertFalse(viewModel.isFullScreenIntentGranted.value)
+        assertFalse(viewModel.permissionStatus.value.isFullScreenIntentGranted)
     }
 
     @Test
@@ -101,13 +102,13 @@ class AlarmListViewModelTest {
         whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(false)
 
         val viewModel = createViewModel()
-        assertFalse(viewModel.isFullScreenIntentGranted.value)
+        assertFalse(viewModel.permissionStatus.value.isFullScreenIntentGranted)
 
         // User grants permission in settings
         whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
-        viewModel.refreshFullScreenIntentStatus()
+        viewModel.refreshPermissionStatus()
 
-        assertTrue(viewModel.isFullScreenIntentGranted.value)
+        assertTrue(viewModel.permissionStatus.value.isFullScreenIntentGranted)
     }
 
     @Test
@@ -116,20 +117,20 @@ class AlarmListViewModelTest {
 
         val viewModel = createViewModel()
 
-        assertFalse(viewModel.isDndAccessGranted.value)
+        assertFalse(viewModel.permissionStatus.value.isDndAccessGranted)
     }
 
     @Test
     fun `refreshDndAccessStatus updates state after grant`() {
         whenever(permissionPort.isNotificationPolicyAccessGranted()).thenReturn(false)
         val viewModel = createViewModel()
-        assertFalse(viewModel.isDndAccessGranted.value)
+        assertFalse(viewModel.permissionStatus.value.isDndAccessGranted)
 
         // User grants DND access in settings, then returns to the app (ON_RESUME)
         whenever(permissionPort.isNotificationPolicyAccessGranted()).thenReturn(true)
-        viewModel.refreshDndAccessStatus()
+        viewModel.refreshPermissionStatus()
 
-        assertTrue(viewModel.isDndAccessGranted.value)
+        assertTrue(viewModel.permissionStatus.value.isDndAccessGranted)
     }
 
     // -------- Alarm list loading tests ---------------------------------------
@@ -276,7 +277,7 @@ class AlarmListViewModelTest {
             alarmRepository = alarmRepository,
             holidayRepository = holidayRepository,
             playlistRepository = playlistRepository,
-            permissionPort = permissionPort
+            permissionMonitor = PermissionStatusMonitor(permissionPort)
         )
     }
 }

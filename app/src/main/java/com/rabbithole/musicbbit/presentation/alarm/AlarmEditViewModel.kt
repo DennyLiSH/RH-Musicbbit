@@ -16,7 +16,7 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
-import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
+import com.rabbithole.musicbbit.presentation.permissions.PermissionStatusMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -104,7 +104,7 @@ class AlarmEditViewModel @Inject constructor(
     private val playlistRepository: PlaylistRepository,
     private val alarmRingSettingsRepository: AlarmRingSettingsRepository,
     private val permissionOrchestrator: AlarmEditPermissionOrchestrator,
-    private val permissionPort: PermissionPort,
+    private val permissionMonitor: PermissionStatusMonitor,
 ) : ViewModel() {
 
     private val alarmSaveOrchestrator = AlarmSaveOrchestrator(alarmRepository, permissionOrchestrator)
@@ -115,7 +115,7 @@ class AlarmEditViewModel @Inject constructor(
         AlarmEditUiState(
             isLoading = alarmId != 0L,
             isNewAlarm = alarmId == 0L,
-            isDndAccessGranted = permissionPort.isNotificationPolicyAccessGranted()
+            isDndAccessGranted = permissionMonitor.status.value.isDndAccessGranted
         )
     )
     val uiState: StateFlow<AlarmEditUiState> = _uiState.asStateFlow()
@@ -124,14 +124,27 @@ class AlarmEditViewModel @Inject constructor(
         Timber.i("AlarmEditViewModel initialized, alarmId=%d", alarmId)
         observePlaylists()
         observeVolumeRampDuration()
+        observePermissionStatus()
         if (alarmId != 0L) {
             loadAlarm()
         }
     }
 
     /** Re-check DND access when returning from system settings (ON_RESUME). */
-    fun refreshDndAccessStatus() {
-        _uiState.update { it.copy(isDndAccessGranted = permissionPort.isNotificationPolicyAccessGranted()) }
+    fun refreshDndAccessStatus() = permissionMonitor.refresh()
+
+    /** Intent that opens the system page granting Do Not Disturb access. */
+    fun createDndAccessSettingsIntent() = permissionMonitor.createDndAccessSettingsIntent()
+
+    /** Intent that opens the system page granting USE_FULL_SCREEN_INTENT. */
+    fun createFullScreenIntentSettingsIntent() = permissionMonitor.createFullScreenIntentSettingsIntent()
+
+    private fun observePermissionStatus() {
+        permissionMonitor.status
+            .onEach { status ->
+                _uiState.update { it.copy(isDndAccessGranted = status.isDndAccessGranted) }
+            }
+            .launchIn(viewModelScope)
     }
 
     private fun observePlaylists() {

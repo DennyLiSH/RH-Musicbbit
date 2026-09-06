@@ -14,6 +14,7 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
+import com.rabbithole.musicbbit.presentation.permissions.PermissionStatusMonitor
 import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flow
@@ -663,7 +664,7 @@ class AlarmEditViewModelTest {
             playlistRepository = playlistRepository,
             alarmRingSettingsRepository = alarmRingSettingsRepository,
             permissionOrchestrator = permissionOrchestrator,
-            permissionPort = permissionPort
+            permissionMonitor = PermissionStatusMonitor(permissionPort)
         )
     }
 }

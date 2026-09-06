@@ -48,4 +48,17 @@ interface PermissionPort {
      * Access), the prerequisite for a notification channel to bypass DND.
      */
     fun isNotificationPolicyAccessGranted(): Boolean
+
+    /**
+     * Build an [Intent] that opens the system Settings page where the user can grant
+     * Do Not Disturb access. The caller (UI layer) is responsible for launching it.
+     */
+    fun createDndAccessSettingsIntent(): Intent
+
+    /**
+     * Build an [Intent] that opens the system Settings page where the user can grant
+     * USE_FULL_SCREEN_INTENT for this app. The caller (UI layer) is responsible for
+     * launching it.
+     */
+    fun createFullScreenIntentSettingsIntent(): Intent
 }

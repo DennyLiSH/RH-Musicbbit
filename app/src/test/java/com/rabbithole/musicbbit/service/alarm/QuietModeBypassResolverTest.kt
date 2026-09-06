@@ -23,6 +23,8 @@ class QuietModeBypassResolverTest {
         override fun checkPermission(permission: String) = false
         override fun canScheduleExactAlarms() = false
         override fun isNotificationPolicyAccessGranted() = dndAccessGranted
+        override fun createDndAccessSettingsIntent() = android.content.Intent()
+        override fun createFullScreenIntentSettingsIntent() = android.content.Intent()
     }
 
     private fun alarm(ignoreQuietMode: Boolean, isEnabled: Boolean = true) = Alarm(

@@ -699,6 +699,8 @@ class AlarmFireSessionTest {
         override fun checkPermission(permission: String) = false
         override fun canScheduleExactAlarms() = false
         override fun isNotificationPolicyAccessGranted() = false
+        override fun createDndAccessSettingsIntent() = android.content.Intent()
+        override fun createFullScreenIntentSettingsIntent() = android.content.Intent()
     }
 
 

@@ -61,8 +61,7 @@ import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.service.alarm.QuietModeBypassResolver
-import com.rabbithole.musicbbit.service.DndAccessPermissionHelper
-import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
+import com.rabbithole.musicbbit.presentation.permissions.launchSettingsSafely
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.Animatable
@@ -85,15 +84,11 @@ fun AlarmListScreen(
     viewModel: AlarmListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val isIgnoringBatteryOptimizations by viewModel.isIgnoringBatteryOptimizations.collectAsStateWithLifecycle()
-    val isFullScreenIntentGranted by viewModel.isFullScreenIntentGranted.collectAsStateWithLifecycle()
-    val isDndAccessGranted by viewModel.isDndAccessGranted.collectAsStateWithLifecycle()
+    val permissionStatus by viewModel.permissionStatus.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        viewModel.refreshBatteryOptimizationStatus()
-        viewModel.refreshFullScreenIntentStatus()
-        viewModel.refreshDndAccessStatus()
+        viewModel.refreshPermissionStatus()
     }
 
     Scaffold(
@@ -138,9 +133,10 @@ fun AlarmListScreen(
 
                     is AlarmListUiState.Success -> {
                         Column(modifier = Modifier.fillMaxSize()) {
-                            val showBatteryBanner = !isIgnoringBatteryOptimizations
-                            val showFsiBanner = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !isFullScreenIntentGranted
-                            val showDndBanner = !isDndAccessGranted &&
+                            val showBatteryBanner = !permissionStatus.isIgnoringBatteryOptimizations
+                            val showFsiBanner = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+                                !permissionStatus.isFullScreenIntentGranted
+                            val showDndBanner = !permissionStatus.isDndAccessGranted &&
                                 QuietModeBypassResolver.needsDndAccessBanner(state.alarms.map { it.alarm })
                             if (showBatteryBanner || showFsiBanner || showDndBanner) {
                                 Column(
@@ -164,7 +160,10 @@ fun AlarmListScreen(
                                         }
                                         FullScreenIntentBanner(
                                             onClick = {
-                                                FullScreenIntentPermissionHelper.openSettings(context)
+                                                launchSettingsSafely(
+                                                    context,
+                                                    viewModel.createFullScreenIntentSettingsIntent()
+                                                )
                                             }
                                         )
                                     }
@@ -174,7 +173,10 @@ fun AlarmListScreen(
                                         }
                                         DndAccessBanner(
                                             onClick = {
-                                                DndAccessPermissionHelper.openSettings(context)
+                                                launchSettingsSafely(
+                                                    context,
+                                                    viewModel.createDndAccessSettingsIntent()
+                                                )
                                             }
                                         )
                                     }
