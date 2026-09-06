@@ -1,5 +1,7 @@
 package com.rabbithole.musicbbit.presentation.playlist
 
+import com.rabbithole.musicbbit.service.playback.PlaybackSession
+import com.rabbithole.musicbbit.presentation.playback.LocalPlaybackSession
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
@@ -56,8 +58,6 @@ import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.navigation.Player
 import com.rabbithole.musicbbit.presentation.components.ErrorContent
 import com.rabbithole.musicbbit.presentation.music.components.SongListItem
-import com.rabbithole.musicbbit.presentation.player.PlayerViewModel
-import com.rabbithole.musicbbit.presentation.components.rememberActivityScopedPlayerViewModel
 import com.rabbithole.musicbbit.presentation.playlist.components.AddSongsBottomSheet
 import kotlin.math.roundToInt
 
@@ -66,7 +66,7 @@ import kotlin.math.roundToInt
 fun PlaylistDetailScreen(
     navController: NavController,
     viewModel: PlaylistDetailViewModel = hiltViewModel(),
-    playerViewModel: PlayerViewModel = rememberActivityScopedPlayerViewModel()
+    playerViewModel: PlaybackSession = LocalPlaybackSession.current
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val allSongs by viewModel.allSongs.collectAsStateWithLifecycle()
@@ -129,7 +129,7 @@ fun PlaylistDetailScreen(
                             playerViewModel = playerViewModel,
                             navController = navController,
                             onPlayAll = {
-                                playerViewModel.playPlaylist(
+                                playerViewModel.playQueue(
                                     playlistWithSongs.songs,
                                     startIndex = 0,
                                     playlistId = playlistWithSongs.playlist.id
@@ -137,7 +137,7 @@ fun PlaylistDetailScreen(
                                 navController.navigate(Player)
                             },
                             onSongClick = { index ->
-                                playerViewModel.playPlaylist(
+                                playerViewModel.playQueue(
                                     playlistWithSongs.songs,
                                     startIndex = index,
                                     playlistId = playlistWithSongs.playlist.id
@@ -213,7 +213,7 @@ private fun EmptyContent(
 private fun PlaylistDetailContent(
     songs: List<Song>,
     playlistId: Long,
-    playerViewModel: PlayerViewModel,
+    playerViewModel: PlaybackSession,
     navController: NavController,
     onPlayAll: () -> Unit,
     onSongClick: (Int) -> Unit,

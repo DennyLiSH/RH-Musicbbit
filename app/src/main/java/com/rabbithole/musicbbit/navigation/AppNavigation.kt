@@ -9,6 +9,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -18,15 +19,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rabbithole.musicbbit.presentation.playback.LocalPlaybackSession
+import com.rabbithole.musicbbit.service.playback.PlaybackSession
 import androidx.navigation.compose.rememberNavController
 import com.rabbithole.musicbbit.presentation.alarm.AlarmEditScreen
 import com.rabbithole.musicbbit.presentation.alarm.AlarmListScreen
 import com.rabbithole.musicbbit.presentation.components.BottomNavItem
-import com.rabbithole.musicbbit.presentation.components.rememberActivityScopedPlayerViewModel
 import com.rabbithole.musicbbit.presentation.music.MusicBrowseScreen
 import com.rabbithole.musicbbit.presentation.player.MiniPlayer
 import com.rabbithole.musicbbit.presentation.player.PlayerScreen
-import com.rabbithole.musicbbit.presentation.player.PlayerViewModel
 import com.rabbithole.musicbbit.presentation.playlist.PlaylistDetailScreen
 import com.rabbithole.musicbbit.presentation.playlist.PlaylistListScreen
 import com.rabbithole.musicbbit.presentation.about.AboutScreen
@@ -36,6 +37,7 @@ import com.rabbithole.musicbbit.presentation.settings.SettingsScreen
 
 @Composable
 fun AppNavigation(
+    playbackSession: PlaybackSession,
     navController: NavHostController = rememberNavController()
 ) {
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
@@ -74,6 +76,7 @@ fun AppNavigation(
         }
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
+            CompositionLocalProvider(LocalPlaybackSession provides playbackSession) {
             NavHost(
                 navController = navController,
                 startDestination = Alarm
@@ -85,10 +88,7 @@ fun AppNavigation(
                     PlaylistListScreen(navController = navController)
                 }
                 composable<PlaylistDetail> {
-                    PlaylistDetailScreen(
-                        navController = navController,
-                        playerViewModel = rememberActivityScopedPlayerViewModel()
-                    )
+                    PlaylistDetailScreen(navController = navController)
                 }
                 composable<Alarm> {
                     AlarmListScreen(navController = navController)
@@ -111,6 +111,7 @@ fun AppNavigation(
                 composable<Settings> {
                     SettingsScreen(navController = navController)
                 }
+            }
             }
         }
     }

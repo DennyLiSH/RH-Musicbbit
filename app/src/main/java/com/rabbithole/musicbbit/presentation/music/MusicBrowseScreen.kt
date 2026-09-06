@@ -1,5 +1,7 @@
 package com.rabbithole.musicbbit.presentation.music
 
+import com.rabbithole.musicbbit.service.playback.PlaybackSession
+import com.rabbithole.musicbbit.presentation.playback.LocalPlaybackSession
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
@@ -50,7 +52,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.rabbithole.musicbbit.presentation.components.rememberActivityScopedPlayerViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
@@ -58,7 +59,6 @@ import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.navigation.Player
 import com.rabbithole.musicbbit.navigation.ScanDirectorySettings
 import com.rabbithole.musicbbit.presentation.music.components.SongListItem
-import com.rabbithole.musicbbit.presentation.player.PlayerViewModel
 import com.rabbithole.musicbbit.presentation.components.EmptyState
 import com.rabbithole.musicbbit.presentation.components.ErrorContent
 import com.rabbithole.musicbbit.presentation.components.LoadingState
@@ -70,7 +70,7 @@ import com.rabbithole.musicbbit.presentation.player.components.AddToPlaylistBott
 fun MusicBrowseScreen(
     navController: NavController,
     viewModel: MusicBrowseViewModel = hiltViewModel(),
-    playerViewModel: PlayerViewModel = rememberActivityScopedPlayerViewModel()
+    playerViewModel: PlaybackSession = LocalPlaybackSession.current
 ) {
     val context = LocalContext.current
 

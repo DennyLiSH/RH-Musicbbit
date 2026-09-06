@@ -1,5 +1,7 @@
 package com.rabbithole.musicbbit.presentation.player
 
+import com.rabbithole.musicbbit.service.playback.PlaybackSession
+import com.rabbithole.musicbbit.presentation.playback.LocalPlaybackSession
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
@@ -43,7 +45,7 @@ import com.rabbithole.musicbbit.navigation.Player
 fun MiniPlayer(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    viewModel: PlayerViewModel = hiltViewModel()
+    viewModel: PlaybackSession = LocalPlaybackSession.current
 ) {
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
     val currentSong = playbackState.currentSong

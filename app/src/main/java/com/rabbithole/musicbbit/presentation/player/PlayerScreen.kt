@@ -1,5 +1,7 @@
 package com.rabbithole.musicbbit.presentation.player
 
+import com.rabbithole.musicbbit.service.playback.PlaybackSession
+import com.rabbithole.musicbbit.presentation.playback.LocalPlaybackSession
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,7 +44,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.rabbithole.musicbbit.R
-import com.rabbithole.musicbbit.presentation.components.rememberActivityScopedPlayerViewModel
 import com.rabbithole.musicbbit.presentation.util.formatDuration
 import com.rabbithole.musicbbit.service.PlayMode
 
@@ -50,7 +51,7 @@ import com.rabbithole.musicbbit.service.PlayMode
 fun PlayerScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    viewModel: PlayerViewModel = rememberActivityScopedPlayerViewModel()
+    viewModel: PlaybackSession = LocalPlaybackSession.current
 ) {
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
     val currentSong = playbackState.currentSong

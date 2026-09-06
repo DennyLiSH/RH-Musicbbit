@@ -14,6 +14,7 @@ import androidx.work.WorkManager
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.TestActivity
 import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.service.playback.PlaybackSession
 import com.rabbithole.musicbbit.service.PlaybackState
 import dagger.hilt.android.testing.HiltTestApplication
 import org.mockito.kotlin.mock
@@ -147,8 +148,8 @@ class PlayerScreenTest {
         ).assertExists()
     }
 
-    private fun createMockViewModel(playbackState: PlaybackState): PlayerViewModel {
-        val viewModel = mock<PlayerViewModel>()
+    private fun createMockViewModel(playbackState: PlaybackState): PlaybackSession {
+        val viewModel = mock<PlaybackSession>()
         whenever(viewModel.playbackState).thenReturn(MutableStateFlow(playbackState))
         return viewModel
     }
