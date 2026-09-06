@@ -2,13 +2,10 @@ package com.rabbithole.musicbbit.service.alarm
 
 import androidx.annotation.VisibleForTesting
 import com.rabbithole.musicbbit.di.IoDispatcher
-import com.rabbithole.musicbbit.domain.model.Alarm
-import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -31,7 +28,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class AlarmStartupReconciler @Inject constructor(
-    private val alarmRepository: AlarmRepository,
+    private val alarmRecovery: AlarmRecovery,
     private val alarmScheduler: AlarmScheduler,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
@@ -51,41 +48,8 @@ class AlarmStartupReconciler @Inject constructor(
 
     @VisibleForTesting
     suspend fun reconcileInternal() {
-        try {
-            val enabledAlarms = alarmRepository.getEnabledAlarms().first()
-            Timber.i("AlarmStartupReconciler: scanning ${enabledAlarms.size} enabled alarms")
-
-            for (alarm in enabledAlarms) {
-                try {
-                    when {
-                        // One-shot alarm that has already triggered but was not disabled
-                        // (bookkeep failed after playback started)
-                        alarm.repeatDays.isEmpty() && alarm.lastTriggeredAt != null -> {
-                            Timber.w(
-                                "AlarmStartupReconciler: disabling one-shot alarm ${alarm.id} " +
-                                    "(lastTriggeredAt=${alarm.lastTriggeredAt})"
-                            )
-                            alarmRepository.enableAlarm(alarm.id, false)
-                        }
-
-                        // Repeating alarm: ensure system-side schedule is up to date
-                        alarm.repeatDays.isNotEmpty() -> {
-                            Timber.i("AlarmStartupReconciler: rescheduling repeating alarm ${alarm.id}")
-                            alarmScheduler.rescheduleAll(listOf(alarm))
-                        }
-
-                        // One-shot not yet triggered: reschedule (PendingIntent may be lost)
-                        else -> {
-                            Timber.i("AlarmStartupReconciler: rescheduling one-shot alarm ${alarm.id} (pendingIntent may be lost)")
-                            alarmScheduler.schedule(alarm)
-                        }
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "AlarmStartupReconciler: failed to process alarm ${alarm.id}")
-                }
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "AlarmStartupReconciler: failed to reconcile alarms")
-        }
+        // Repair loop lives in AlarmRecovery — shared with BootReceiver and the
+        // integrity worker. This class only owns WHEN startup recovery runs.
+        alarmRecovery.recoverAll()
     }
 }

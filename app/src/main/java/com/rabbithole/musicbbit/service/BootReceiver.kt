@@ -3,7 +3,7 @@ package com.rabbithole.musicbbit.service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.rabbithole.musicbbit.domain.repository.AlarmRepository
+import com.rabbithole.musicbbit.service.alarm.AlarmRecovery
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -11,7 +11,6 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -31,8 +30,7 @@ class BootReceiver : BroadcastReceiver() {
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     interface BootReceiverEntryPoint {
-        fun alarmRepository(): AlarmRepository
-        fun alarmScheduler(): AlarmScheduler
+        fun alarmRecovery(): AlarmRecovery
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -47,16 +45,15 @@ class BootReceiver : BroadcastReceiver() {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         scope.launch {
             try {
+                // Repair logic lives in AlarmRecovery — shared with startup and the
+                // integrity worker. This receiver only owns the boot trigger.
                 val entryPoint = EntryPointAccessors.fromApplication(
                     context.applicationContext,
                     BootReceiverEntryPoint::class.java
                 )
-                val alarmRepository = entryPoint.alarmRepository()
-                val alarmScheduler = entryPoint.alarmScheduler()
-                val enabledAlarms = alarmRepository.getEnabledAlarms().first()
-                Timber.i("BootReceiver: found ${enabledAlarms.size} enabled alarms to reschedule")
-                alarmScheduler.rescheduleAll(enabledAlarms)
-                Timber.i("BootReceiver: alarm rescheduling completed")
+                val result = entryPoint.alarmRecovery().rescheduleEnabledAlarms()
+                result.onSuccess { Timber.i("BootReceiver: rescheduled $it enabled alarms") }
+                    .onFailure { throw it }
             } catch (e: Exception) {
                 Timber.e(e, "BootReceiver: failed to reschedule alarms after boot")
             } finally {

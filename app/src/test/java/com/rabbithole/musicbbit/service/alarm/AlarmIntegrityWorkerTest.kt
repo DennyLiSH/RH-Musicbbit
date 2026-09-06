@@ -57,8 +57,11 @@ class AlarmIntegrityWorkerTest {
         worker = AlarmIntegrityWorker(
             appContext = context,
             workerParams = workerParams,
-            alarmRepository = alarmRepository,
-            alarmScheduler = alarmScheduler,
+            alarmRecovery = AlarmRecovery(
+                alarmRepository = alarmRepository,
+                alarmScheduler = alarmScheduler,
+                ioDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
+            ),
         )
     }
 

@@ -60,7 +60,11 @@ class AlarmStartupReconcilerTest {
         fakeRepository = FakeAlarmRepository()
         alarmScheduler = mock()
         reconciler = AlarmStartupReconciler(
-            alarmRepository = fakeRepository,
+            alarmRecovery = AlarmRecovery(
+                alarmRepository = fakeRepository,
+                alarmScheduler = alarmScheduler,
+                ioDispatcher = testDispatcher,
+            ),
             alarmScheduler = alarmScheduler,
             ioDispatcher = testDispatcher,
         )
