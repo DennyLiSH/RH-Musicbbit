@@ -4,6 +4,8 @@ import com.rabbithole.musicbbit.data.repository.AlarmPersistenceRepositoryImpl
 import com.rabbithole.musicbbit.data.repository.AlarmRepositoryImpl
 import com.rabbithole.musicbbit.data.repository.AlarmRingSettingsRepositoryImpl
 import com.rabbithole.musicbbit.data.repository.HolidayRepositoryImpl
+import com.rabbithole.musicbbit.data.local.ContentResolverMediaStorePort
+import com.rabbithole.musicbbit.data.local.MediaStorePort
 import com.rabbithole.musicbbit.data.repository.MusicRepositoryImpl
 import com.rabbithole.musicbbit.data.repository.PlaybackProgressRepositoryImpl
 import com.rabbithole.musicbbit.data.repository.PlaylistRepositoryImpl
@@ -33,6 +35,12 @@ abstract class RepositoryModule {
     abstract fun bindMusicRepository(
         impl: MusicRepositoryImpl
     ): MusicRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMediaStorePort(
+        impl: ContentResolverMediaStorePort
+    ): MediaStorePort
 
     @Binds
     @Singleton

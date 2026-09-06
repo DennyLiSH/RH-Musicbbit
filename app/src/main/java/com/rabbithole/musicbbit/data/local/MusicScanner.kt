@@ -1,16 +1,14 @@
 package com.rabbithole.musicbbit.data.local
 
-import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
 import com.rabbithole.musicbbit.domain.model.Song
-import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
 import timber.log.Timber
 
 class MusicScanner @Inject constructor(
-    @ApplicationContext private val context: Context
+    private val mediaStorePort: MediaStorePort,
 ) {
 
     fun scanDirectories(directories: List<String>): List<Song> {
@@ -33,28 +31,12 @@ class MusicScanner @Inject constructor(
             MediaStore.Audio.Media.MIME_TYPE
         )
 
-        // Build selection for directory filtering with LIKE for each directory
-        val selectionBuilder = StringBuilder()
-        val selectionArgs = mutableListOf<String>()
+        val (selection, selectionArgs) = buildAudioSelection(directories)
 
-        directories.forEachIndexed { index, dir ->
-            if (index > 0) selectionBuilder.append(" OR ")
-            selectionBuilder.append("${MediaStore.Audio.Media.DATA} LIKE ?")
-            selectionArgs.add("$dir/%")
-        }
-
-        // Also require IS_MUSIC = 1
-        if (selectionBuilder.isNotEmpty()) {
-            selectionBuilder.insert(0, "${MediaStore.Audio.Media.IS_MUSIC} = 1 AND (")
-            selectionBuilder.append(")")
-        } else {
-            selectionBuilder.append("${MediaStore.Audio.Media.IS_MUSIC} = 1")
-        }
-
-        context.contentResolver.query(
+        mediaStorePort.query(
             uri,
             projection,
-            selectionBuilder.toString(),
+            selection,
             selectionArgs.toTypedArray(),
             "${MediaStore.Audio.Media.DATE_ADDED} DESC"
         )?.use { cursor ->
@@ -94,20 +76,53 @@ class MusicScanner @Inject constructor(
         return songs
     }
 
-    private fun isSupportedAudioFormat(mimeType: String): Boolean {
-        return mimeType.startsWith("audio/") &&
-            (mimeType.contains("mpeg") ||
-                mimeType.contains("mp3") ||
-                mimeType.contains("flac") ||
-                mimeType.contains("wav") ||
-                mimeType.contains("aac") ||
-                mimeType.contains("ogg") ||
-                mimeType.contains("vorbis") ||
-                mimeType.contains("opus"))
-    }
-
     private fun getAlbumArtUri(albumId: Long): Uri? {
         if (albumId <= 0) return null
         return Uri.parse("content://media/external/audio/albumart/$albumId")
+    }
+
+    companion object {
+
+        /**
+         * Build the MediaStore selection for directory-filtered music rows:
+         * `IS_MUSIC = 1 AND (DATA LIKE ? OR …)`. Pure — JVM-testable.
+         *
+         * @return selection string and its positional arguments (`dir/%` per directory).
+         */
+        internal fun buildAudioSelection(directories: List<String>): Pair<String, List<String>> {
+            val selectionBuilder = StringBuilder()
+            val selectionArgs = mutableListOf<String>()
+
+            directories.forEachIndexed { index, dir ->
+                if (index > 0) selectionBuilder.append(" OR ")
+                selectionBuilder.append("${MediaStore.Audio.Media.DATA} LIKE ?")
+                selectionArgs.add("$dir/%")
+            }
+
+            // Also require IS_MUSIC = 1
+            if (selectionBuilder.isNotEmpty()) {
+                selectionBuilder.insert(0, "${MediaStore.Audio.Media.IS_MUSIC} = 1 AND (")
+                selectionBuilder.append(")")
+            } else {
+                selectionBuilder.append("${MediaStore.Audio.Media.IS_MUSIC} = 1")
+            }
+
+            return selectionBuilder.toString() to selectionArgs
+        }
+
+        /**
+         * The format whitelist for scanned audio. Pure — JVM-testable.
+         */
+        internal fun isSupportedAudioFormat(mimeType: String): Boolean {
+            return mimeType.startsWith("audio/") &&
+                (mimeType.contains("mpeg") ||
+                    mimeType.contains("mp3") ||
+                    mimeType.contains("flac") ||
+                    mimeType.contains("wav") ||
+                    mimeType.contains("aac") ||
+                    mimeType.contains("ogg") ||
+                    mimeType.contains("vorbis") ||
+                    mimeType.contains("opus"))
+        }
     }
 }
