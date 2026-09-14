@@ -76,6 +76,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
@@ -383,8 +384,8 @@ private fun SwipeableAlarmItem(
 /**
  * Formats the given hour and minute into a 24-hour time string (e.g., "07:30").
  */
-private fun formatTime(hour: Int, minute: Int): String {
-    return String.format("%02d:%02d", hour, minute)
+internal fun formatTime(hour: Int, minute: Int): String {
+    return String.format(Locale.US, "%02d:%02d", hour, minute)
 }
 
 /**
