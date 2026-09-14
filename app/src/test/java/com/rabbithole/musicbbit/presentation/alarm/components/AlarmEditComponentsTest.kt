@@ -29,4 +29,29 @@ class AlarmEditComponentsTest {
                 .getString(com.rabbithole.musicbbit.R.string.alarm_edit_saving)
         ).assertIsDisplayed()
     }
+
+    @Test
+    fun `autostop dropdown shows truthful label for non-preset value`() {
+        composeTestRule.setContent {
+            AutoStopDropdown(
+                selectedAutoStop = com.rabbithole.musicbbit.domain.model.AutoStop.ByMinutes(20),
+                onSelectionChange = {}
+            )
+        }
+        composeTestRule.onNodeWithText(
+            ApplicationProvider.getApplicationContext<android.content.Context>()
+                .getString(com.rabbithole.musicbbit.R.string.alarm_edit_auto_stop_minutes_format, 20)
+        ).assertExists()
+    }
+
+    @Test
+    fun `discard dialog confirm button uses explicit discard verb`() {
+        composeTestRule.setContent {
+            DiscardDialog(onDismiss = {}, onConfirm = {})
+        }
+        composeTestRule.onNodeWithText(
+            ApplicationProvider.getApplicationContext<android.content.Context>()
+                .getString(com.rabbithole.musicbbit.R.string.action_discard)
+        ).assertIsDisplayed()
+    }
 }
