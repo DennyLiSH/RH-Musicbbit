@@ -1,5 +1,6 @@
 package com.rabbithole.musicbbit.presentation.alarm.components
 
+import android.text.format.DateFormat
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
@@ -8,6 +9,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TimePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.rabbithole.musicbbit.R
 
@@ -30,7 +32,7 @@ fun TimePickerDialog(
     val timePickerState: TimePickerState = rememberTimePickerState(
         initialHour = initialHour,
         initialMinute = initialMinute,
-        is24Hour = true
+        is24Hour = DateFormat.is24HourFormat(LocalContext.current)
     )
 
     AlertDialog(
