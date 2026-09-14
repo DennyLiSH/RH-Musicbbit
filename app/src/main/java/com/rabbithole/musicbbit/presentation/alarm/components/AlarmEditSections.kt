@@ -340,7 +340,7 @@ internal fun AutoStopDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedOption = selectedAutoStop.toOption()
-    val selectedLabelRes = selectedOption.labelRes()
+    val selectedLabel = selectedOption.label()
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -348,7 +348,7 @@ internal fun AutoStopDropdown(
         modifier = modifier.fillMaxWidth()
     ) {
         OutlinedTextField(
-            value = stringResource(selectedLabelRes),
+            value = selectedLabel,
             onValueChange = {},
             readOnly = true,
             label = { Text(stringResource(R.string.alarm_edit_auto_stop_label)) },
@@ -366,7 +366,7 @@ internal fun AutoStopDropdown(
         ) {
             AUTO_STOP_OPTIONS.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(stringResource(option.labelRes())) },
+                    text = { Text(option.label()) },
                     onClick = {
                         onSelectionChange(option.toAutoStop())
                         expanded = false

@@ -1,6 +1,7 @@
 package com.rabbithole.musicbbit.presentation.alarm.components
 
-import androidx.annotation.StringRes
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.AutoStop
 
@@ -22,25 +23,25 @@ internal fun AutoStop?.toOption(): AutoStopOption = when (this) {
     null -> AutoStopOption.None
 }
 
-@StringRes
-internal fun AutoStopOption.labelRes(): Int = when (this) {
-    AutoStopOption.None -> R.string.alarm_edit_auto_stop_none
+@Composable
+internal fun AutoStopOption.label(): String = when (this) {
+    AutoStopOption.None -> stringResource(R.string.alarm_edit_auto_stop_none)
     is AutoStopOption.Minutes -> when (value) {
-        5 -> R.string.alarm_edit_auto_stop_5min
-        10 -> R.string.alarm_edit_auto_stop_10min
-        15 -> R.string.alarm_edit_auto_stop_15min
-        30 -> R.string.alarm_edit_auto_stop_30min
-        60 -> R.string.alarm_edit_auto_stop_60min
-        else -> R.string.alarm_edit_auto_stop_none
+        5 -> stringResource(R.string.alarm_edit_auto_stop_5min)
+        10 -> stringResource(R.string.alarm_edit_auto_stop_10min)
+        15 -> stringResource(R.string.alarm_edit_auto_stop_15min)
+        30 -> stringResource(R.string.alarm_edit_auto_stop_30min)
+        60 -> stringResource(R.string.alarm_edit_auto_stop_60min)
+        else -> stringResource(R.string.alarm_edit_auto_stop_minutes_format, value)
     }
     is AutoStopOption.Songs -> when (value) {
-        1 -> R.string.alarm_edit_auto_stop_1song
-        2 -> R.string.alarm_edit_auto_stop_2songs
-        3 -> R.string.alarm_edit_auto_stop_3songs
-        4 -> R.string.alarm_edit_auto_stop_4songs
-        5 -> R.string.alarm_edit_auto_stop_5songs
-        10 -> R.string.alarm_edit_auto_stop_10songs
-        else -> R.string.alarm_edit_auto_stop_none
+        1 -> stringResource(R.string.alarm_edit_auto_stop_1song)
+        2 -> stringResource(R.string.alarm_edit_auto_stop_2songs)
+        3 -> stringResource(R.string.alarm_edit_auto_stop_3songs)
+        4 -> stringResource(R.string.alarm_edit_auto_stop_4songs)
+        5 -> stringResource(R.string.alarm_edit_auto_stop_5songs)
+        10 -> stringResource(R.string.alarm_edit_auto_stop_10songs)
+        else -> stringResource(R.string.alarm_edit_auto_stop_songs_format, value)
     }
 }
 
