@@ -123,6 +123,13 @@
     <string name="alarm_edit_auto_stop_4songs">4 songs</string>
     <string name="alarm_edit_auto_stop_5songs">5 songs</string>
     <string name="alarm_edit_auto_stop_10songs">10 songs</string>
+    <string name="alarm_edit_auto_stop_minutes_format">%1$d min</string>
+    <string name="alarm_edit_auto_stop_songs_format">%1$d songs</string>
+    <string name="alarm_edit_saving">Saving…</string>
+    <string name="alarm_edit_delete_confirm_message">This alarm will be permanently deleted.</string>
+    <string name="alarm_deleted">Alarm deleted</string>
+    <string name="action_discard">Discard</string>
+    <string name="action_delete">Delete</string>
     <string name="alarm_edit_volume_ramp_hint">Volume will ramp from 30%% to max over %d seconds when alarm rings.</string>
     <string name="alarm_edit_volume_ramp_disabled_hint">Volume will be set to max immediately when alarm rings.</string>
     <string name="alarm_edit_error_not_found">Alarm not found</string>

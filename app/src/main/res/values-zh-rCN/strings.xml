@@ -123,6 +123,13 @@
     <string name="alarm_edit_auto_stop_4songs">4 首歌</string>
     <string name="alarm_edit_auto_stop_5songs">5 首歌</string>
     <string name="alarm_edit_auto_stop_10songs">10 首歌</string>
+    <string name="alarm_edit_auto_stop_minutes_format">%1$d 分钟</string>
+    <string name="alarm_edit_auto_stop_songs_format">%1$d 首</string>
+    <string name="alarm_edit_saving">保存中…</string>
+    <string name="alarm_edit_delete_confirm_message">此闹钟将被永久删除。</string>
+    <string name="alarm_deleted">闹钟已删除</string>
+    <string name="action_discard">放弃</string>
+    <string name="action_delete">删除</string>
     <string name="alarm_edit_volume_ramp_hint">闹钟响起时，音量将在 %d 秒内从 30%% 渐强至最大。</string>
     <string name="alarm_edit_volume_ramp_disabled_hint">闹钟响起时，音量将立即设为最大。</string>
     <string name="alarm_edit_error_not_found">闹钟未找到</string>

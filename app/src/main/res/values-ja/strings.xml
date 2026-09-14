@@ -123,6 +123,13 @@
     <string name="alarm_edit_auto_stop_4songs">4 曲</string>
     <string name="alarm_edit_auto_stop_5songs">5 曲</string>
     <string name="alarm_edit_auto_stop_10songs">10 曲</string>
+    <string name="alarm_edit_auto_stop_minutes_format">%1$d 分</string>
+    <string name="alarm_edit_auto_stop_songs_format">%1$d 曲</string>
+    <string name="alarm_edit_saving">保存中…</string>
+    <string name="alarm_edit_delete_confirm_message">このアラームは完全に削除されます。</string>
+    <string name="alarm_deleted">アラームを削除しました</string>
+    <string name="action_discard">破棄</string>
+    <string name="action_delete">削除</string>
     <string name="alarm_edit_volume_ramp_hint">アラームが鳴ると、音量が %d 秒かけて 30%% から最大まで徐々に上がります。</string>
     <string name="alarm_edit_volume_ramp_disabled_hint">アラームが鳴ると、音量が即座に最大になります。</string>
     <string name="alarm_edit_error_not_found">アラームが見つかりません</string>
