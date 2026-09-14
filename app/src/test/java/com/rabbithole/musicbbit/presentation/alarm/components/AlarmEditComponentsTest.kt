@@ -54,4 +54,15 @@ class AlarmEditComponentsTest {
                 .getString(com.rabbithole.musicbbit.R.string.action_discard)
         ).assertIsDisplayed()
     }
+
+    @Test
+    fun `delete confirm dialog uses explicit delete verb`() {
+        composeTestRule.setContent {
+            DeleteConfirmDialog(onDismiss = {}, onConfirm = {})
+        }
+        composeTestRule.onNodeWithText(
+            ApplicationProvider.getApplicationContext<android.content.Context>()
+                .getString(com.rabbithole.musicbbit.R.string.action_delete)
+        ).assertIsDisplayed()
+    }
 }

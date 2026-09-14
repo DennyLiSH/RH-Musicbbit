@@ -52,6 +52,7 @@ data class AlarmEditUiState(
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
     val saveCompleted: Boolean = false,
+    val deleteCompleted: Boolean = false,
     val saveFailedMessageResId: Int? = null,
     val isNewAlarm: Boolean = true,
     val errorMessageResId: Int? = null,
@@ -78,6 +79,7 @@ sealed interface AlarmEditDialogState {
     data class AutostartGuide(val intent: Intent?) : AlarmEditDialogState
     data object AutostartManualGuide : AlarmEditDialogState
     data object Discard : AlarmEditDialogState
+    data object DeleteConfirm : AlarmEditDialogState
 }
 
 /**
@@ -309,29 +311,54 @@ class AlarmEditViewModel @Inject constructor(
         _uiState.update { it.copy(dialogState = AlarmEditDialogState.Discard) }
     }
 
+    fun showDeleteDialog() {
+        _uiState.update { it.copy(dialogState = AlarmEditDialogState.DeleteConfirm) }
+    }
+
+    fun deleteAlarm() {
+        if (alarmId == 0L) return // 新建闹钟无可删对象；UI 隐藏入口不是唯一防线
+        val alarm = buildAlarm(_uiState.value.form)
+        _uiState.update { it.copy(isSaving = true, errorMessageResId = null) }
+        viewModelScope.launch {
+            alarmRepository.deleteAlarm(alarm)
+                .onSuccess {
+                    Timber.i("Alarm deleted, id=%d", alarmId)
+                    _uiState.update { it.copy(isSaving = false, deleteCompleted = true) }
+                }
+                .onFailure { e ->
+                    Timber.e(e, "Failed to delete alarm id=%d", alarmId)
+                    _uiState.update {
+                        it.copy(isSaving = false, saveFailedMessageResId = R.string.alarm_error_delete_failed)
+                    }
+                }
+        }
+    }
+
     /** Dismiss whatever dialog is currently shown. LWW: any new showXxx overwrites prior state. */
     fun dismissDialog() {
         _uiState.update { it.copy(dialogState = null) }
     }
 
+    private fun buildAlarm(form: AlarmFormState) = Alarm(
+        id = alarmId,
+        hour = form.hour,
+        minute = form.minute,
+        repeatDays = form.repeatDays,
+        excludeHolidays = form.excludeHolidays,
+        playlistId = form.playlistId,
+        isEnabled = form.isEnabled,
+        label = form.label.takeIf { it.isNotBlank() },
+        autoStop = form.autoStop,
+        lastTriggeredAt = null,
+        resumePlayback = form.resumePlayback,
+        ringMode = form.ringMode,
+        ignoreQuietMode = form.ignoreQuietMode,
+    )
+
     private fun saveAlarm() {
         val form = _uiState.value.form
 
-        val alarm = Alarm(
-            id = alarmId,
-            hour = form.hour,
-            minute = form.minute,
-            repeatDays = form.repeatDays,
-            excludeHolidays = form.excludeHolidays,
-            playlistId = form.playlistId,
-            isEnabled = form.isEnabled,
-            label = form.label.takeIf { it.isNotBlank() },
-            autoStop = form.autoStop,
-            lastTriggeredAt = null,
-            resumePlayback = form.resumePlayback,
-            ringMode = form.ringMode,
-            ignoreQuietMode = form.ignoreQuietMode,
-        )
+        val alarm = buildAlarm(form)
 
         _uiState.update { it.copy(isSaving = true, errorMessageResId = null) }
 

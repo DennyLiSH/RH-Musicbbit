@@ -34,6 +34,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verifyBlocking
 import org.mockito.kotlin.whenever
 import org.mockito.kotlin.wheneverBlocking
@@ -654,6 +655,43 @@ class AlarmEditViewModelTest {
         whenever(permissionPort.isNotificationPolicyAccessGranted()).thenReturn(true)
         viewModel.refreshDndAccessStatus()
         assertTrue(viewModel.uiState.value.isDndAccessGranted)
+    }
+
+    @Test
+    fun `deleteAlarm success sets deleteCompleted`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+        wheneverBlocking { alarmRepository.deleteAlarm(any()) } doReturn Result.success(Unit)
+
+        val viewModel = createViewModel(SavedStateHandle(mapOf("alarmId" to 1L)))
+
+        viewModel.deleteAlarm()
+
+        assertTrue(viewModel.uiState.value.deleteCompleted)
+        assertFalse(viewModel.uiState.value.isSaving)
+    }
+
+    @Test
+    fun `deleteAlarm is a no-op for new alarm`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+
+        val viewModel = createViewModel(SavedStateHandle(mapOf("alarmId" to 0L)))
+
+        viewModel.deleteAlarm()
+
+        verifyBlocking(alarmRepository, never()) { deleteAlarm(any()) }
+        assertFalse(viewModel.uiState.value.deleteCompleted)
+    }
+
+    @Test
+    fun `deleteAlarm failure surfaces delete failed error`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+        wheneverBlocking { alarmRepository.deleteAlarm(any()) } doReturn Result.failure(RuntimeException("db"))
+
+        val viewModel = createViewModel(SavedStateHandle(mapOf("alarmId" to 1L)))
+
+        viewModel.deleteAlarm()
+
+        assertEquals(R.string.alarm_error_delete_failed, viewModel.uiState.value.saveFailedMessageResId)
     }
 
     private fun createViewModel(savedStateHandle: SavedStateHandle): AlarmEditViewModel {

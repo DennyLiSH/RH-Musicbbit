@@ -54,6 +54,33 @@ internal fun FullScreenIntentDialog(
 }
 
 @Composable
+internal fun DeleteConfirmDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.alarm_list_delete)) },
+        text = { Text(stringResource(R.string.alarm_edit_delete_confirm_message)) },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text(stringResource(R.string.action_delete))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+@Composable
 internal fun DiscardDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -36,6 +37,7 @@ import com.rabbithole.musicbbit.service.ExactAlarmPermissionHelper
 import com.rabbithole.musicbbit.presentation.permissions.launchSettingsSafely
 import com.rabbithole.musicbbit.presentation.alarm.components.AlarmEditContent
 import com.rabbithole.musicbbit.presentation.alarm.components.AutostartGuideDialog
+import com.rabbithole.musicbbit.presentation.alarm.components.DeleteConfirmDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.DiscardDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.FullScreenIntentDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.PermissionDialog
@@ -60,6 +62,7 @@ fun AlarmEditScreen(
     val errorMessageResId = uiState.errorMessageResId
     val errorMessage = errorMessageResId?.let { stringResource(it) }
     val alarmSavedMessage = stringResource(R.string.alarm_saved)
+    val alarmDeletedMessage = stringResource(R.string.alarm_deleted)
 
     // Navigate up when save is completed; briefly toast the success message.
     // (Toast instead of Snackbar because Snackbar is destroyed on navigateUp.)
@@ -67,6 +70,14 @@ fun AlarmEditScreen(
         if (uiState.saveCompleted) {
             Timber.i("Alarm saved, navigating up")
             toast.showShort(alarmSavedMessage)
+            navController.navigateUp()
+        }
+    }
+
+    LaunchedEffect(uiState.deleteCompleted) {
+        if (uiState.deleteCompleted) {
+            Timber.i("Alarm deleted, navigating up")
+            toast.showShort(alarmDeletedMessage)
             navController.navigateUp()
         }
     }
@@ -139,7 +150,16 @@ fun AlarmEditScreen(
                         )
                     }
                 },
-                actions = {}
+                actions = {
+                    if (!uiState.isNewAlarm && !uiState.isLoading) {
+                        IconButton(onClick = { viewModel.showDeleteDialog() }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Delete,
+                                contentDescription = stringResource(R.string.alarm_list_delete)
+                            )
+                        }
+                    }
+                }
             )
         },
         bottomBar = {
@@ -243,6 +263,13 @@ fun AlarmEditScreen(
             onConfirm = {
                 viewModel.dismissDialog()
                 navController.navigateUp()
+            }
+        )
+        AlarmEditDialogState.DeleteConfirm -> DeleteConfirmDialog(
+            onDismiss = { viewModel.dismissDialog() },
+            onConfirm = {
+                viewModel.dismissDialog()
+                viewModel.deleteAlarm()
             }
         )
     }
