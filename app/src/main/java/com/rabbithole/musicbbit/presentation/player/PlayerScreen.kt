@@ -1,6 +1,6 @@
 package com.rabbithole.musicbbit.presentation.player
 
-import com.rabbithole.musicbbit.service.playback.PlaybackSession
+import com.rabbithole.musicbbit.service.playback.UserPlaybackSession
 import com.rabbithole.musicbbit.presentation.playback.LocalPlaybackSession
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -51,7 +51,7 @@ import com.rabbithole.musicbbit.service.PlayMode
 fun PlayerScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    viewModel: PlaybackSession = LocalPlaybackSession.current
+    viewModel: UserPlaybackSession = LocalPlaybackSession.current
 ) {
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
     val currentSong = playbackState.currentSong

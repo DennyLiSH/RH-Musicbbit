@@ -20,12 +20,12 @@ import kotlinx.coroutines.flow.update
 import timber.log.Timber
 
 /**
- * Shared implementation behind [PlaybackSession] and [AlarmPlaybackSession]: state
+ * Shared implementation behind [UserPlaybackSession] and [AlarmPlaybackSession]: state
  * reduction, progress tracking, audio-focus handling, and the stop sequence.
  *
- * The two concrete sessions differ only in how a queue starts ([PlaybackSession.playQueue]
+ * The two concrete sessions differ only in how a queue starts ([UserPlaybackSession.playQueue]
  * restores progress, [AlarmPlaybackSession.playAlarmQueue] routes the alarm stream) and in
- * their queue-ended policy ([PlaybackSession] stops immediately; [AlarmPlaybackSession]
+ * their queue-ended policy ([UserPlaybackSession] stops immediately; [AlarmPlaybackSession]
  * defers the stop to AlarmFireSession and suppresses the final save via
  * `queueEndedPending`). That policy is the one [handleQueueEnded] hook; everything else
  * lives here so ordering contracts (save/tick/deactivate/emit) are maintained in one place.

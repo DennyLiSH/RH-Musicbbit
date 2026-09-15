@@ -1,6 +1,6 @@
 package com.rabbithole.musicbbit.presentation.playlist
 
-import com.rabbithole.musicbbit.service.playback.PlaybackSession
+import com.rabbithole.musicbbit.service.playback.UserPlaybackSession
 import com.rabbithole.musicbbit.presentation.playback.LocalPlaybackSession
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -66,7 +66,7 @@ import kotlin.math.roundToInt
 fun PlaylistDetailScreen(
     navController: NavController,
     viewModel: PlaylistDetailViewModel = hiltViewModel(),
-    playerViewModel: PlaybackSession = LocalPlaybackSession.current
+    playerViewModel: UserPlaybackSession = LocalPlaybackSession.current
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val allSongs by viewModel.allSongs.collectAsStateWithLifecycle()
@@ -213,7 +213,7 @@ private fun EmptyContent(
 private fun PlaylistDetailContent(
     songs: List<Song>,
     playlistId: Long,
-    playerViewModel: PlaybackSession,
+    playerViewModel: UserPlaybackSession,
     navController: NavController,
     onPlayAll: () -> Unit,
     onSongClick: (Int) -> Unit,

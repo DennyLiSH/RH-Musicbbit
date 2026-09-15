@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
     private val themeViewModel: ThemeViewModel by viewModels()
 
     @javax.inject.Inject
-    lateinit var playbackSession: com.rabbithole.musicbbit.service.playback.PlaybackSession
+    lateinit var playbackSession: com.rabbithole.musicbbit.service.playback.UserPlaybackSession
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LocaleHelper.wrapContext(newBase))

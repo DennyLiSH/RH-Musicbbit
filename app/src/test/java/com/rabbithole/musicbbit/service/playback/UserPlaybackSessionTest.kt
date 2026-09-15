@@ -30,10 +30,10 @@ import org.junit.Test
 import timber.log.Timber
 
 /**
- * JVM unit tests for [PlaybackSession].
+ * JVM unit tests for [UserPlaybackSession].
  *
  * Uses a dedicated [sessionDispatcher] (separate from any TestScope) so that
- * PlaybackSession's internal infinite loops (tickLoop, saveLoop) never
+ * UserPlaybackSession's internal infinite loops (tickLoop, saveLoop) never
  * interfere with test finalisation.
  *
  * Event delivery is synchronous because [UnconfinedTestDispatcher] dispatches
@@ -41,7 +41,7 @@ import timber.log.Timber
  * the event.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class PlaybackSessionTest {
+class UserPlaybackSessionTest {
 
     // Separate dispatcher — its scheduler is NOT shared with any TestScope,
     // so runBlocking / runTest finalisation never tries to drain the infinite loops.
@@ -55,7 +55,7 @@ class PlaybackSessionTest {
 
     private val _playbackState = MutableStateFlow(PlaybackState())
 
-    private lateinit var session: PlaybackSession
+    private lateinit var session: UserPlaybackSession
 
     companion object {
         private val SONG_1 = Song(
@@ -93,7 +93,7 @@ class PlaybackSessionTest {
         )
         wheneverBlocking { playbackProgressRepository.saveProgress(any()) } doReturn Result.success(Unit)
 
-        session = PlaybackSession(
+        session = UserPlaybackSession(
             playerPort = playerPort,
             audioStreamPort = FakeAudioStreamPort(),
             playbackProgressRepository = playbackProgressRepository,
@@ -547,7 +547,7 @@ class PlaybackSessionTest {
 
     @Test
     fun `activate setQueue order regression`() = runBlocking {
-        // Lock the activate→setQueue order invariant in PlaybackSession.play().
+        // Lock the activate→setQueue order invariant in UserPlaybackSession.play().
         // Reverse handoff (alarm active, user plays) requires activate BEFORE setQueue
         // so onDeactivated fires while playerPort still holds the previous consumer's state.
         session.play(SONG_1, playlistId = 10L)

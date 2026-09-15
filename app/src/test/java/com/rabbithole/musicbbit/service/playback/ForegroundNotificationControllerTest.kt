@@ -40,7 +40,7 @@ class ForegroundNotificationControllerTest {
     private val playbackState = MutableStateFlow(PlaybackState())
     private val context: Context = ApplicationProvider.getApplicationContext()
 
-    private lateinit var playbackSession: PlaybackSession
+    private lateinit var playbackSession: UserPlaybackSession
     private lateinit var musicNotificationPort: MusicNotificationPort
     private lateinit var serviceStarter: ServiceStarter
     private lateinit var service: MusicPlaybackService

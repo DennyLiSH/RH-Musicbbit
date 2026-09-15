@@ -1,6 +1,6 @@
 package com.rabbithole.musicbbit.presentation.music
 
-import com.rabbithole.musicbbit.service.playback.PlaybackSession
+import com.rabbithole.musicbbit.service.playback.UserPlaybackSession
 import com.rabbithole.musicbbit.presentation.playback.LocalPlaybackSession
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalAnimationApi
@@ -70,7 +70,7 @@ import com.rabbithole.musicbbit.presentation.player.components.AddToPlaylistBott
 fun MusicBrowseScreen(
     navController: NavController,
     viewModel: MusicBrowseViewModel = hiltViewModel(),
-    playerViewModel: PlaybackSession = LocalPlaybackSession.current
+    playerViewModel: UserPlaybackSession = LocalPlaybackSession.current
 ) {
     val context = LocalContext.current
 

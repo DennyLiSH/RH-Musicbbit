@@ -20,7 +20,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rabbithole.musicbbit.presentation.playback.LocalPlaybackSession
-import com.rabbithole.musicbbit.service.playback.PlaybackSession
+import com.rabbithole.musicbbit.service.playback.UserPlaybackSession
 import androidx.navigation.compose.rememberNavController
 import com.rabbithole.musicbbit.presentation.alarm.AlarmEditScreen
 import com.rabbithole.musicbbit.presentation.alarm.AlarmListScreen
@@ -37,7 +37,7 @@ import com.rabbithole.musicbbit.presentation.settings.SettingsScreen
 
 @Composable
 fun AppNavigation(
-    playbackSession: PlaybackSession,
+    playbackSession: UserPlaybackSession,
     navController: NavHostController = rememberNavController()
 ) {
     val currentBackStackEntry by navController.currentBackStackEntryAsState()

@@ -24,7 +24,7 @@ import timber.log.Timber
  * Owns the music playback foreground notification lifecycle.
  *
  * Per ADR 0008, this controller is the single home for:
- *   - State collection from [PlaybackSession]
+ *   - State collection from [UserPlaybackSession]
  *   - Building the [android.app.Notification] from a [ForegroundNotificationSpec]
  *   - Calling `MusicPlaybackService.startForeground` / `stopForeground` directly
  *
@@ -40,7 +40,7 @@ import timber.log.Timber
  * before the coroutine is cancelled.
  */
 class ForegroundNotificationController @Inject constructor(
-    private val playbackSession: PlaybackSession,
+    private val playbackSession: UserPlaybackSession,
     private val musicNotificationPort: MusicNotificationPort,
     private val serviceStarter: ServiceStarter,
     @param:ApplicationContext private val context: Context,

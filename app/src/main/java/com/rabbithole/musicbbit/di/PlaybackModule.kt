@@ -9,7 +9,7 @@ import com.rabbithole.musicbbit.service.playback.AudioStreamPort
 import com.rabbithole.musicbbit.service.playback.ExoPlayerAdapter
 import com.rabbithole.musicbbit.service.playback.MusicNotificationPort
 import com.rabbithole.musicbbit.service.playback.PlayerPort
-import com.rabbithole.musicbbit.service.playback.PlaybackSession
+import com.rabbithole.musicbbit.service.playback.UserPlaybackSession
 import com.rabbithole.musicbbit.service.playback.ServiceStarter
 import dagger.Binds
 import dagger.Module

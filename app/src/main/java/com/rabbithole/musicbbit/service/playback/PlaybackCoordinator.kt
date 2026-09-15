@@ -13,7 +13,7 @@ import timber.log.Timber
 /**
  * Routes shared [PlayerPort] events and audio-focus callbacks to the active playback session.
  *
- * Both [PlaybackSession] and [AlarmPlaybackSession] share the single [PlayerPort] instance and
+ * Both [UserPlaybackSession] and [AlarmPlaybackSession] share the single [PlayerPort] instance and
  * the single [AudioFocusPort]. The coordinator subscribes once to each and forwards events to
  * whichever consumer currently owns the player, ensuring only the active session reacts.
  */

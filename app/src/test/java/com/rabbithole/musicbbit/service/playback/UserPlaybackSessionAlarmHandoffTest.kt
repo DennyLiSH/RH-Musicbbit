@@ -17,17 +17,17 @@ import org.mockito.kotlin.mock
 
 /**
  * Cross-session integration test verifying PlaybackCoordinator handoff behavior between
- * [PlaybackSession] (user playback) and [AlarmPlaybackSession] (alarm playback).
+ * [UserPlaybackSession] (user playback) and [AlarmPlaybackSession] (alarm playback).
  *
  * These tests use real session instances sharing a single [FakePlayerPort] /
  * [FakeAudioFocusPort] / [PlaybackCoordinator] — no mocks of the sessions themselves —
  * to catch interaction bugs that single-session unit tests miss.
  *
- * Driven by the Iteration 1 finding that PlaybackSession's progress loops did not stop
+ * Driven by the Iteration 1 finding that UserPlaybackSession's progress loops did not stop
  * when alarm took over the shared PlayerPort, corrupting user progress.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class PlaybackSessionAlarmHandoffTest {
+class UserPlaybackSessionAlarmHandoffTest {
 
     private val dispatcher = UnconfinedTestDispatcher()
 
@@ -37,7 +37,7 @@ class PlaybackSessionAlarmHandoffTest {
     private lateinit var progressRepository: FakeProgressRepository
     private lateinit var serviceStarter: FakeServiceStarter
     private lateinit var coordinator: PlaybackCoordinator
-    private lateinit var userSession: PlaybackSession
+    private lateinit var userSession: UserPlaybackSession
     private lateinit var alarmSession: AlarmPlaybackSession
 
     companion object {
@@ -74,7 +74,7 @@ class PlaybackSessionAlarmHandoffTest {
             audioFocusPort = audioFocusPort,
             mainDispatcher = dispatcher,
         )
-        userSession = PlaybackSession(
+        userSession = UserPlaybackSession(
             playerPort = playerPort,
             audioStreamPort = audioStreamPort,
             playbackProgressRepository = progressRepository,

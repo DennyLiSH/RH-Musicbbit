@@ -12,7 +12,7 @@ import timber.log.Timber
 /**
  * Deep module that owns alarm playback.
  *
- * Logically independent from [PlaybackSession] but shares the single [PlayerPort] instance.
+ * Logically independent from [UserPlaybackSession] but shares the single [PlayerPort] instance.
  * Events are routed through [PlaybackCoordinator] so only the active session reacts.
  *
  * State/event/progress/focus machinery lives in [SessionCore]; this class adds the alarm
@@ -104,7 +104,7 @@ class AlarmPlaybackSession @Inject constructor(
             )
         }
         // Note: tick/save loops are started by handleIsPlayingChanged(true) — aligned
-        // with PlaybackSession. The loops are idempotent (cancel-then-launch) so the
+        // with UserPlaybackSession. The loops are idempotent (cancel-then-launch) so the
         // IsPlayingChanged event re-starting them is safe.
     }
 

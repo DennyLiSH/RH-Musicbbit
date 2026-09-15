@@ -1,7 +1,7 @@
 package com.rabbithole.musicbbit.service.playback
 
 /**
- * Narrow, alarm-domain-friendly transitions exposed by [PlaybackSession].
+ * Narrow, alarm-domain-friendly transitions exposed by [UserPlaybackSession].
  *
  * Unlike [PlayerEvent] — which mirrors ExoPlayer's full callback taxonomy — this type
  * only carries the transitions the alarm layer needs to make stopping decisions.

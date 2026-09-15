@@ -8,7 +8,7 @@ import android.os.IBinder
 import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
 import com.rabbithole.musicbbit.di.MainDispatcher
 import com.rabbithole.musicbbit.service.playback.ForegroundNotificationController
-import com.rabbithole.musicbbit.service.playback.PlaybackSession
+import com.rabbithole.musicbbit.service.playback.UserPlaybackSession
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
@@ -33,7 +33,7 @@ import timber.log.Timber
 class MusicPlaybackService : Service() {
 
     @Inject
-    lateinit var playbackSession: PlaybackSession
+    lateinit var playbackSession: UserPlaybackSession
 
     @Inject
     lateinit var alarmFireSession: AlarmFireSession

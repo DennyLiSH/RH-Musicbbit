@@ -29,7 +29,7 @@ import timber.log.Timber
  * [AlarmPlaybackSession] can share the same [PlayerPort] without interference.
  */
 @Singleton
-class PlaybackSession @Inject constructor(
+class UserPlaybackSession @Inject constructor(
     private val playerPort: PlayerPort,
     private val audioStreamPort: AudioStreamPort,
     playbackProgressRepository: PlaybackProgressRepository,
@@ -50,7 +50,7 @@ class PlaybackSession @Inject constructor(
     val playerEvents: SharedFlow<PlayerEvent> = playerPort.events
 
     init {
-        Timber.i("PlaybackSession created")
+        Timber.i("UserPlaybackSession created")
     }
 
     // -------- Public playback API --------------------------------------------
