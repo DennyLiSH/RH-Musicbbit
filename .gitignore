@@ -54,6 +54,7 @@ Thumbs.db
 
 # Kotlin
 *.kotlin_module
+.kotlin/
 
 
 .claude/
