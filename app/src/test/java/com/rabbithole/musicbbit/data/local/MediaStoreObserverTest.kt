@@ -16,10 +16,13 @@ import org.mockito.kotlin.verifyNoMoreInteractions
 import org.mockito.kotlin.wheneverBlocking
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import dagger.hilt.android.testing.HiltTestApplication
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
+// HiltTestApplication 避免真实 MusicApplication.onCreate 在后台调度
+// AlarmStartupReconciler → WorkManager 未初始化异常泄漏进 runTest
+@Config(sdk = [33], application = HiltTestApplication::class)
 class MediaStoreObserverTest {
 
     @Test
