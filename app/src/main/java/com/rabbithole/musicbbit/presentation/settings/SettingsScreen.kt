@@ -16,15 +16,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -36,7 +31,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -52,6 +46,7 @@ import com.rabbithole.musicbbit.domain.model.ThemeMode
 import com.rabbithole.musicbbit.navigation.About
 import com.rabbithole.musicbbit.navigation.PermissionDiagnostics
 import com.rabbithole.musicbbit.navigation.ScanDirectorySettings
+import com.rabbithole.musicbbit.presentation.components.SingleChoiceDropdown
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -172,46 +167,20 @@ private val LanguageOptions = listOf(
     AppLanguage.JAPANESE
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LanguageDropdown(
     selectedLanguage: AppLanguage,
     onLanguageChange: (AppLanguage) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedLabel = languageLabel(selectedLanguage)
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
+    SingleChoiceDropdown(
+        label = stringResource(R.string.settings_language),
+        options = LanguageOptions,
+        selectedOption = selectedLanguage,
+        optionLabel = { languageLabel(it) },
+        onOptionSelect = onLanguageChange,
         modifier = modifier
-    ) {
-        OutlinedTextField(
-            value = selectedLabel,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.settings_language)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth()
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            LanguageOptions.forEach { language ->
-                DropdownMenuItem(
-                    text = { Text(languageLabel(language)) },
-                    onClick = {
-                        onLanguageChange(language)
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
+    )
 }
 
 @Composable
@@ -222,94 +191,39 @@ private fun languageLabel(language: AppLanguage): String = when (language) {
     AppLanguage.JAPANESE -> stringResource(R.string.settings_language_ja)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun VolumeRampDropdown(
     currentDuration: Int,
     onDurationChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedLabel = when (currentDuration) {
-        0 -> stringResource(R.string.settings_volume_ramp_disabled)
-        else -> stringResource(R.string.settings_volume_ramp_seconds, currentDuration)
-    }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
+    SingleChoiceDropdown(
+        label = stringResource(R.string.settings_volume_ramp_duration),
+        options = VolumeRampPresets,
+        selectedOption = currentDuration,
+        optionLabel = {
+            if (it == 0) stringResource(R.string.settings_volume_ramp_disabled)
+            else stringResource(R.string.settings_volume_ramp_seconds, it)
+        },
+        onOptionSelect = onDurationChange,
         modifier = modifier
-    ) {
-        OutlinedTextField(
-            value = selectedLabel,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.settings_volume_ramp_duration)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth()
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            VolumeRampPresets.forEach { seconds ->
-                val label = when (seconds) {
-                    0 -> stringResource(R.string.settings_volume_ramp_disabled)
-                    else -> stringResource(R.string.settings_volume_ramp_seconds, seconds)
-                }
-                DropdownMenuItem(
-                    text = { Text(label) },
-                    onClick = {
-                        onDurationChange(seconds)
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
+    )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ThemeDropdown(
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedLabel = themeLabel(themeMode)
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
+    SingleChoiceDropdown(
+        label = stringResource(R.string.settings_theme),
+        options = ThemeOptions,
+        selectedOption = themeMode,
+        optionLabel = { themeLabel(it) },
+        onOptionSelect = onThemeModeChange,
         modifier = modifier
-    ) {
-        OutlinedTextField(
-            value = selectedLabel,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.settings_theme)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth()
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            ThemeOptions.forEach { mode ->
-                DropdownMenuItem(
-                    text = { Text(themeLabel(mode)) },
-                    onClick = {
-                        onThemeModeChange(mode)
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
+    )
 }
 
 @Composable
