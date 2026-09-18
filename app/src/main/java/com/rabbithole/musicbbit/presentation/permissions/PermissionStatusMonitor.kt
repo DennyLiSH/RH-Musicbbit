@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 data class PermissionStatus(
     val isIgnoringBatteryOptimizations: Boolean = false,
     val isFullScreenIntentGranted: Boolean = false,
+    val isExactAlarmGranted: Boolean = false,
     val isDndAccessGranted: Boolean = false,
 )
 
@@ -52,6 +53,7 @@ class PermissionStatusMonitor @Inject constructor(
     private fun readStatus() = PermissionStatus(
         isIgnoringBatteryOptimizations = permissionPort.isIgnoringBatteryOptimizations(),
         isFullScreenIntentGranted = permissionPort.isFullScreenIntentGranted(),
+        isExactAlarmGranted = permissionPort.canScheduleExactAlarms(),
         isDndAccessGranted = permissionPort.isNotificationPolicyAccessGranted(),
     )
 }
