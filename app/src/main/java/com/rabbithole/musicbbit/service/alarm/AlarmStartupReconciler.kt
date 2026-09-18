@@ -3,6 +3,7 @@ package com.rabbithole.musicbbit.service.alarm
 import androidx.annotation.VisibleForTesting
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.service.AlarmScheduler
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -38,11 +39,21 @@ class AlarmStartupReconciler @Inject constructor(
      * Launch the reconciliation asynchronously.
      *
      * Call from [Application.onCreate] — it returns immediately.
+     *
+     * Failures are contained here: this coroutine is launched from Application.onCreate
+     * as a best-effort repair, so an uncaught exception would crash the app over a
+     * recoverable inconsistency that the next launch (or the integrity worker) retries.
      */
     fun reconcile() {
         scope.launch {
-            reconcileInternal()
-            alarmScheduler.scheduleIntegrityCheck()
+            try {
+                reconcileInternal()
+                alarmScheduler.scheduleIntegrityCheck()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, "Startup alarm reconciliation failed; will retry on next launch")
+            }
         }
     }
 
