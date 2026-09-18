@@ -40,6 +40,7 @@ import org.mockito.kotlin.whenever
 import org.mockito.kotlin.wheneverBlocking
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.time.DayOfWeek
 
@@ -692,6 +693,208 @@ class AlarmEditViewModelTest {
         viewModel.deleteAlarm()
 
         assertEquals(R.string.alarm_error_delete_failed, viewModel.uiState.value.saveFailedMessageResId)
+    }
+
+    @Test
+    fun `save blocked by exact alarm then permission granted auto-resumes save`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+        whenever(permissionOrchestrator.checkPermissions(any()))
+            .thenReturn(AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsExactAlarm)
+            .thenReturn(AlarmEditPermissionOrchestrator.PermissionCheckResult.AllGranted)
+        whenever(permissionOrchestrator.checkAutostartGuide()).thenReturn(
+            AlarmEditPermissionOrchestrator.AutostartGuideResult.NotApplicable
+        )
+        wheneverBlocking { alarmRepository.saveAlarm(any()) } doReturn Result.success(1L)
+        // FSI 已授予（monitor 构造时读取），exact alarm 初始未授予
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
+
+        val monitor = PermissionStatusMonitor(permissionPort)
+        val viewModel = AlarmEditViewModel(
+            context = context,
+            savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L)),
+            alarmRepository = alarmRepository,
+            playlistRepository = playlistRepository,
+            alarmRingSettingsRepository = alarmRingSettingsRepository,
+            permissionOrchestrator = permissionOrchestrator,
+            permissionMonitor = monitor
+        )
+        viewModel.onAction(AlarmEditAction.OnPlaylistSelected(5L))
+        viewModel.onAction(AlarmEditAction.OnSave)
+
+        assertEquals(
+            AlarmEditDialogState.Permission,
+            viewModel.uiState.value.dialogState
+        )
+
+        // 用户从系统设置授权后返回 → ON_RESUME 触发 refresh
+        whenever(permissionPort.canScheduleExactAlarms()).thenReturn(true)
+        monitor.refresh()
+        shadowOf(android.os.Looper.getMainLooper()).idle() // 驱动 viewModelScope 上的 collector
+
+        verifyBlocking(alarmRepository) { saveAlarm(any()) }
+        assertTrue(viewModel.uiState.value.saveCompleted)
+    }
+
+    @Test
+    fun `save blocked by full screen intent then permission granted auto-resumes save`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+        whenever(permissionOrchestrator.checkPermissions(any()))
+            .thenReturn(AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsFullScreenIntent)
+            .thenReturn(AlarmEditPermissionOrchestrator.PermissionCheckResult.AllGranted)
+        whenever(permissionOrchestrator.checkAutostartGuide()).thenReturn(
+            AlarmEditPermissionOrchestrator.AutostartGuideResult.NotApplicable
+        )
+        wheneverBlocking { alarmRepository.saveAlarm(any()) } doReturn Result.success(1L)
+        whenever(permissionPort.canScheduleExactAlarms()).thenReturn(true)
+        whenever(permissionPort.isFullScreenIntentGranted())
+            .thenReturn(false)  // 构造 monitor 时刻：FSI 未授予
+            .thenReturn(true)   // refresh 后：已授予
+
+        val monitor = PermissionStatusMonitor(permissionPort)
+        val viewModel = AlarmEditViewModel(
+            context = context,
+            savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L)),
+            alarmRepository = alarmRepository,
+            playlistRepository = playlistRepository,
+            alarmRingSettingsRepository = alarmRingSettingsRepository,
+            permissionOrchestrator = permissionOrchestrator,
+            permissionMonitor = monitor
+        )
+        viewModel.onAction(AlarmEditAction.OnPlaylistSelected(5L))
+        viewModel.onAction(AlarmEditAction.OnSave)
+
+        assertEquals(
+            AlarmEditDialogState.FullScreenIntent,
+            viewModel.uiState.value.dialogState
+        )
+
+        monitor.refresh()
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        verifyBlocking(alarmRepository) { saveAlarm(any()) }
+        assertTrue(viewModel.uiState.value.saveCompleted)
+    }
+
+    @Test
+    fun `partial grant does not resume save`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+        whenever(permissionOrchestrator.checkPermissions(any())).thenReturn(
+            AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsExactAlarm
+        )
+        whenever(permissionPort.canScheduleExactAlarms()).thenReturn(false)
+        whenever(permissionPort.isFullScreenIntentGranted())
+            .thenReturn(false)
+            .thenReturn(true) // refresh 后 FSI 已授予，但 exact alarm 仍缺
+
+        val monitor = PermissionStatusMonitor(permissionPort)
+        val viewModel = AlarmEditViewModel(
+            context = context,
+            savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L)),
+            alarmRepository = alarmRepository,
+            playlistRepository = playlistRepository,
+            alarmRingSettingsRepository = alarmRingSettingsRepository,
+            permissionOrchestrator = permissionOrchestrator,
+            permissionMonitor = monitor
+        )
+        viewModel.onAction(AlarmEditAction.OnPlaylistSelected(5L))
+        viewModel.onAction(AlarmEditAction.OnSave)
+
+        monitor.refresh()
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        verifyBlocking(alarmRepository, never()) { saveAlarm(any()) }
+    }
+
+    @Test
+    fun `restored pending save resumes after existing alarm form loads`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+        val saved = Alarm(
+            id = 1L, hour = 6, minute = 0,
+            repeatDays = emptySet(), excludeHolidays = false,
+            playlistId = 5L, isEnabled = true, label = null,
+            autoStop = null, lastTriggeredAt = null,
+            resumePlayback = true,
+            ringMode = AlarmRingMode.Normal,
+            ignoreQuietMode = true
+        )
+        wheneverBlocking { alarmRepository.getAlarmById(1L) } doReturn saved
+        wheneverBlocking { alarmRepository.saveAlarm(any()) } doReturn Result.success(1L)
+        whenever(permissionOrchestrator.checkPermissions(any())).thenReturn(
+            AlarmEditPermissionOrchestrator.PermissionCheckResult.AllGranted
+        )
+        whenever(permissionOrchestrator.checkAutostartGuide()).thenReturn(
+            AlarmEditPermissionOrchestrator.AutostartGuideResult.NotApplicable
+        )
+        // 模拟进程重建：权限已在设置里授予（构造时 status 即 granted）
+        whenever(permissionPort.canScheduleExactAlarms()).thenReturn(true)
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
+
+        val viewModel = AlarmEditViewModel(
+            context = context,
+            savedStateHandle = SavedStateHandle(mapOf("alarmId" to 1L, "pendingSave" to true)),
+            alarmRepository = alarmRepository,
+            playlistRepository = playlistRepository,
+            alarmRingSettingsRepository = alarmRingSettingsRepository,
+            permissionOrchestrator = permissionOrchestrator,
+            permissionMonitor = PermissionStatusMonitor(permissionPort)
+        )
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        // form 加载完成后在 loadAlarm 补查点重放
+        verifyBlocking(alarmRepository) { saveAlarm(any()) }
+        assertTrue(viewModel.uiState.value.saveCompleted)
+    }
+
+    @Test
+    fun `restored pending save does not replay for lost new alarm form`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+        whenever(permissionPort.canScheduleExactAlarms()).thenReturn(true)
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
+
+        val viewModel = AlarmEditViewModel(
+            context = context,
+            savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L, "pendingSave" to true)),
+            alarmRepository = alarmRepository,
+            playlistRepository = playlistRepository,
+            alarmRingSettingsRepository = alarmRingSettingsRepository,
+            permissionOrchestrator = permissionOrchestrator,
+            permissionMonitor = PermissionStatusMonitor(permissionPort)
+        )
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        // 新建闹钟的 form 未持久化（playlistId=0 默认值）→ 不重放，不提交垃圾默认表单
+        verifyBlocking(alarmRepository, never()) { saveAlarm(any()) }
+    }
+
+    @Test
+    fun `save blocked by exact alarm stays pending when permission still missing`() {
+        whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(emptyList()))
+        whenever(permissionOrchestrator.checkPermissions(any())).thenReturn(
+            AlarmEditPermissionOrchestrator.PermissionCheckResult.NeedsExactAlarm
+        )
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
+
+        val monitor = PermissionStatusMonitor(permissionPort)
+        val viewModel = AlarmEditViewModel(
+            context = context,
+            savedStateHandle = SavedStateHandle(mapOf("alarmId" to 0L)),
+            alarmRepository = alarmRepository,
+            playlistRepository = playlistRepository,
+            alarmRingSettingsRepository = alarmRingSettingsRepository,
+            permissionOrchestrator = permissionOrchestrator,
+            permissionMonitor = monitor
+        )
+        viewModel.onAction(AlarmEditAction.OnPlaylistSelected(5L))
+        viewModel.onAction(AlarmEditAction.OnSave)
+
+        // 返回但未授权：refresh 后状态值相等 → StateFlow 不发射 → 不重放保存
+        monitor.refresh()
+
+        verifyBlocking(alarmRepository, never()) { saveAlarm(any()) }
+        assertEquals(
+            AlarmEditDialogState.Permission,
+            viewModel.uiState.value.dialogState
+        )
     }
 
     private fun createViewModel(savedStateHandle: SavedStateHandle): AlarmEditViewModel {

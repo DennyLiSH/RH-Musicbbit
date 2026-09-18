@@ -16,6 +16,7 @@ import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.navigation.AlarmEdit
+import com.rabbithole.musicbbit.presentation.permissions.PermissionStatus
 import com.rabbithole.musicbbit.presentation.permissions.PermissionStatusMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -101,7 +102,7 @@ sealed interface AlarmEditAction {
 @HiltViewModel
 class AlarmEditViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    savedStateHandle: SavedStateHandle,
+    private val savedStateHandle: SavedStateHandle,
     private val alarmRepository: AlarmRepository,
     private val playlistRepository: PlaylistRepository,
     private val alarmRingSettingsRepository: AlarmRingSettingsRepository,
@@ -110,6 +111,18 @@ class AlarmEditViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val alarmSaveOrchestrator = AlarmSaveOrchestrator(alarmRepository, permissionOrchestrator)
+
+    private companion object {
+        const val KEY_PENDING_SAVE = "pendingSave"
+    }
+
+    /** Set when a save was blocked by a missing permission and the user went to system
+     *  settings; cleared and replayed automatically once the permission lands.
+     *  Persisted via SavedStateHandle so process death during the settings trip
+     *  does not silently drop the save intent. */
+    private var pendingSave: Boolean
+        get() = savedStateHandle[KEY_PENDING_SAVE] ?: false
+        set(value) { savedStateHandle[KEY_PENDING_SAVE] = value }
 
     private val alarmId: Long = savedStateHandle.toRoute<AlarmEdit>().alarmId
 
@@ -145,8 +158,26 @@ class AlarmEditViewModel @Inject constructor(
         permissionMonitor.status
             .onEach { status ->
                 _uiState.update { it.copy(isDndAccessGranted = status.isDndAccessGranted) }
+                maybeResumePendingSave(status)
             }
             .launchIn(viewModelScope)
+    }
+
+    private fun maybeResumePendingSave(status: PermissionStatus) {
+        if (!pendingSave) return
+        if (!status.isExactAlarmGranted || !status.isFullScreenIntentGranted) return
+        // Form-readiness guards (2026-09-14 plan review):
+        // - isLoading: process-death recovery emits initial status before loadAlarm()
+        //   finishes; replaying then saves a half-loaded form.
+        // - playlistId <= 0: a save blocked by permissions always passed the
+        //   playlistId>0 check, so a default form here means process death on a
+        //   NEW alarm whose (unpersisted) form is gone — replaying would submit
+        //   garbage defaults. Skip; pendingSave lingers harmlessly.
+        if (_uiState.value.isLoading) return
+        if (_uiState.value.form.playlistId <= 0L) return
+        Timber.i("Permissions granted after settings round-trip, resuming pending save")
+        pendingSave = false
+        saveAlarm()
     }
 
     private fun observePlaylists() {
@@ -207,6 +238,8 @@ class AlarmEditViewModel @Inject constructor(
                             isNewAlarm = false
                         )
                     }
+                    // 进程恢复路径：StateFlow 初值已发射过、refresh 同值不再发射，需在 form 就绪点补查
+                    maybeResumePendingSave(permissionMonitor.status.value)
                 } else {
                     Timber.w("Alarm with id=%d not found", alarmId)
                     _uiState.update {
@@ -368,9 +401,11 @@ class AlarmEditViewModel @Inject constructor(
                     _uiState.update { it.copy(isSaving = false, errorMessageResId = R.string.alarm_edit_error_select_playlist) }
                 }
                 is AlarmSaveOrchestrator.SaveOutcome.NeedsExactAlarmPermission -> {
+                    pendingSave = true
                     _uiState.update { it.copy(isSaving = false, dialogState = AlarmEditDialogState.Permission) }
                 }
                 is AlarmSaveOrchestrator.SaveOutcome.NeedsFullScreenIntentPermission -> {
+                    pendingSave = true
                     _uiState.update { it.copy(isSaving = false, dialogState = AlarmEditDialogState.FullScreenIntent) }
                 }
                 is AlarmSaveOrchestrator.SaveOutcome.Success -> {
