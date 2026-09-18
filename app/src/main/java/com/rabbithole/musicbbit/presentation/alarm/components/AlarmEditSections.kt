@@ -20,14 +20,8 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -35,7 +29,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -50,6 +43,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.AutoStop
+import com.rabbithole.musicbbit.presentation.components.SingleChoiceDropdown
 import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import com.rabbithole.musicbbit.ui.theme.timeDisplayStandard
 import java.util.Locale
@@ -331,50 +325,20 @@ internal fun SectionTitle(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AutoStopDropdown(
     selectedAutoStop: AutoStop?,
     onSelectionChange: (AutoStop?) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedOption = selectedAutoStop.toOption()
-    val selectedLabel = selectedOption.label()
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
+    SingleChoiceDropdown(
+        label = stringResource(R.string.alarm_edit_auto_stop_label),
+        options = AUTO_STOP_OPTIONS,
+        selectedOption = selectedAutoStop.toOption(),
+        optionLabel = { it.label() },
+        onOptionSelect = { onSelectionChange(it.toAutoStop()) },
         modifier = modifier.fillMaxWidth()
-    ) {
-        OutlinedTextField(
-            value = selectedLabel,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.alarm_edit_auto_stop_label)) },
-            trailingIcon = {
-                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-        )
-
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            AUTO_STOP_OPTIONS.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.label()) },
-                    onClick = {
-                        onSelectionChange(option.toAutoStop())
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
+    )
 }
 
 @Composable
