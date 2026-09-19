@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,6 +42,7 @@ import com.rabbithole.musicbbit.presentation.alarm.components.FullScreenIntentDi
 import com.rabbithole.musicbbit.presentation.alarm.components.PermissionDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.SaveButtonBar
 import com.rabbithole.musicbbit.presentation.alarm.components.TimePickerDialog
+import com.rabbithole.musicbbit.presentation.components.LoadingState
 import com.rabbithole.musicbbit.presentation.components.rememberAppToast
 import timber.log.Timber
 
@@ -175,12 +175,7 @@ fun AlarmEditScreen(
                 .padding(paddingValues)
         ) {
             if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+                LoadingState()
             } else {
                 AlarmEditContent(
                     uiState = uiState,

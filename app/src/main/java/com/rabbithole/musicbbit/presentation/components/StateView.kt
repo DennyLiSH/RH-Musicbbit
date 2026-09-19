@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -16,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.rabbithole.musicbbit.R
 
@@ -76,7 +78,9 @@ fun ErrorContent(
 /**
  * Generic Empty state renderer. Replaces per-screen private EmptyContent.
  *
- * @param icon optional leading icon (null for text-only empty states like MusicBrowse)
+ * @param icon optional leading icon (null for text-only empty states like MusicBrowse);
+ * wrap ImageVector with rememberVectorPainter — the parameter type is Painter
+ * @param iconSize leading icon size (default 48dp for unified empty-state presence)
  * @param title primary empty-state copy
  * @param subtitle optional secondary copy (uses onSurfaceVariant)
  * @param actionLabel optional action button label (e.g. "Go to settings"); requires [onAction]
@@ -87,6 +91,7 @@ fun EmptyState(
     title: String,
     modifier: Modifier = Modifier,
     icon: Painter? = null,
+    iconSize: Dp = 48.dp,
     subtitle: String? = null,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null
@@ -102,7 +107,9 @@ fun EmptyState(
             Icon(
                 painter = icon,
                 contentDescription = null,
-                modifier = Modifier.padding(bottom = 16.dp),
+                modifier = Modifier
+                    .size(iconSize)
+                    .padding(bottom = 16.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
         }

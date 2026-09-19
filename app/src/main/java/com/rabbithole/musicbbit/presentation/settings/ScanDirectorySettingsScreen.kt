@@ -2,6 +2,8 @@ package com.rabbithole.musicbbit.presentation.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +21,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -43,8 +44,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.presentation.components.ErrorContent
+import com.rabbithole.musicbbit.presentation.components.LoadingState
 import com.rabbithole.musicbbit.presentation.components.rememberAppToast
 import com.rabbithole.musicbbit.presentation.settings.components.ScanDirectoryItem
+import com.rabbithole.musicbbit.ui.theme.MotionTokens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,42 +100,44 @@ fun ScanDirectorySettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            when (val state = uiState) {
-                is ScanDirectorySettingsUiState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
+            Crossfade(
+                targetState = uiState,
+                animationSpec = tween(durationMillis = MotionTokens.DurationLong, easing = MotionTokens.EasingEmphasized),
+                modifier = Modifier.fillMaxSize(),
+                label = "ScanDirectorySettingsState"
+            ) { state ->
+                when (state) {
+                    is ScanDirectorySettingsUiState.Loading -> {
+                        LoadingState()
                     }
-                }
 
-                is ScanDirectorySettingsUiState.Error -> {
-                    ErrorContent(
-                        message = stringResource(state.messageResId),
-                        icon = rememberVectorPainter(Icons.Filled.Error),
-                        onRetry = viewModel::retry
-                    )
-                }
+                    is ScanDirectorySettingsUiState.Error -> {
+                        ErrorContent(
+                            message = stringResource(state.messageResId),
+                            icon = rememberVectorPainter(Icons.Filled.Error),
+                            onRetry = viewModel::retry
+                        )
+                    }
 
-                is ScanDirectorySettingsUiState.Success -> {
-                    SuccessContent(
-                        state = state,
-                        navController = navController,
-                        onAddDirectory = { treeLauncher.launch(null) },
-                        onRefreshDirectory = { id ->
-                            viewModel.onAction(ScanDirectorySettingsAction.OnRefreshDirectory(id))
-                        },
-                        onRemoveDirectory = { id ->
-                            viewModel.onAction(ScanDirectorySettingsAction.OnRemoveDirectory(id))
-                        },
-                        onConfirmDirectory = {
-                            viewModel.onAction(ScanDirectorySettingsAction.OnConfirmAddDirectory)
-                        },
-                        onCancelDirectory = {
-                            viewModel.onAction(ScanDirectorySettingsAction.OnCancelDirectoryPreview)
-                        }
-                    )
+                    is ScanDirectorySettingsUiState.Success -> {
+                        SuccessContent(
+                            state = state,
+                            navController = navController,
+                            onAddDirectory = { treeLauncher.launch(null) },
+                            onRefreshDirectory = { id ->
+                                viewModel.onAction(ScanDirectorySettingsAction.OnRefreshDirectory(id))
+                            },
+                            onRemoveDirectory = { id ->
+                                viewModel.onAction(ScanDirectorySettingsAction.OnRemoveDirectory(id))
+                            },
+                            onConfirmDirectory = {
+                                viewModel.onAction(ScanDirectorySettingsAction.OnConfirmAddDirectory)
+                            },
+                            onCancelDirectory = {
+                                viewModel.onAction(ScanDirectorySettingsAction.OnCancelDirectoryPreview)
+                            }
+                        )
+                    }
                 }
             }
         }

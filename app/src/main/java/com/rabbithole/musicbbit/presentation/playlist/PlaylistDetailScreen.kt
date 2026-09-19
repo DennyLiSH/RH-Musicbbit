@@ -2,14 +2,13 @@ package com.rabbithole.musicbbit.presentation.playlist
 
 import com.rabbithole.musicbbit.service.playback.UserPlaybackSession
 import com.rabbithole.musicbbit.presentation.playback.LocalPlaybackSession
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,8 +20,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Button
@@ -47,7 +46,6 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -56,9 +54,12 @@ import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.navigation.Player
+import com.rabbithole.musicbbit.presentation.components.EmptyState
 import com.rabbithole.musicbbit.presentation.components.ErrorContent
+import com.rabbithole.musicbbit.presentation.components.LoadingState
 import com.rabbithole.musicbbit.presentation.music.components.SongListItem
 import com.rabbithole.musicbbit.presentation.playlist.components.AddSongsBottomSheet
+import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,113 +100,84 @@ fun PlaylistDetailScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            when (val state = uiState) {
-                is PlaylistDetailUiState.Loading -> {
-                    LoadingContent()
-                }
-
-                is PlaylistDetailUiState.Error -> {
-                    ErrorContent(message = stringResource(state.messageResId), icon = rememberVectorPainter(Icons.Filled.Error), onRetry = viewModel::retry)
-                }
-
-                is PlaylistDetailUiState.Success -> {
-                    val playlistWithSongs = state.playlistWithSongs
-                    val existingSongIds = remember(playlistWithSongs.songs) {
-                        playlistWithSongs.songs.map { it.id }.toSet()
-                    }
-                    val availableSongs = remember(allSongs, existingSongIds) {
-                        allSongs.filter { it.id !in existingSongIds }
+            Crossfade(
+                targetState = uiState,
+                animationSpec = tween(durationMillis = MotionTokens.DurationLong, easing = MotionTokens.EasingEmphasized),
+                modifier = Modifier.fillMaxSize(),
+                label = "PlaylistDetailState"
+            ) { state ->
+                when (state) {
+                    is PlaylistDetailUiState.Loading -> {
+                        LoadingState()
                     }
 
-                    if (playlistWithSongs.songs.isEmpty()) {
-                        EmptyContent(
-                            playlistName = playlistWithSongs.playlist.name,
-                            onAddSongsClick = { showAddSongsSheet = true }
-                        )
-                    } else {
-                        PlaylistDetailContent(
-                            songs = playlistWithSongs.songs,
-                            playlistId = playlistWithSongs.playlist.id,
-                            playerViewModel = playerViewModel,
-                            navController = navController,
-                            onPlayAll = {
-                                playerViewModel.playQueue(
-                                    playlistWithSongs.songs,
-                                    startIndex = 0,
-                                    playlistId = playlistWithSongs.playlist.id
-                                )
-                                navController.navigate(Player)
-                            },
-                            onSongClick = { index ->
-                                playerViewModel.playQueue(
-                                    playlistWithSongs.songs,
-                                    startIndex = index,
-                                    playlistId = playlistWithSongs.playlist.id
-                                )
-                                navController.navigate(Player)
-                            },
-                            onRemoveSong = { songId ->
-                                viewModel.onAction(PlaylistDetailAction.OnRemoveSong(songId))
-                            },
-                            onReorderSongs = { fromIndex, toIndex ->
-                                viewModel.onAction(
-                                    PlaylistDetailAction.OnReorderSongs(fromIndex, toIndex)
-                                )
-                            },
-                            onAddSongsClick = { showAddSongsSheet = true }
-                        )
+                    is PlaylistDetailUiState.Error -> {
+                        ErrorContent(message = stringResource(state.messageResId), icon = rememberVectorPainter(Icons.Filled.Error), onRetry = viewModel::retry)
                     }
 
-                    if (showAddSongsSheet) {
-                        AddSongsBottomSheet(
-                            availableSongs = availableSongs,
-                            onSongsSelected = { songIds ->
-                                viewModel.onAction(PlaylistDetailAction.OnAddSongs(songIds))
-                            },
-                            onDismiss = { showAddSongsSheet = false }
-                        )
+                    is PlaylistDetailUiState.Success -> {
+                        val playlistWithSongs = state.playlistWithSongs
+                        val existingSongIds = remember(playlistWithSongs.songs) {
+                            playlistWithSongs.songs.map { it.id }.toSet()
+                        }
+                        val availableSongs = remember(allSongs, existingSongIds) {
+                            allSongs.filter { it.id !in existingSongIds }
+                        }
+
+                        if (playlistWithSongs.songs.isEmpty()) {
+                            EmptyState(
+                                title = stringResource(R.string.playlist_detail_empty, playlistWithSongs.playlist.name),
+                                icon = rememberVectorPainter(Icons.Default.MusicNote),
+                                actionLabel = stringResource(R.string.add_songs_title),
+                                onAction = { showAddSongsSheet = true }
+                            )
+                        } else {
+                            PlaylistDetailContent(
+                                songs = playlistWithSongs.songs,
+                                playlistId = playlistWithSongs.playlist.id,
+                                playerViewModel = playerViewModel,
+                                navController = navController,
+                                onPlayAll = {
+                                    playerViewModel.playQueue(
+                                        playlistWithSongs.songs,
+                                        startIndex = 0,
+                                        playlistId = playlistWithSongs.playlist.id
+                                    )
+                                    navController.navigate(Player)
+                                },
+                                onSongClick = { index ->
+                                    playerViewModel.playQueue(
+                                        playlistWithSongs.songs,
+                                        startIndex = index,
+                                        playlistId = playlistWithSongs.playlist.id
+                                    )
+                                    navController.navigate(Player)
+                                },
+                                onRemoveSong = { songId ->
+                                    viewModel.onAction(PlaylistDetailAction.OnRemoveSong(songId))
+                                },
+                                onReorderSongs = { fromIndex, toIndex ->
+                                    viewModel.onAction(
+                                        PlaylistDetailAction.OnReorderSongs(fromIndex, toIndex)
+                                    )
+                                },
+                                onAddSongsClick = { showAddSongsSheet = true }
+                            )
+                        }
+
+                        if (showAddSongsSheet) {
+                            AddSongsBottomSheet(
+                                availableSongs = availableSongs,
+                                onSongsSelected = { songIds ->
+                                    viewModel.onAction(PlaylistDetailAction.OnAddSongs(songIds))
+                                },
+                                onDismiss = { showAddSongsSheet = false }
+                            )
+                        }
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun LoadingContent() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator()
-    }
-}
-
-@Composable
-private fun EmptyContent(
-    playlistName: String,
-    onAddSongsClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp)
-            .clickable(onClick = onAddSongsClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = stringResource(R.string.playlist_detail_empty, playlistName),
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.add_songs_title),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.primary,
-            textAlign = TextAlign.Center
-        )
     }
 }
 
