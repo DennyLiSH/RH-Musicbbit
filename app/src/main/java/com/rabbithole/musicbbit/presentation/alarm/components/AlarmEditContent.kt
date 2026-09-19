@@ -73,7 +73,7 @@ internal fun AlarmEditContent(
             onClick = onTimeClick
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         SettingsGroup(
             title = stringResource(R.string.alarm_edit_section_basic)
@@ -154,6 +154,6 @@ internal fun AlarmEditContent(
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }

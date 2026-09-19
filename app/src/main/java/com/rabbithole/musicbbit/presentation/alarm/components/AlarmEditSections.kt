@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -19,6 +20,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,9 +47,9 @@ import androidx.compose.ui.unit.dp
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.presentation.components.SingleChoiceDropdown
+import com.rabbithole.musicbbit.presentation.util.formatClockTime
 import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import com.rabbithole.musicbbit.ui.theme.timeDisplayStandard
-import java.util.Locale
 
 @Composable
 internal fun SaveButtonBar(
@@ -135,6 +138,7 @@ internal fun CollapsibleSettingsGroup(
                 .fillMaxWidth()
                 .clickable { isExpanded = !isExpanded }
                 .semantics { role = Role.Button }
+                .defaultMinSize(minHeight = 48.dp)
                 .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -163,10 +167,11 @@ private fun SettingsGroupSurface(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Surface(
+    Card(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceVariant
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -258,8 +263,7 @@ internal fun IgnoreQuietModeSwitch(
                 Icon(
                     imageVector = Icons.Filled.Info,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp)
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -298,7 +302,7 @@ internal fun TimeDisplay(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = String.format(Locale.US, "%02d:%02d", hour, minute),
+                text = formatClockTime(hour, minute),
                 style = timeDisplayStandard,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
