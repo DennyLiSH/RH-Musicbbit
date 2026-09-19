@@ -72,6 +72,8 @@ import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 
+private val SwipeMaxDistance = 80.dp
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
 fun AlarmListScreen(
@@ -268,7 +270,7 @@ private fun SwipeableAlarmItem(
     val alarm = alarmItem.alarm
     val scope = rememberCoroutineScope()
     val offsetX = remember { Animatable(0f) }
-    val maxSwipePx = with(LocalDensity.current) { 80.dp.toPx() }
+    val maxSwipePx = with(LocalDensity.current) { SwipeMaxDistance.toPx() }
     val haptic = LocalHapticFeedback.current
 
     Box(
