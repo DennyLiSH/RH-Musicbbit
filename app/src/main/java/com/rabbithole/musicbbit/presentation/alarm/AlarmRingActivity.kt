@@ -169,7 +169,7 @@ class AlarmRingActivity : ComponentActivity() {
 }
 
 @Composable
-private fun AlarmRingScreen(
+internal fun AlarmRingScreen(
     alarmId: Long,
     viewModel: AlarmRingViewModel,
     onStop: () -> Unit
