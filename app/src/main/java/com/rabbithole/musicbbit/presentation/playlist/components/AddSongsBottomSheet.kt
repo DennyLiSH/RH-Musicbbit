@@ -9,16 +9,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -35,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Song
+import com.rabbithole.musicbbit.presentation.components.SongSearchField
 import com.rabbithole.musicbbit.presentation.music.components.SongListItem
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,27 +81,10 @@ fun AddSongsBottomSheet(
                     textAlign = TextAlign.Center
                 )
             } else {
-                OutlinedTextField(
+                SongSearchField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text(stringResource(R.string.add_songs_search_placeholder)) },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null
-                        )
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = null
-                                )
-                            }
-                        }
-                    },
-                    singleLine = true,
+                    placeholder = stringResource(R.string.add_songs_search_placeholder),
                     modifier = Modifier.fillMaxWidth()
                 )
 

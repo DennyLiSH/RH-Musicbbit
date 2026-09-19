@@ -1,11 +1,16 @@
 package com.rabbithole.musicbbit.presentation.alarm
 
 import android.os.Build
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,14 +22,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -33,8 +36,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.Button
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,9 +43,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -52,31 +58,19 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
-import com.rabbithole.musicbbit.presentation.components.ErrorContent
+import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.navigation.AlarmEdit
 import com.rabbithole.musicbbit.presentation.components.EmptyState
+import com.rabbithole.musicbbit.presentation.components.ErrorContent
 import com.rabbithole.musicbbit.presentation.components.InfoBanner
 import com.rabbithole.musicbbit.presentation.components.LoadingState
 import com.rabbithole.musicbbit.presentation.components.performHapticSafe
-import com.rabbithole.musicbbit.ui.theme.MotionTokens
-import com.rabbithole.musicbbit.domain.model.Alarm
-import com.rabbithole.musicbbit.navigation.AlarmEdit
-import com.rabbithole.musicbbit.service.alarm.QuietModeBypassResolver
 import com.rabbithole.musicbbit.presentation.permissions.launchSettingsSafely
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.IconButton
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.unit.IntOffset
+import com.rabbithole.musicbbit.presentation.util.formatClockTime
+import com.rabbithole.musicbbit.service.alarm.QuietModeBypassResolver
+import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
@@ -141,9 +135,7 @@ fun AlarmListScreen(
                                 QuietModeBypassResolver.needsDndAccessBanner(state.alarms.map { it.alarm })
                             if (showBatteryBanner || showFsiBanner || showDndBanner) {
                                 Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 8.dp, bottom = 8.dp)
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
                                     if (showBatteryBanner) {
                                         BatteryOptimizationBanner(
@@ -248,7 +240,7 @@ private fun AlarmListContent(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)
+        contentPadding = PaddingValues(vertical = 8.dp)
     ) {
         items(
             items = alarms,
@@ -282,7 +274,7 @@ private fun SwipeableAlarmItem(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Box(
             modifier = Modifier
@@ -303,7 +295,7 @@ private fun SwipeableAlarmItem(
                 modifier = Modifier.padding(end = 16.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Delete,
+                    imageVector = Icons.Outlined.Delete,
                     contentDescription = stringResource(R.string.alarm_list_delete),
                     tint = MaterialTheme.colorScheme.onErrorContainer
                 )
@@ -345,7 +337,7 @@ private fun SwipeableAlarmItem(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = formatTime(alarm.hour, alarm.minute),
+                        text = formatClockTime(alarm.hour, alarm.minute),
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -379,13 +371,6 @@ private fun SwipeableAlarmItem(
             }
         }
     }
-}
-
-/**
- * Formats the given hour and minute into a 24-hour time string (e.g., "07:30").
- */
-internal fun formatTime(hour: Int, minute: Int): String {
-    return String.format(Locale.US, "%02d:%02d", hour, minute)
 }
 
 /**
