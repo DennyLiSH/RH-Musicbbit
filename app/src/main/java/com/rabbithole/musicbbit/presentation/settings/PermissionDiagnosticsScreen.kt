@@ -34,7 +34,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -42,6 +41,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.ui.theme.extendedColors
 import android.Manifest
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -233,7 +233,7 @@ private fun PermissionCard(
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = stringResource(R.string.permission_diagnostics_granted),
-                        tint = Color(0xFF4CAF50)
+                        tint = extendedColors().success
                     )
                 } else {
                     Icon(
@@ -257,7 +257,7 @@ private fun PermissionCard(
             Text(
                 text = if (permission.isGranted) stringResource(R.string.permission_diagnostics_granted) else stringResource(R.string.permission_diagnostics_not_granted),
                 style = MaterialTheme.typography.bodySmall,
-                color = if (permission.isGranted) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                color = if (permission.isGranted) extendedColors().success else MaterialTheme.colorScheme.error
             )
 
             if (!permission.isGranted) {
