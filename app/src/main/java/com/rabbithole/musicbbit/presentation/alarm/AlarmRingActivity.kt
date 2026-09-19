@@ -9,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,8 +41,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.rabbithole.musicbbit.LocaleHelper
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.domain.model.ThemeMode
+import com.rabbithole.musicbbit.presentation.settings.ThemeViewModel
+import com.rabbithole.musicbbit.presentation.util.formatClockTime
 import com.rabbithole.musicbbit.service.AlarmActionReceiver
 import com.rabbithole.musicbbit.service.AlarmScheduler
+import com.rabbithole.musicbbit.ui.theme.音乐兔Theme
 import com.rabbithole.musicbbit.ui.theme.timeDisplayLarge
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
@@ -50,7 +55,15 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.time.LocalTime
-import java.time.format.DateTimeFormatter
+
+private const val STOP_DISMISS_DELAY_MS = 500L
+
+private object RingTokens {
+    val ScreenPadding = 32.dp
+    val ControlsSpacing = 48.dp
+    val ControlIconSize = 32.dp
+    val ControlButtonSize = 80.dp
+}
 
 /**
  * Full-screen alarm ring activity that appears when an alarm triggers.
@@ -63,6 +76,7 @@ import java.time.format.DateTimeFormatter
 class AlarmRingActivity : ComponentActivity() {
 
     private val viewModel: AlarmRingViewModel by viewModels()
+    private val themeViewModel: ThemeViewModel by viewModels()
     private var breathingJob: Job? = null
 
     override fun attachBaseContext(newBase: Context) {
@@ -95,7 +109,14 @@ class AlarmRingActivity : ComponentActivity() {
         }
 
         setContent {
-            MaterialTheme {
+            val themeUiState by themeViewModel.uiState.collectAsStateWithLifecycle()
+            val darkTheme = when (themeUiState.themeMode) {
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+            }
+
+            音乐兔Theme(darkTheme = darkTheme) {
                 AlarmRingScreen(
                     alarmId = alarmId,
                     viewModel = viewModel,
@@ -160,7 +181,7 @@ private fun AlarmRingScreen(
     LaunchedEffect(uiState.isPlaying, uiState.hasPlayback) {
         if (!uiState.isPlaying && !uiState.hasPlayback) {
             Timber.i("Playback stopped, closing AlarmRingActivity")
-            delay(500)
+            delay(STOP_DISMISS_DELAY_MS)
             onStop()
         }
     }
@@ -181,12 +202,13 @@ private fun AlarmRingScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.primaryContainer)
-            .padding(32.dp),
+            .padding(RingTokens.ScreenPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         // Current time display
-        val currentTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
+        val now = LocalTime.now()
+        val currentTime = formatClockTime(now.hour, now.minute)
         Text(
             text = currentTime,
             style = timeDisplayLarge,
@@ -219,7 +241,7 @@ private fun AlarmRingScreen(
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(RingTokens.ControlsSpacing))
 
         // Control buttons
         Row(
@@ -233,7 +255,7 @@ private fun AlarmRingScreen(
                     Icon(
                         imageVector = if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (uiState.isPlaying) stringResource(R.string.alarm_ring_pause) else stringResource(R.string.resume),
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(RingTokens.ControlIconSize)
                     )
                 },
                 label = if (uiState.isPlaying) stringResource(R.string.alarm_ring_pause) else stringResource(R.string.resume),
@@ -255,7 +277,7 @@ private fun AlarmRingScreen(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = stringResource(R.string.alarm_ring_stop),
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(RingTokens.ControlIconSize)
                     )
                 },
                 label = stringResource(R.string.alarm_ring_stop),
@@ -285,7 +307,7 @@ private fun AlarmControlButton(
     ) {
         Button(
             onClick = onClick,
-            modifier = Modifier.size(80.dp),
+            modifier = Modifier.size(RingTokens.ControlButtonSize),
             colors = ButtonDefaults.buttonColors(
                 containerColor = containerColor,
                 contentColor = contentColor
