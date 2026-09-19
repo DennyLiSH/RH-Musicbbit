@@ -62,6 +62,17 @@ import com.rabbithole.musicbbit.presentation.playlist.components.AddSongsBottomS
 import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import kotlin.math.roundToInt
 
+/**
+ * Drag-reorder tuning values. [RowHeightPx] is an estimated row height in
+ * pixels used for index math during drag (pre-density heuristic, unchanged
+ * from the original implementation).
+ */
+private object DragTokens {
+    const val RowHeightPx = 72f
+    const val LiftedScale = 1.02f
+    val LiftedShadowElevation = 8.dp
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaylistDetailScreen(
@@ -242,9 +253,9 @@ private fun PlaylistDetailContent(
                         .zIndex(1f)
                         .graphicsLayer {
                             translationY = dragOffset
-                            scaleX = 1.02f
-                            scaleY = 1.02f
-                            shadowElevation = 8.dp.toPx()
+                            scaleX = DragTokens.LiftedScale
+                            scaleY = DragTokens.LiftedScale
+                            shadowElevation = DragTokens.LiftedShadowElevation.toPx()
                         }
                 } else {
                     Modifier
@@ -257,7 +268,7 @@ private fun PlaylistDetailContent(
                     onDragStart = { draggedIndex = index },
                     onDrag = { dragAmount ->
                         dragOffset += dragAmount
-                        val itemHeight = 72f
+                        val itemHeight = DragTokens.RowHeightPx
                         val currentOffset = index * itemHeight + dragOffset
                         val targetIndex = (currentOffset / itemHeight)
                             .roundToInt()

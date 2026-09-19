@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MusicNote
@@ -47,6 +46,14 @@ import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.presentation.util.formatDuration
 import com.rabbithole.musicbbit.service.PlayMode
 
+private object PlayerTokens {
+    val CoverSize = 280.dp
+    val CoverIconSize = 120.dp
+    val PrevNextIconSize = 36.dp
+    val PlayButtonSize = 72.dp
+    val PlayIconSize = 48.dp
+}
+
 @Composable
 fun PlayerScreen(
     navController: NavHostController,
@@ -60,7 +67,7 @@ fun PlayerScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 24.dp)
+            .padding(horizontal = 16.dp)
     ) {
         // Dismiss button
         Row(
@@ -80,8 +87,8 @@ fun PlayerScreen(
         // Album art placeholder
         Box(
             modifier = Modifier
-                .size(280.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .size(PlayerTokens.CoverSize)
+                .clip(MaterialTheme.shapes.medium)
                 .background(MaterialTheme.colorScheme.primaryContainer)
                 .align(Alignment.CenterHorizontally),
             contentAlignment = Alignment.Center
@@ -89,7 +96,7 @@ fun PlayerScreen(
             Icon(
                 imageVector = Icons.Default.MusicNote,
                 contentDescription = null,
-                modifier = Modifier.size(120.dp),
+                modifier = Modifier.size(PlayerTokens.CoverIconSize),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
@@ -184,7 +191,7 @@ fun PlayerScreen(
                 Icon(
                     imageVector = Icons.Default.SkipPrevious,
                     contentDescription = stringResource(R.string.player_previous),
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(PlayerTokens.PrevNextIconSize)
                 )
             }
 
@@ -197,12 +204,12 @@ fun PlayerScreen(
                         viewModel.resume()
                     }
                 },
-                modifier = Modifier.size(72.dp)
+                modifier = Modifier.size(PlayerTokens.PlayButtonSize)
             ) {
                 Icon(
                     imageVector = if (playbackState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (playbackState.isPlaying) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(PlayerTokens.PlayIconSize)
                 )
             }
 
@@ -211,7 +218,7 @@ fun PlayerScreen(
                 Icon(
                     imageVector = Icons.Default.SkipNext,
                     contentDescription = stringResource(R.string.player_next),
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(PlayerTokens.PrevNextIconSize)
                 )
             }
         }

@@ -7,12 +7,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -29,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.presentation.components.ErrorContent
+import com.rabbithole.musicbbit.presentation.components.SheetTokens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,7 +57,7 @@ fun AddToPlaylistBottomSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "Add to Playlist",
+                text = stringResource(R.string.music_browse_add_to_playlist),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
@@ -62,7 +66,7 @@ fun AddToPlaylistBottomSheet(
             when (uiState) {
                 is AddToPlaylistUiState.Loading -> {
                     Text(
-                        text = "Loading playlists...",
+                        text = stringResource(R.string.playlist_selector_loading),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
@@ -76,17 +80,27 @@ fun AddToPlaylistBottomSheet(
                 }
                 is AddToPlaylistUiState.Success -> {
                     val playlists = (uiState as AddToPlaylistUiState.Success).playlists
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        items(playlists, key = { it.id }) { playlist ->
-                            PlaylistItem(
-                                playlist = playlist,
-                                onClick = {
-                                    viewModel.onPlaylistSelected(playlist.id, songId)
-                                    onDismiss()
-                                }
-                            )
+                    if (playlists.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.playlist_list_empty_title),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.heightIn(max = SheetTokens.ListMaxHeight),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            items(playlists, key = { it.id }) { playlist ->
+                                PlaylistItem(
+                                    playlist = playlist,
+                                    onClick = {
+                                        viewModel.onPlaylistSelected(playlist.id, songId)
+                                        onDismiss()
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -105,12 +119,18 @@ private fun PlaylistItem(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 8.dp),
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(end = 12.dp)
+        )
         Text(
             text = playlist.name,
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.titleMedium
         )
     }
 }

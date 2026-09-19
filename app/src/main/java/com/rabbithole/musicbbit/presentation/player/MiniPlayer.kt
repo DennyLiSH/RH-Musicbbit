@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MusicNote
@@ -65,7 +64,7 @@ fun MiniPlayer(
             modifier = modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 4.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(MaterialTheme.shapes.medium)
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 .clickable(enabled = currentSong != null) {
                     navController.navigate(Player)
@@ -78,7 +77,7 @@ fun MiniPlayer(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
