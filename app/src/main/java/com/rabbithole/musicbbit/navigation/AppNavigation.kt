@@ -43,6 +43,9 @@ fun AppNavigation(
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = currentBackStackEntry?.destination
 
+    // Provided here so BOTH Scaffold slots see it — bottomBar (MiniPlayer) is a
+    // SubcomposeLayout sibling of content, so a provider inside content is invisible to it.
+    CompositionLocalProvider(LocalPlaybackSession provides playbackSession) {
     Scaffold(
         bottomBar = {
             Column {
@@ -76,7 +79,6 @@ fun AppNavigation(
         }
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
-            CompositionLocalProvider(LocalPlaybackSession provides playbackSession) {
             NavHost(
                 navController = navController,
                 startDestination = Alarm
@@ -112,7 +114,7 @@ fun AppNavigation(
                     SettingsScreen(navController = navController)
                 }
             }
-            }
         }
+    }
     }
 }
