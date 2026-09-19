@@ -56,7 +56,7 @@ fun InfoBanner(
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = stringResource(message),
                     style = MaterialTheme.typography.bodySmall,
