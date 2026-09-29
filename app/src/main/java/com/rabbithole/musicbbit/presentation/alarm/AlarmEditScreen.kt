@@ -63,6 +63,7 @@ fun AlarmEditScreen(
     val errorMessage = errorMessageResId?.let { stringResource(it) }
     val alarmSavedMessage = stringResource(R.string.alarm_saved)
     val alarmDeletedMessage = stringResource(R.string.alarm_deleted)
+    val settingsOpenFailedMessage = stringResource(R.string.common_settings_open_failed)
 
     // Navigate up when save is completed; briefly toast the success message.
     // (Toast instead of Snackbar because Snackbar is destroyed on navigateUp.)
@@ -183,8 +184,10 @@ fun AlarmEditScreen(
                     onAction = viewModel::onAction,
                     onCreatePlaylist = { navController.navigate(PlaylistList) },
                     onRequestDndAccess = {
-                    launchSettingsSafely(context, viewModel.createDndAccessSettingsIntent())
-                }
+                        if (!launchSettingsSafely(context, viewModel.createDndAccessSettingsIntent())) {
+                            toast.showShort(settingsOpenFailedMessage)
+                        }
+                    }
                 )
             }
         }
@@ -204,14 +207,18 @@ fun AlarmEditScreen(
         )
         AlarmEditDialogState.Permission -> PermissionDialog(
             onConfirm = {
-                ExactAlarmPermissionHelper.openSettings(context)
+                if (!ExactAlarmPermissionHelper.openSettings(context)) {
+                    toast.showShort(settingsOpenFailedMessage)
+                }
                 viewModel.dismissDialog()
             },
             onDismiss = { viewModel.dismissDialog() },
         )
         AlarmEditDialogState.FullScreenIntent -> FullScreenIntentDialog(
             onConfirm = {
-                launchSettingsSafely(context, viewModel.createFullScreenIntentSettingsIntent())
+                if (!launchSettingsSafely(context, viewModel.createFullScreenIntentSettingsIntent())) {
+                    toast.showShort(settingsOpenFailedMessage)
+                }
                 viewModel.dismissDialog()
             },
             onDismiss = { viewModel.dismissDialog() },
@@ -223,10 +230,8 @@ fun AlarmEditScreen(
                 viewModel.onAutostartGuideDismissed()
             },
             onOpenSettings = {
-                try {
-                    context.startActivity(AutostartHelper.getManualGuideSettingsIntent())
-                } catch (e: Exception) {
-                    Timber.e(e, "Failed to launch manual guide settings")
+                if (!launchSettingsSafely(context, AutostartHelper.getManualGuideSettingsIntent())) {
+                    toast.showShort(settingsOpenFailedMessage)
                 }
                 viewModel.dismissDialog()
                 viewModel.onAutostartGuideDismissed()
@@ -242,10 +247,8 @@ fun AlarmEditScreen(
                 },
                 onOpenSettings = {
                     guideIntent?.let {
-                        try {
-                            context.startActivity(it)
-                        } catch (e: Exception) {
-                            Timber.e(e, "Failed to launch OEM autostart settings")
+                        if (!launchSettingsSafely(context, it)) {
+                            toast.showShort(settingsOpenFailedMessage)
                         }
                     }
                     viewModel.dismissDialog()
