@@ -142,10 +142,6 @@ class AlarmFireSessionTest {
                 invocation.getArgument(3),
             )
         }
-        whenever(alarmPlaybackSession.preloadFirstSong(any<String>())).thenAnswer { invocation ->
-            fakeControls.preloadFirstSong(invocation.getArgument(0))
-        }
-
         val alarmPlaybackResolver = AlarmPlaybackResolver(
             alarmRepository = alarmRepository,
             playlistRepository = playlistRepository,
@@ -294,7 +290,6 @@ class AlarmFireSessionTest {
         runCurrent()
 
         assertTrue(volumeRampPort.startCount > 0)
-        assertEquals("preloaded the first song's URI", SONG_1.path, fakeControls.lastPreloadUri)
     }
 
     @Test
@@ -308,7 +303,6 @@ class AlarmFireSessionTest {
 
         assertEquals(0, wakeLockPort.acquireCount)
         assertEquals(0, volumeRampPort.startCount)
-        assertNull(fakeControls.lastPreloadUri)
     }
 
     // -------- fire() error paths ---------------------------------------------
@@ -779,8 +773,6 @@ class AlarmFireSessionTest {
      * playback transitions for testing the transition subscriptions.
      */
     private class FakeAlarmPlaybackControls {
-        var lastPreloadUri: String? = null
-            private set
         var lastStartIndex: Int? = null
             private set
         var pauseCount = 0
@@ -822,10 +814,6 @@ class AlarmFireSessionTest {
             lastStartIndex = startIndex
             lastUseAlarmStream = useAlarmStream
             playAlarmQueueCount++
-        }
-
-        fun preloadFirstSong(uri: String) {
-            lastPreloadUri = uri
         }
     }
 }

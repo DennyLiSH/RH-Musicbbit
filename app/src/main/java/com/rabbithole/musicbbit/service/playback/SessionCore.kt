@@ -106,12 +106,11 @@ abstract class SessionCore protected constructor(
         Timber.i("$logTag deactivated by coordinator handoff")
         progressTracker.stopTickLoop()
         progressTracker.stopSaveLoop()
-        // Do NOT call saveProgress here — at this point playerPort may already be
-        // reconfigured for the incoming consumer (e.g. AlarmFireSession.preloadFirstSong
-        // runs before activate, or the reverse handoff reconfigured the stream). Reading
-        // playerPort.currentPositionMs() would return the new consumer's position (~0 for
-        // a freshly set alarm queue), corrupting progress. Rely on the last periodic save
-        // (<=5s stale) as restore point.
+        // Do NOT call saveProgress here — this contract is defensive and must not depend
+        // on the caller-side activate/setQueue ordering: any future consumer that
+        // reconfigures playerPort before (or while) triggering this callback would make
+        // reading playerPort.currentPositionMs() return the new consumer's position,
+        // corrupting progress. Rely on the last periodic save (<=5s stale) as restore point.
         _playbackState.update { it.copy(isPlaying = false) }
         wasPausedByFocusLoss = false
     }

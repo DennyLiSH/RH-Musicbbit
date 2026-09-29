@@ -538,7 +538,7 @@ class UserPlaybackSessionTest {
         playbackCoordinator.activate(other)
 
         // Critical: onDeactivated must not save progress — at handoff time playerPort
-        // may already be configured for the incoming consumer (preloadFirstSong case),
+        // may already be configured for the incoming consumer (another consumer reconfigures playerPort),
         // so saveProgress would write the wrong position.
         verify(playbackProgressRepository, org.mockito.kotlin.never())
             .saveProgress(any())

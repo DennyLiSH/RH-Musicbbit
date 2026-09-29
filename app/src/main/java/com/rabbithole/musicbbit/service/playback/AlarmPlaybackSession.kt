@@ -16,7 +16,7 @@ import timber.log.Timber
  * Events are routed through [PlaybackCoordinator] so only the active session reacts.
  *
  * State/event/progress/focus machinery lives in [SessionCore]; this class adds the alarm
- * queue entry points (alarm-stream routing, first-song preload) and the queue-ended
+ * queue entry points (alarm-stream routing) and the queue-ended
  * policy: the stop is deferred to [com.rabbithole.musicbbit.service.alarm.AlarmFireSession]
  * and the final save is suppressed so the just-finished song's end position is not written.
  */
@@ -113,15 +113,6 @@ class AlarmPlaybackSession @Inject constructor(
         val skipSave = queueEndedPending
         queueEndedPending = false
         coreStop(skipSave = skipSave)
-    }
-
-    fun preloadFirstSong(uri: String) {
-        playerPort.setQueue(
-            items = listOf(PlayItem(uri = uri)),
-            startIndex = 0,
-            startPositionMs = 0,
-        )
-        Timber.d("Preloaded first song for alarm: $uri")
     }
 
     override fun handleQueueEnded() {

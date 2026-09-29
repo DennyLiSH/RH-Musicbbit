@@ -214,16 +214,6 @@ class AlarmFireSession @Inject constructor(
         // notification channel all consume this plan.
         val bypassPlan = bypassPlanResolver.resolve(alarm)
 
-        if (isAlarmTrigger && songs.isNotEmpty()) {
-            // Preload first song to start buffering before the full queue is set.
-            // playAlarmQueue's setQueue will expand the queue; intentional overwrite.
-            // TODO(future): benchmark preload latency impact — explicitly out of scope
-            // for this plan. Note: this preload runs BEFORE activate (inside playAlarmQueue),
-            // which is why UserPlaybackSession.onDeactivated must NOT call saveProgress — at
-            // activate time playerPort already holds the alarm's first song.
-            alarmPlaybackSession.preloadFirstSong(songs.first().path)
-        }
-
         alarmPlaybackSession.playAlarmQueue(
             songs,
             startIndex,

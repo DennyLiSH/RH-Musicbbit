@@ -37,10 +37,9 @@ class PlaybackCoordinator @Inject constructor(
          * session as inactive.
          *
          * **Must NOT call saveProgress or read playerPort real-time state** — by the time
-         * this fires, playerPort may already be configured for the incoming consumer
-         * (e.g. AlarmFireSession.preloadFirstSong runs before activate), so reading
-         * currentPositionMs() would return the new consumer's position and corrupt
-         * progress. Rely on the last periodic save (≤5s stale) as the restore point.
+         * this fires, playerPort may already be configured for the incoming consumer,
+         * so reading currentPositionMs() would return the new consumer's position and
+         * corrupt progress. Rely on the last periodic save (≤5s stale) as the restore point.
          */
         fun onDeactivated()
     }
