@@ -219,7 +219,7 @@ class UserPlaybackSessionAlarmHandoffTest {
     }
 
     @Test
-    fun `reverse handoff - user plays during alarm triggers alarmSession onDeactivated`() = runBlocking {
+    fun `reverse handoff - user play during alarm is blocked at session entry`() = runBlocking {
         // Alarm is active
         alarmSession.playAlarmQueue(
             listOf(ALARM_SONG_1, ALARM_SONG_2),
@@ -229,16 +229,21 @@ class UserPlaybackSessionAlarmHandoffTest {
         )
         playerPort.emitEvent(PlayerEvent.IsPlayingChanged(true))
         assertTrue(alarmSession.playbackState.value.isPlaying)
+        val queueCallsBefore = playerPort.queueCalls.size
+        val focusRequestsBefore = audioFocusPort.requestFocusCallCount
 
-        // User manually plays a song (defensive path — even if UI blocks this normally,
-        // the coordinator must handle it correctly)
+        // User manually plays a song — must be ignored: no queue swap, no focus steal
         userSession.play(USER_SONG, playlistId = 50L)
 
-        // alarmSession should be marked inactive via onDeactivated
-        assertFalse(
-            "alarmSession.onDeactivated must clear isPlaying on reverse handoff",
-            alarmSession.playbackState.value.isPlaying,
-        )
+        assertEquals("guard must run before focus request", focusRequestsBefore,
+            audioFocusPort.requestFocusCallCount)
+        assertEquals("user setQueue must not reach the player", queueCallsBefore,
+            playerPort.queueCalls.size)
+        assertTrue("alarm playback must be unaffected",
+            alarmSession.playbackState.value.isPlaying)
+        assertEquals(ALARM_SONG_1, alarmSession.playbackState.value.currentSong)
+        assertNull("user session state must stay untouched",
+            userSession.playbackState.value.currentSong)
         Unit
     }
 
