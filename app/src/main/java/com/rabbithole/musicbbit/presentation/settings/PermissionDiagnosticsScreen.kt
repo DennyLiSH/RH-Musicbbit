@@ -49,6 +49,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import com.rabbithole.musicbbit.presentation.components.rememberAppToast
+import com.rabbithole.musicbbit.presentation.permissions.launchSettingsSafely
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,6 +61,8 @@ fun PermissionDiagnosticsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val toast = rememberAppToast()
+    val settingsOpenFailedMessage = stringResource(R.string.common_settings_open_failed)
 
     // Refresh permissions when returning from system settings
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -81,7 +85,9 @@ fun PermissionDiagnosticsScreen(
                 val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                     data = Uri.parse("package:${context.packageName}")
                 }
-                context.startActivity(intent)
+                if (!launchSettingsSafely(context, intent)) {
+                    toast.showShort(settingsOpenFailedMessage)
+                }
             }
         }
     }
@@ -127,10 +133,14 @@ fun PermissionDiagnosticsScreen(
                                     val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
                                         data = Uri.parse("package:${context.packageName}")
                                     }
-                                    context.startActivity(intent)
+                                    if (!launchSettingsSafely(context, intent)) {
+                                        toast.showShort(settingsOpenFailedMessage)
+                                    }
                                 }
                                 permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_FULL_SCREEN_INTENT -> {
-                                    FullScreenIntentPermissionHelper.openSettings(context)
+                                    if (!FullScreenIntentPermissionHelper.openSettings(context)) {
+                                        toast.showShort(settingsOpenFailedMessage)
+                                    }
                                 }
                                 permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_POST_NOTIFICATIONS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
                                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -139,7 +149,9 @@ fun PermissionDiagnosticsScreen(
                                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                                         data = Uri.parse("package:${context.packageName}")
                                     }
-                                    context.startActivity(intent)
+                                    if (!launchSettingsSafely(context, intent)) {
+                                        toast.showShort(settingsOpenFailedMessage)
+                                    }
                                 }
                             }
                         }
