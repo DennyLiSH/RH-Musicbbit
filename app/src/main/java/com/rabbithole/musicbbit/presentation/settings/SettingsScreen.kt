@@ -1,6 +1,5 @@
 package com.rabbithole.musicbbit.presentation.settings
 
-import android.app.Activity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,12 +11,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -27,18 +23,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.rabbithole.musicbbit.LocaleHelper
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ThemeMode
 import com.rabbithole.musicbbit.navigation.About
@@ -51,11 +43,12 @@ import com.rabbithole.musicbbit.presentation.components.SingleChoiceDropdown
 fun SettingsScreen(
     navController: NavController,
     themeViewModel: ThemeViewModel = hiltViewModel(),
-    alarmRingSettingsViewModel: AlarmRingSettingsViewModel = hiltViewModel()
+    alarmRingSettingsViewModel: AlarmRingSettingsViewModel = hiltViewModel(),
+    languageViewModel: LanguageViewModel = hiltViewModel()
 ) {
     val themeUiState by themeViewModel.uiState.collectAsStateWithLifecycle()
     val alarmRingUiState by alarmRingSettingsViewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+    val languageUiState by languageViewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -84,8 +77,8 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 LanguageDropdown(
-                    selectedLanguage = remember { mutableStateOf(LocaleHelper.getCurrentLanguage(context)).value },
-                    onLanguageChange = { LocaleHelper.setLanguage(context, it) }
+                    selectedLanguage = languageUiState.language,
+                    onLanguageChange = { languageViewModel.setLanguage(it) }
                 )
             }
 

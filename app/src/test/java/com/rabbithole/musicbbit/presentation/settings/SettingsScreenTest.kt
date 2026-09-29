@@ -50,6 +50,7 @@ class SettingsScreenTest {
 
     private lateinit var themeViewModel: ThemeViewModel
     private lateinit var alarmRingViewModel: AlarmRingSettingsViewModel
+    private lateinit var languageViewModel: LanguageViewModel
 
     @Before
     fun setUp() {
@@ -67,6 +68,13 @@ class SettingsScreenTest {
                 )
             )
         }
+        languageViewModel = mock<LanguageViewModel>().also {
+            whenever(it.uiState).thenReturn(
+                MutableStateFlow(
+                    LanguageViewModel.LanguageUiState(language = AppLanguage.CHINESE)
+                )
+            )
+        }
     }
 
     private fun str(@StringRes id: Int, vararg args: Any): String =
@@ -81,7 +89,8 @@ class SettingsScreenTest {
                     SettingsScreen(
                         navController = navController,
                         themeViewModel = themeViewModel,
-                        alarmRingSettingsViewModel = alarmRingViewModel
+                        alarmRingSettingsViewModel = alarmRingViewModel,
+                        languageViewModel = languageViewModel
                     )
                 }
                 composable<ScanDirectorySettings> { }
@@ -207,5 +216,20 @@ class SettingsScreenTest {
         assert(nav.currentDestination?.hasRoute(About::class) == true) {
             "Expected navigation to About, but currentDestination=${nav.currentDestination}"
         }
+    }
+
+    @Test
+    fun languageDropdownSelectsEnglishCallsViewModel() {
+        setContentWithNavHost()
+
+        composeTestRule.onNodeWithText(str(R.string.settings_language_zh))
+            .performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onAllNodesWithText(str(R.string.settings_language_en))
+            .filterToOne(hasClickAction())
+            .performClick()
+
+        verify(languageViewModel, times(1)).setLanguage(AppLanguage.ENGLISH)
     }
 }
