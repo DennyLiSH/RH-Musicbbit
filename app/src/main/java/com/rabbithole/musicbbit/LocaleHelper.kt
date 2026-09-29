@@ -1,6 +1,5 @@
 package com.rabbithole.musicbbit
 
-import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
@@ -37,8 +36,8 @@ object LocaleHelper {
         return AppLanguage.entries.find { it.tag == tag } ?: AppLanguage.SYSTEM
     }
 
-    fun setLanguage(activity: Activity, language: AppLanguage) {
-        writeTag(activity, language.tag)
+    fun setLanguage(context: Context, language: AppLanguage) {
+        writeTag(context, language.tag)
         val localeList = if (language == AppLanguage.SYSTEM) {
             LocaleListCompat.create()
         } else {

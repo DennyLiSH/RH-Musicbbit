@@ -85,7 +85,7 @@ fun SettingsScreen(
 
                 LanguageDropdown(
                     selectedLanguage = remember { mutableStateOf(LocaleHelper.getCurrentLanguage(context)).value },
-                    onLanguageChange = { LocaleHelper.setLanguage(context as Activity, it) }
+                    onLanguageChange = { LocaleHelper.setLanguage(context, it) }
                 )
             }
 
