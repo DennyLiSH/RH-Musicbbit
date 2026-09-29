@@ -91,6 +91,16 @@ class PlaybackCoordinator @Inject constructor(
         }
     }
 
+    /**
+     * True when a consumer other than [consumer] currently owns the shared player.
+     * Non-owning sessions must not issue player commands (they would act on the
+     * owning session's playback — e.g. user commands during an active alarm).
+     */
+    fun isOwnedByAnother(consumer: PlaybackConsumer): Boolean {
+        val active = activeConsumer
+        return active != null && active !== consumer
+    }
+
     private fun startCollectingPlayerEvents() {
         playerEventsJob?.cancel()
         playerEventsJob = coordinatorScope.launch {

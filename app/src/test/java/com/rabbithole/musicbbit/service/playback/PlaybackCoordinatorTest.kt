@@ -125,6 +125,38 @@ class PlaybackCoordinatorTest {
         assertEquals(0, consumer.deactivatedCount)
     }
 
+    // -------- isOwnedByAnother ----------------------------------------------
+
+    @Test
+    fun `isOwnedByAnother is false when no consumer is active`() = runTest(dispatcher) {
+        val consumer = FakeConsumer()
+        assertFalse(coordinator.isOwnedByAnother(consumer))
+    }
+
+    @Test
+    fun `isOwnedByAnother is false for the active consumer itself`() = runTest(dispatcher) {
+        val consumer = FakeConsumer()
+        coordinator.activate(consumer)
+        assertFalse(coordinator.isOwnedByAnother(consumer))
+    }
+
+    @Test
+    fun `isOwnedByAnother is true for a non-active consumer`() = runTest(dispatcher) {
+        val active = FakeConsumer()
+        val other = FakeConsumer()
+        coordinator.activate(active)
+        assertTrue(coordinator.isOwnedByAnother(other))
+    }
+
+    @Test
+    fun `isOwnedByAnother returns to false after deactivate`() = runTest(dispatcher) {
+        val active = FakeConsumer()
+        val other = FakeConsumer()
+        coordinator.activate(active)
+        coordinator.deactivate(active)
+        assertFalse(coordinator.isOwnedByAnother(other))
+    }
+
     private class FakeConsumer : PlaybackCoordinator.PlaybackConsumer {
         val events = mutableListOf<PlayerEvent>()
         var focusLost = false
