@@ -41,6 +41,7 @@ import org.mockito.kotlin.wheneverBlocking
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
+import dagger.hilt.android.testing.HiltTestApplication
 import org.robolectric.annotation.Config
 import java.time.DayOfWeek
 
@@ -57,7 +58,7 @@ import java.time.DayOfWeek
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
+@Config(sdk = [33], application = HiltTestApplication::class)
 class AlarmEditViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
@@ -84,6 +85,11 @@ class AlarmEditViewModelTest {
         } catch (e: IllegalStateException) {
             // Already initialized by a previous test class — safe to ignore.
         }
+        // Sentinel: this class historically sat on the flaky boundary leaked coroutines
+        // crossed. If this fails, someone removed application= from the @Config above.
+        assertTrue(
+            RuntimeEnvironment.getApplication() is HiltTestApplication
+        )
         alarmRepository = mock()
         playlistRepository = mock()
         alarmRingSettingsRepository = mock()

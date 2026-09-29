@@ -19,11 +19,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import dagger.hilt.android.testing.HiltTestApplication
 import org.robolectric.annotation.Config
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
+@Config(sdk = [33], application = HiltTestApplication::class)
 class AlarmEditPermissionOrchestratorTest {
 
     private lateinit var context: Context

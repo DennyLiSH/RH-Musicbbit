@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import dagger.hilt.android.testing.HiltTestApplication
 import org.robolectric.annotation.Config
 
 /**
@@ -16,7 +17,7 @@ import org.robolectric.annotation.Config
  * and preserves existing rows.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
+@Config(sdk = [33], application = HiltTestApplication::class)
 class Migration9To10Test {
 
     @Test

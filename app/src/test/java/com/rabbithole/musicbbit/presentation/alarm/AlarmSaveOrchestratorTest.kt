@@ -21,6 +21,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.mockito.kotlin.wheneverBlocking
 import org.robolectric.RobolectricTestRunner
+import dagger.hilt.android.testing.HiltTestApplication
 import org.robolectric.annotation.Config
 import java.time.DayOfWeek
 
@@ -31,7 +32,7 @@ import java.time.DayOfWeek
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
+@Config(sdk = [33], application = HiltTestApplication::class)
 class AlarmSaveOrchestratorTest {
 
     private val alarmRepository: AlarmRepository = mock()

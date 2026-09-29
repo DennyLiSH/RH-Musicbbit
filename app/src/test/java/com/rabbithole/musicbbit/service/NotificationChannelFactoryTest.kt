@@ -11,9 +11,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import dagger.hilt.android.testing.HiltTestApplication
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33], application = HiltTestApplication::class)
 class NotificationChannelFactoryTest {
 
     private lateinit var context: Context

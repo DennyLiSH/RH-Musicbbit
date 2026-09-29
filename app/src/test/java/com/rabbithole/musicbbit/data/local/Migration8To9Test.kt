@@ -9,13 +9,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import dagger.hilt.android.testing.HiltTestApplication
 import org.robolectric.annotation.Config
 
 /**
  * Verifies the 8 → 9 migration adds [resumePlayback] and [ringMode] with correct defaults.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
+@Config(sdk = [33], application = HiltTestApplication::class)
 class Migration8To9Test {
 
     @Test
