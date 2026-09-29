@@ -20,18 +20,21 @@ object ExactAlarmPermissionHelper {
      * Open the system Settings page where the user can grant
      * SCHEDULE_EXACT_ALARM for this app.
      *
-     * Errors are caught and logged; the caller's `onConfirm` callback
-     * contract must still invoke `onDismiss` regardless of success.
+     * Returns true when the launch succeeded. On failure the error is caught and
+     * logged; callers should show user-visible feedback and must still invoke their
+     * dismiss callbacks regardless of the result.
      */
     @JvmStatic
-    fun openSettings(context: Context) {
+    fun openSettings(context: Context): Boolean {
         val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
             data = Uri.parse("package:${context.packageName}")
         }
-        try {
+        return try {
             context.startActivity(intent)
+            true
         } catch (e: Exception) {
             Timber.e(e, "Failed to launch exact alarm settings")
+            false
         }
     }
 }

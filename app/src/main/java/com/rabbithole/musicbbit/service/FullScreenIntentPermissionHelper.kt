@@ -35,23 +35,25 @@ object FullScreenIntentPermissionHelper {
 
     /**
      * Open the system Settings page where the user can grant
-     * USE_FULL_SCREEN_INTENT for this app. No-op on API < 34.
+     * USE_FULL_SCREEN_INTENT for this app. No-op (returns true — nothing failed)
+     * on API < 34 where the permission is install-time granted.
      */
     @JvmStatic
-    fun openSettings(context: Context) {
+    fun openSettings(context: Context): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             Timber.d("openSettings called on API < 34, noop")
-            return
+            return true
         }
         val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
             data = Uri.parse("package:${context.packageName}")
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        try {
+        return try {
             context.startActivity(intent)
-            Timber.i("Launched USE_FULL_SCREEN_INTENT settings")
+            true
         } catch (e: Exception) {
             Timber.e(e, "Failed to launch full-screen intent settings")
+            false
         }
     }
 }

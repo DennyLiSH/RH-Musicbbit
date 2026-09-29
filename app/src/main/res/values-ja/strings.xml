@@ -84,6 +84,7 @@
     <string name="common_back">戻る</string>
     <string name="common_save">保存</string>
     <string name="common_create">作成</string>
+    <string name="common_settings_open_failed">システム設定を開けませんでした</string>
 
     <!-- Alarm Edit -->
     <string name="alarm_edit_title_new">新しいアラーム</string>

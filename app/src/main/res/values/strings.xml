@@ -84,6 +84,7 @@
     <string name="common_back">Back</string>
     <string name="common_save">Save</string>
     <string name="common_create">Create</string>
+    <string name="common_settings_open_failed">Could not open system settings</string>
 
     <!-- Alarm Edit -->
     <string name="alarm_edit_title_new">New Alarm</string>
