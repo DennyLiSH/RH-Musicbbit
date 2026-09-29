@@ -354,11 +354,7 @@ private fun SwipeableAlarmItem(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "${formatRepeatDays(alarm.repeatDays, alarm.excludeHolidays)} · ${alarmItem.playlistName}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    AlarmListItemSubtitle(alarmItem = alarmItem)
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -373,6 +369,22 @@ private fun SwipeableAlarmItem(
             }
         }
     }
+}
+
+@Composable
+internal fun AlarmListItemSubtitle(alarmItem: AlarmItem) {
+    val base = formatRepeatDays(alarmItem.alarm.repeatDays, alarmItem.alarm.excludeHolidays) +
+        " · " + alarmItem.playlistName
+    val text = if (!alarmItem.alarm.ignoreQuietMode) {
+        base + " · " + stringResource(R.string.alarm_list_muted_in_dnd)
+    } else {
+        base
+    }
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 /**

@@ -13,6 +13,7 @@
     <string name="alarm_empty_subtitle">+ をタップして作成</string>
     <string name="alarm_list_create_alarm">アラームを作成</string>
     <string name="alarm_list_delete">アラームを削除</string>
+    <string name="alarm_list_muted_in_dnd">通知拒否時にミュート</string>
     <string name="alarm_ring_pause">一時停止</string>
     <string name="alarm_ring_stop">停止</string>
     <string name="discard_changes_title">変更を破棄しますか？</string>

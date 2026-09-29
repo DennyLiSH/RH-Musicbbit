@@ -13,6 +13,7 @@
     <string name="alarm_empty_subtitle">点击 + 创建一个</string>
     <string name="alarm_list_create_alarm">创建闹钟</string>
     <string name="alarm_list_delete">删除闹钟</string>
+    <string name="alarm_list_muted_in_dnd">勿扰时静音</string>
     <string name="alarm_ring_pause">暂停</string>
     <string name="alarm_ring_stop">停止</string>
     <string name="discard_changes_title">放弃更改？</string>

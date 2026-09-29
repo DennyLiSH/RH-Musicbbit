@@ -13,6 +13,7 @@
     <string name="alarm_empty_subtitle">Tap + to create one</string>
     <string name="alarm_list_create_alarm">Create Alarm</string>
     <string name="alarm_list_delete">Delete alarm</string>
+    <string name="alarm_list_muted_in_dnd">Muted in Do Not Disturb</string>
     <string name="alarm_ring_pause">Pause</string>
     <string name="alarm_ring_stop">Stop</string>
     <string name="discard_changes_title">Discard changes?</string>
