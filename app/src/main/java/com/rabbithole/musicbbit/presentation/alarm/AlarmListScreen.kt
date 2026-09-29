@@ -65,6 +65,7 @@ import com.rabbithole.musicbbit.presentation.components.ErrorContent
 import com.rabbithole.musicbbit.presentation.components.InfoBanner
 import com.rabbithole.musicbbit.presentation.components.LoadingState
 import com.rabbithole.musicbbit.presentation.components.performHapticSafe
+import com.rabbithole.musicbbit.presentation.components.rememberAppToast
 import com.rabbithole.musicbbit.presentation.permissions.launchSettingsSafely
 import com.rabbithole.musicbbit.presentation.util.formatClockTime
 import com.rabbithole.musicbbit.service.alarm.QuietModeBypassResolver
@@ -83,6 +84,8 @@ fun AlarmListScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val permissionStatus by viewModel.permissionStatus.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val toast = rememberAppToast()
+    val settingsOpenFailedMessage = stringResource(R.string.common_settings_open_failed)
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refreshPermissionStatus()
@@ -142,9 +145,8 @@ fun AlarmListScreen(
                                     if (showBatteryBanner) {
                                         BatteryOptimizationBanner(
                                             onClick = {
-                                                val intent = viewModel.createBatteryOptimizationIntent()
-                                                if (intent.resolveActivity(context.packageManager) != null) {
-                                                    context.startActivity(intent)
+                                                if (!launchSettingsSafely(context, viewModel.createBatteryOptimizationIntent())) {
+                                                    toast.showShort(settingsOpenFailedMessage)
                                                 }
                                             }
                                         )
@@ -155,10 +157,9 @@ fun AlarmListScreen(
                                         }
                                         FullScreenIntentBanner(
                                             onClick = {
-                                                launchSettingsSafely(
-                                                    context,
-                                                    viewModel.createFullScreenIntentSettingsIntent()
-                                                )
+                                                if (!launchSettingsSafely(context, viewModel.createFullScreenIntentSettingsIntent())) {
+                                                    toast.showShort(settingsOpenFailedMessage)
+                                                }
                                             }
                                         )
                                     }
@@ -168,10 +169,9 @@ fun AlarmListScreen(
                                         }
                                         DndAccessBanner(
                                             onClick = {
-                                                launchSettingsSafely(
-                                                    context,
-                                                    viewModel.createDndAccessSettingsIntent()
-                                                )
+                                                if (!launchSettingsSafely(context, viewModel.createDndAccessSettingsIntent())) {
+                                                    toast.showShort(settingsOpenFailedMessage)
+                                                }
                                             }
                                         )
                                     }
