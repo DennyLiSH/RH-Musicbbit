@@ -22,7 +22,10 @@ import timber.log.Timber
  *
  * State/event/progress/focus machinery lives in [SessionCore]; this class adds the
  * user-side queue entry points (progress restore, shuffle/repeat) and stops immediately
- * when the queue ends. It does **not** interact with Android Service specifics such as
+ * when the queue ends.
+ *
+ * All public entry points are no-ops while another session (alarm) owns the
+ * shared player — see [blockedByActiveAlarm]. It does **not** interact with Android Service specifics such as
  * [startForeground] / [stopForeground]; those remain in [MusicPlaybackService].
  *
  * Events and audio-focus callbacks are routed through [PlaybackCoordinator] so that
@@ -55,7 +58,24 @@ class UserPlaybackSession @Inject constructor(
 
     // -------- Public playback API --------------------------------------------
 
+    /**
+     * True when another session (the alarm) currently owns the shared player.
+     * All public user-facing entry points below are no-ops in that state:
+     * issuing player commands would act on the alarm's playback (kill audio,
+     * pause it, seek it). Directional by design — the alarm taking over from
+     * the user is the legal handoff; the user must never silently steal the
+     * player from a ringing alarm.
+     */
+    private fun blockedByActiveAlarm(): Boolean {
+        if (playbackCoordinator.isOwnedByAnother(this)) {
+            Timber.w("User playback command ignored: another session owns the player")
+            return true
+        }
+        return false
+    }
+
     fun play(song: Song, playlistId: Long) {
+        if (blockedByActiveAlarm()) return
         if (!audioFocusPort.requestFocus()) {
             Timber.w("Failed to gain audio focus")
             return
@@ -82,6 +102,7 @@ class UserPlaybackSession @Inject constructor(
     }
 
     fun playQueue(songs: List<Song>, startIndex: Int, playlistId: Long) {
+        if (blockedByActiveAlarm()) return
         if (songs.isEmpty()) {
             Timber.w("playQueue called with empty list")
             return
@@ -125,6 +146,7 @@ class UserPlaybackSession @Inject constructor(
     }
 
     fun next() {
+        if (blockedByActiveAlarm()) return
         Timber.i("Skipping to next")
         if (playerPort.hasNext()) {
             progressTracker.saveProgress()
@@ -135,6 +157,7 @@ class UserPlaybackSession @Inject constructor(
     }
 
     fun previous() {
+        if (blockedByActiveAlarm()) return
         Timber.i("Skipping to previous")
         if (playerPort.hasPrevious()) {
             progressTracker.saveProgress()
@@ -146,14 +169,17 @@ class UserPlaybackSession @Inject constructor(
 
     /** Toggle play/pause based on the current state. Used by external action handlers (e.g. notification). */
     fun togglePlayPause() {
+        if (blockedByActiveAlarm()) return
         if (playbackState.value.isPlaying) pause() else resume()
     }
 
     fun stop() {
+        if (blockedByActiveAlarm()) return
         coreStop(skipSave = false)
     }
 
     fun setPlayMode(mode: PlayMode) {
+        if (blockedByActiveAlarm()) return
         Timber.i("Setting play mode: $mode")
         playerPort.setShuffleEnabled(mode == PlayMode.RANDOM)
         playerPort.setRepeatMode(
@@ -163,6 +189,21 @@ class UserPlaybackSession @Inject constructor(
             }
         )
         updateState { it.copy(playMode = mode) }
+    }
+
+    override fun pause() {
+        if (blockedByActiveAlarm()) return
+        super.pause()
+    }
+
+    override fun resume() {
+        if (blockedByActiveAlarm()) return
+        super.resume()
+    }
+
+    override fun seekTo(positionMs: Long) {
+        if (blockedByActiveAlarm()) return
+        super.seekTo(positionMs)
     }
 
     // -------------------------------------------------------------------------

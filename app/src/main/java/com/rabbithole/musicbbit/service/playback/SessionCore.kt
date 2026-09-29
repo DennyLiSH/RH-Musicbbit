@@ -119,14 +119,14 @@ abstract class SessionCore protected constructor(
     // Shared session behaviour
     // -------------------------------------------------------------------------
 
-    fun pause() {
+    open fun pause() {
         Timber.i("Pausing playback")
         wasPausedByFocusLoss = false
         playerPort.pause()
         progressTracker.saveProgress()
     }
 
-    fun resume() {
+    open fun resume() {
         Timber.i("Resuming playback")
         if (!audioFocusPort.requestFocus()) {
             Timber.w("Failed to gain audio focus, cannot resume")
@@ -137,7 +137,7 @@ abstract class SessionCore protected constructor(
         }
     }
 
-    fun seekTo(positionMs: Long) {
+    open fun seekTo(positionMs: Long) {
         Timber.d("Seeking to $positionMs ms")
         playerPort.seekTo(positionMs)
         _playbackState.update { it.copy(positionMs = positionMs) }

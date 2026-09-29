@@ -57,6 +57,15 @@ class UserPlaybackSessionTest {
 
     private lateinit var session: UserPlaybackSession
 
+    /** Simulates the alarm session owning the shared player. */
+    private val otherConsumer = object : PlaybackCoordinator.PlaybackConsumer {
+        override fun onPlayerEvent(event: PlayerEvent) {}
+        override fun onFocusLoss() {}
+        override fun onFocusLossTransient() {}
+        override fun onFocusGain() {}
+        override fun onDeactivated() {}
+    }
+
     companion object {
         private val SONG_1 = Song(
             id = 1L,
@@ -558,5 +567,125 @@ class UserPlaybackSessionTest {
         // Emitting an event should route to this session (proves activate ran)
         playerPort.emitEvent(PlayerEvent.IsPlayingChanged(true))
         assertTrue(session.playbackState.value.isPlaying)
+    }
+
+    // -------- alarm-active guard ---------------------------------------------
+
+    @Test
+    fun `play is blocked while another session owns the player`() {
+        playbackCoordinator.activate(otherConsumer)
+
+        session.play(SONG_1, playlistId = -1L)
+
+        assertTrue("setQueue must not reach the player during alarm ownership",
+            playerPort.queueCalls.isEmpty())
+        assertEquals("guard must run BEFORE requestFocus (focus steal would mute the alarm)",
+            0, audioFocusPort.requestFocusCallCount)
+        assertNull("user state must stay untouched", session.playbackState.value.currentSong)
+        assertTrue(playerPort.playCalls.isEmpty())
+    }
+
+    @Test
+    fun `playQueue is blocked while another session owns the player`() {
+        playbackCoordinator.activate(otherConsumer)
+
+        session.playQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L)
+
+        assertTrue(playerPort.queueCalls.isEmpty())
+        assertEquals(0, audioFocusPort.requestFocusCallCount)
+        assertNull(session.playbackState.value.currentSong)
+    }
+
+    @Test
+    fun `pause is blocked while another session owns the player`() {
+        playbackCoordinator.activate(otherConsumer)
+
+        session.pause()
+
+        assertTrue(playerPort.pauseCalls.isEmpty())
+    }
+
+    @Test
+    fun `resume is blocked while another session owns the player`() {
+        playbackCoordinator.activate(otherConsumer)
+
+        session.resume()
+
+        assertEquals(0, audioFocusPort.requestFocusCallCount)
+        assertTrue(playerPort.playCalls.isEmpty())
+    }
+
+    @Test
+    fun `seekTo is blocked while another session owns the player`() {
+        playbackCoordinator.activate(otherConsumer)
+
+        session.seekTo(30_000L)
+
+        assertTrue(playerPort.seekCalls.isEmpty())
+    }
+
+    @Test
+    fun `next and previous are blocked while another session owns the player`() {
+        playbackCoordinator.activate(otherConsumer)
+        playerPort.hasNextValue = true
+        playerPort.hasPreviousValue = true
+
+        session.next()
+        session.previous()
+
+        assertTrue(playerPort.nextCalls.isEmpty())
+        assertTrue(playerPort.previousCalls.isEmpty())
+    }
+
+    @Test
+    fun `stop is blocked while another session owns the player`() {
+        playbackCoordinator.activate(otherConsumer)
+
+        session.stop()
+
+        assertTrue(playerPort.stopCalls.isEmpty())
+        assertTrue(playerPort.clearQueueCalls.isEmpty())
+        verify(serviceStarter, never()).stopService()
+    }
+
+    @Test
+    fun `setPlayMode is blocked while another session owns the player`() {
+        playbackCoordinator.activate(otherConsumer)
+
+        session.setPlayMode(PlayMode.RANDOM)
+
+        assertEquals(PlayerRepeatMode.OFF, playerPort.lastRepeatMode)
+        assertFalse(playerPort.lastShuffleEnabled)
+    }
+
+    @Test
+    fun `togglePlayPause is blocked while another session owns the player`() {
+        playbackCoordinator.activate(otherConsumer)
+
+        session.togglePlayPause()
+
+        assertTrue(playerPort.playCalls.isEmpty())
+        assertTrue(playerPort.pauseCalls.isEmpty())
+    }
+
+    @Test
+    fun `commands work again after the other session deactivates`() {
+        playbackCoordinator.activate(otherConsumer)
+        playbackCoordinator.deactivate(otherConsumer)
+
+        session.play(SONG_1, playlistId = -1L)
+
+        assertEquals(1, playerPort.queueCalls.size)
+        assertEquals(SONG_1, session.playbackState.value.currentSong)
+    }
+
+    @Test
+    fun `commands work while user session itself is the active consumer`() {
+        // play() activates the user session as its own consumer
+        session.play(SONG_1, playlistId = -1L)
+
+        session.pause()
+
+        assertEquals(1, playerPort.pauseCalls.size)
     }
 }
