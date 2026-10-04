@@ -127,10 +127,10 @@
 | <!-- 2026-09-06 --> `PlayerViewModel` / `rememberActivityScopedPlayerViewModel` | `LocalPlaybackSession` + 直接注入 `UserPlaybackSession`（顺带修复 MiniPlayer 第二实例的不一致） |
 | <!-- 2026-09-06 --> BootReceiver 内复制的 reschedule 循环；`AlarmIntegrityWorker` 的独立检查逻辑 | `AlarmRecovery.rescheduleEnabledAlarms()` |
 | <!-- 2026-09-06 --> `MusicRepositoryImpl.refreshSongs/refreshDirectory` 内联的 4 步刷新配方 | `LibraryRefresher.refreshAll / refreshDirectory` |
-
----
-
-## 变更记录
+| `MusicUiState` / `PlaylistListUiState` / `PlaylistDetailUiState` / `AlarmListUiState` / `AddToPlaylistUiState` | <!-- 2026-10-04 --> `ListUiState<T>` |
+| `*.Success.errorMessageResId`（Theme/AlarmRing/ScanDirectory 3 处） | <!-- 2026-10-04 --> `UserMessage` Channel |
+| `PermissionDiagnosticsViewModel.PermissionStatus`（同名异义类） | <!-- 2026-10-04 --> `PermissionDiagnosticItem` |
+| `PERMISSION_NAME_*` 字符串常量 | <!-- 2026-10-04 --> `PermissionKey` enum |
 
 | 日期 | 变更 |
 |---|---|
@@ -140,3 +140,4 @@
 | 2026-09-06 | 架构审查 6 候选落地：`QuietModeBypassResolver` / `PermissionStatusMonitor` / 删除 `PlayerViewModel` / `SessionCore` 提取 / `LibraryRefresher` + `MediaStorePort` / `AlarmRecovery`；修正 `AlarmPlaybackSession` 共享 `PlayerPort` 与 `PlaybackSession` 类名的文档漂移 |
 | 2026-08-06 | 架构深化 6 候选全部落地：`SongSyncEngine.sync` 事务化 / `NextOccurrenceCalculator` 删除 silent fallback（ADR 0007 延续）/ `AlarmNotificationContent.ActionType` 映射收回纯部分 / `AlarmEditScreen` dialog 状态收敛为单一 `AlarmEditDialogState` / `MusicPlaybackService` 薄壳化（toggle + wake-lock 迁回 session，ADR 0003 收尾）/ 删除 `MusicPlaybackServiceForegroundBridge` singleton（ADR 0008） |
 | 2026-10-04 | Plan A 架构审查 #6 落地：播放所有权 seam 收敛（`SessionCore.issueCommand` 单一守卫 / `PlaybackCoordinator.activeConsumer` StateFlow / `UserPlaybackSession.commandsBlocked` UI 禁用 / `stopDeferred` 一等操作删除 `queueEndedPending`）/ Paused 态终态修复 / FGS 前台义务无条件履行 / 播放 seam 卫生清理（`playerEvents` 删除、`CHANNEL_ID` 单点、`contentIntent` 走 `MainActivityIntentFactory`） |
+| 2026-10-04 | Plan B 架构审查 #6 落地：列表族状态收敛（`ListUiState<T>` + `ScreenStateCrossfade`）5 个消费者；`UserMessage` Channel 替代 6 处死 errorMessageResId 通道；权限读取统一（`PermissionStatusMonitor.isMediaAudioGranted` + `PermissionKey` 枚举 + i18n）；主题映射与播放模式 cycle 抽到 `ThemeExt` / `UserPlaybackSession.cyclePlayMode()` |
