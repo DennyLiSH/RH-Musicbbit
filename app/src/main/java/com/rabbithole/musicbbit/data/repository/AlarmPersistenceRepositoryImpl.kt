@@ -5,7 +5,7 @@ import com.rabbithole.musicbbit.data.mapper.toDomain
 import com.rabbithole.musicbbit.data.mapper.toEntity
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.Alarm
-import com.rabbithole.musicbbit.domain.repository.AlarmPersistenceRepository
+import com.rabbithole.musicbbit.data.repository.AlarmPersistenceRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn

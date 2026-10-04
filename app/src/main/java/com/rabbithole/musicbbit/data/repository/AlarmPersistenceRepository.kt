@@ -1,13 +1,14 @@
-package com.rabbithole.musicbbit.domain.repository
+package com.rabbithole.musicbbit.data.repository
 
 import com.rabbithole.musicbbit.domain.model.Alarm
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Pure persistence operations for alarms — no system scheduling.
+ * Internal persistence seam for [com.rabbithole.musicbbit.domain.repository.AlarmRepositoryImpl].
+ * Not part of the domain vocabulary — only the scheduling-aware [com.rabbithole.musicbbit.domain.repository.AlarmRepository]
+ * is exposed to consumers.
  *
- * See [AlarmRepository] for the full repository that coordinates persistence
- * with [com.rabbithole.musicbbit.service.AlarmScheduler].
+ * Pure persistence operations for alarms — no system scheduling.
  */
 interface AlarmPersistenceRepository {
     fun getAllAlarms(): Flow<List<Alarm>>

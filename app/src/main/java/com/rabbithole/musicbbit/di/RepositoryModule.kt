@@ -11,7 +11,7 @@ import com.rabbithole.musicbbit.data.repository.PlaybackProgressRepositoryImpl
 import com.rabbithole.musicbbit.data.repository.PlaylistRepositoryImpl
 import com.rabbithole.musicbbit.data.repository.ScanDirectoryRepositoryImpl
 import com.rabbithole.musicbbit.data.repository.ThemeRepositoryImpl
-import com.rabbithole.musicbbit.domain.repository.AlarmPersistenceRepository
+import com.rabbithole.musicbbit.data.repository.AlarmPersistenceRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
 import com.rabbithole.musicbbit.domain.repository.HolidayRepository

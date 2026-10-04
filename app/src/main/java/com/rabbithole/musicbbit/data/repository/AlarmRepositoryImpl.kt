@@ -2,7 +2,7 @@ package com.rabbithole.musicbbit.data.repository
 
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.Alarm
-import com.rabbithole.musicbbit.domain.repository.AlarmPersistenceRepository
+import com.rabbithole.musicbbit.data.repository.AlarmPersistenceRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import kotlinx.coroutines.CoroutineDispatcher
