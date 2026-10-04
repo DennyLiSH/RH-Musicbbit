@@ -66,28 +66,23 @@ class UserPlaybackSession @Inject constructor(
 
     fun play(song: Song, playlistId: Long) {
         issueCommand {
-            if (!audioFocusPort.requestFocus()) {
-                Timber.w("Failed to gain audio focus")
-                return@issueCommand
-            }
             Timber.i("Playing single song: ${song.title}, playlistId=$playlistId")
 
-            playbackCoordinator.activate(this@UserPlaybackSession)
-            audioStreamPort.setAlarmStream(false)
-            serviceStarter.startService()
-
-            playerPort.setQueue(
+            coreStartQueue(
                 items = listOf(PlayItem(uri = song.path, tag = song)),
                 startIndex = 0,
-                startPositionMs = 0,
-            )
-            playerPort.play()
-
-            applyPlaybackState(
-                song = song,
-                playlistId = playlistId,
-                queue = listOf(song),
-                queueIndex = 0,
+                useAlarmStream = false,
+                focusFailLog = "Failed to gain audio focus",
+                applyState = {
+                    it.copy(
+                        currentSong = song,
+                        currentPlaylistId = playlistId,
+                        queue = listOf(song),
+                        queueIndex = 0,
+                        positionMs = 0,
+                        durationMs = song.durationMs,
+                    )
+                },
             )
         }
     }
