@@ -19,6 +19,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -687,5 +689,90 @@ class UserPlaybackSessionTest {
         session.pause()
 
         assertEquals(1, playerPort.pauseCalls.size)
+    }
+
+    // -------- playQueue() suspension window (ownership re-check) -------------
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun `playQueue aborts after suspension when alarm takes over during progress load`() =
+        kotlinx.coroutines.test.runTest {
+            // Use StandardTestDispatcher so the launch inside playQueue is suspended on
+            // getProgress and we can interleave an alarm takeover before it resumes.
+            val dispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+            val sharedPlayer = FakePlayerPort()
+            val sharedFocus = FakeAudioFocusPort()
+            val sharedProgressRepo = SuspendingProgressRepository()
+            val sharedServiceStarter: ServiceStarter = mock()
+            val sharedCoordinator = PlaybackCoordinator(
+                playerPort = sharedPlayer,
+                audioFocusPort = sharedFocus,
+                mainDispatcher = dispatcher,
+            )
+            val user = UserPlaybackSession(
+                playerPort = sharedPlayer,
+                audioStreamPort = FakeAudioStreamPort(),
+                playbackProgressRepository = sharedProgressRepo,
+                serviceStarter = sharedServiceStarter,
+                audioFocusPort = sharedFocus,
+                playbackCoordinator = sharedCoordinator,
+                mainDispatcher = dispatcher,
+            )
+            val alarm = AlarmPlaybackSession(
+                playerPort = sharedPlayer,
+                audioStreamPort = FakeAudioStreamPort(),
+                playbackProgressRepository = sharedProgressRepo,
+                audioFocusPort = sharedFocus,
+                serviceStarter = sharedServiceStarter,
+                playbackCoordinator = sharedCoordinator,
+                mainDispatcher = dispatcher,
+            )
+
+            // Start user playQueue. The internal launch suspends on getProgress.
+            user.playQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 1L)
+            // While user is suspended on getProgress, alarm takes over the player.
+            alarm.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 2L, useAlarmStream = false)
+
+            // Advance virtual time past the suspend window; the user's continuation
+            // should re-check ownership and abort before calling seekTo/play.
+            advanceTimeBy(200)
+            runCurrent()
+
+            // User's seekTo/play must NOT have happened after the alarm took over.
+            // Both setQueue calls (user + alarm) are expected; the alarm calls play()
+            // during its own takeover. The user's post-suspend seekTo/play must be dropped
+            // by the ownership re-check.
+            assertEquals(2, sharedPlayer.queueCalls.size)
+            assertEquals("user seekTo must NOT happen after suspension+takeover", 0, sharedPlayer.seekCalls.size)
+            // alarm.playAlarmQueue calls play() once on takeover
+            assertEquals(1, sharedPlayer.playCalls.size)
+        }
+
+    /**
+     * Suspending fake — getProgress uses delay() (controlled by virtual time) so the
+     * test can advance time and let the suspension release deterministically.
+     */
+    private class SuspendingProgressRepository : com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository {
+        var lastSaved: com.rabbithole.musicbbit.domain.model.PlaybackProgress? = null
+            private set
+
+        override suspend fun saveProgress(progress: com.rabbithole.musicbbit.domain.model.PlaybackProgress): Result<Unit> {
+            lastSaved = progress
+            return Result.success(Unit)
+        }
+
+        override suspend fun getProgress(songId: Long, playlistId: Long): Result<com.rabbithole.musicbbit.domain.model.PlaybackProgress?> {
+            kotlinx.coroutines.delay(100)
+            return Result.success(null)
+        }
+
+        override suspend fun deleteProgress(songId: Long, playlistId: Long): Result<Unit> =
+            Result.success(Unit)
+
+        override suspend fun deleteAllProgressForPlaylist(playlistId: Long): Result<Unit> =
+            Result.success(Unit)
+
+        override suspend fun getProgressForPlaylist(playlistId: Long): Result<List<com.rabbithole.musicbbit.domain.model.PlaybackProgress>> =
+            Result.success(emptyList())
     }
 }

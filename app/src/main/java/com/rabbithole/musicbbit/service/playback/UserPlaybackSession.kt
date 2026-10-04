@@ -58,137 +58,134 @@ class UserPlaybackSession @Inject constructor(
 
     // -------- Public playback API --------------------------------------------
 
-    /**
-     * True when another session (the alarm) currently owns the shared player.
-     * All public user-facing entry points below are no-ops in that state:
-     * issuing player commands would act on the alarm's playback (kill audio,
-     * pause it, seek it). Directional by design — the alarm taking over from
-     * the user is the legal handoff; the user must never silently steal the
-     * player from a ringing alarm.
-     */
-    private fun blockedByActiveAlarm(): Boolean {
-        if (playbackCoordinator.isOwnedByAnother(this)) {
-            Timber.w("User playback command ignored: another session owns the player")
-            return true
-        }
-        return false
-    }
-
     fun play(song: Song, playlistId: Long) {
-        if (blockedByActiveAlarm()) return
-        if (!audioFocusPort.requestFocus()) {
-            Timber.w("Failed to gain audio focus")
-            return
+        issueCommand {
+            if (!audioFocusPort.requestFocus()) {
+                Timber.w("Failed to gain audio focus")
+                return@issueCommand
+            }
+            Timber.i("Playing single song: ${song.title}, playlistId=$playlistId")
+
+            playbackCoordinator.activate(this@UserPlaybackSession)
+            audioStreamPort.setAlarmStream(false)
+            serviceStarter.startService()
+
+            playerPort.setQueue(
+                items = listOf(PlayItem(uri = song.path, tag = song)),
+                startIndex = 0,
+                startPositionMs = 0,
+            )
+            playerPort.play()
+
+            applyPlaybackState(
+                song = song,
+                playlistId = playlistId,
+                queue = listOf(song),
+                queueIndex = 0,
+            )
         }
-        Timber.i("Playing single song: ${song.title}, playlistId=$playlistId")
-
-        playbackCoordinator.activate(this)
-        audioStreamPort.setAlarmStream(false)
-        serviceStarter.startService()
-
-        playerPort.setQueue(
-            items = listOf(PlayItem(uri = song.path, tag = song)),
-            startIndex = 0,
-            startPositionMs = 0,
-        )
-        playerPort.play()
-
-        applyPlaybackState(
-            song = song,
-            playlistId = playlistId,
-            queue = listOf(song),
-            queueIndex = 0,
-        )
     }
 
     fun playQueue(songs: List<Song>, startIndex: Int, playlistId: Long) {
-        if (blockedByActiveAlarm()) return
-        if (songs.isEmpty()) {
-            Timber.w("playQueue called with empty list")
-            return
-        }
-        if (!audioFocusPort.requestFocus()) {
-            Timber.w("Failed to gain audio focus")
-            return
-        }
-        val safeIndex = startIndex.coerceIn(0, songs.lastIndex)
-        val startSong = songs[safeIndex]
-
-        Timber.i(
-            "Playing queue of ${songs.size} songs, startIndex=$safeIndex, playlistId=$playlistId"
-        )
-
-        playbackCoordinator.activate(this)
-        audioStreamPort.setAlarmStream(false)
-        serviceStarter.startService()
-
-        val mediaItems = songs.map { song ->
-            PlayItem(uri = song.path, tag = song)
-        }
-
-        playerPort.setQueue(items = mediaItems, startIndex = safeIndex, startPositionMs = 0)
-
-        sessionScope.launch {
-            val progressResult = playbackProgressRepository.getProgress(startSong.id, playlistId)
-            progressResult.getOrNull()?.let { progress ->
-                Timber.i("Restoring progress for song ${startSong.id}: ${progress.positionMs}ms")
-                playerPort.seekTo(progress.positionMs)
+        issueCommand {
+            if (songs.isEmpty()) {
+                Timber.w("playQueue called with empty list")
+                return@issueCommand
             }
-            playerPort.play()
-        }
+            if (!audioFocusPort.requestFocus()) {
+                Timber.w("Failed to gain audio focus")
+                return@issueCommand
+            }
+            val safeIndex = startIndex.coerceIn(0, songs.lastIndex)
+            val startSong = songs[safeIndex]
 
-        applyPlaybackState(
-            song = startSong,
-            playlistId = playlistId,
-            queue = songs,
-            queueIndex = safeIndex,
-        )
+            Timber.i(
+                "Playing queue of ${songs.size} songs, startIndex=$safeIndex, playlistId=$playlistId"
+            )
+
+            playbackCoordinator.activate(this@UserPlaybackSession)
+            audioStreamPort.setAlarmStream(false)
+            serviceStarter.startService()
+
+            val mediaItems = songs.map { song ->
+                PlayItem(uri = song.path, tag = song)
+            }
+
+            playerPort.setQueue(items = mediaItems, startIndex = safeIndex, startPositionMs = 0)
+
+            sessionScope.launch {
+                val progressResult = playbackProgressRepository.getProgress(startSong.id, playlistId)
+                // Re-check ownership: the alarm may have taken the player while we were
+                // suspended on IO. Seeking/playing now would act on the alarm's queue.
+                if (playbackCoordinator.isOwnedByAnother(this@UserPlaybackSession)) {
+                    Timber.w("playQueue aborted after suspension: another session owns the player")
+                    return@launch
+                }
+                progressResult.getOrNull()?.let { progress ->
+                    Timber.i("Restoring progress for song ${startSong.id}: ${progress.positionMs}ms")
+                    playerPort.seekTo(progress.positionMs)
+                }
+                playerPort.play()
+            }
+
+            applyPlaybackState(
+                song = startSong,
+                playlistId = playlistId,
+                queue = songs,
+                queueIndex = safeIndex,
+            )
+        }
     }
 
     fun next() {
-        if (blockedByActiveAlarm()) return
-        Timber.i("Skipping to next")
-        if (playerPort.hasNext()) {
-            progressTracker.saveProgress()
-            playerPort.next()
-        } else {
-            Timber.d("No next media item")
+        issueCommand {
+            Timber.i("Skipping to next")
+            if (playerPort.hasNext()) {
+                progressTracker.saveProgress()
+                playerPort.next()
+            } else {
+                Timber.d("No next media item")
+            }
         }
     }
 
     fun previous() {
-        if (blockedByActiveAlarm()) return
-        Timber.i("Skipping to previous")
-        if (playerPort.hasPrevious()) {
-            progressTracker.saveProgress()
-            playerPort.previous()
-        } else {
-            Timber.d("No previous media item")
+        issueCommand {
+            Timber.i("Skipping to previous")
+            if (playerPort.hasPrevious()) {
+                progressTracker.saveProgress()
+                playerPort.previous()
+            } else {
+                Timber.d("No previous media item")
+            }
         }
     }
 
     /** Toggle play/pause based on the current state. Used by external action handlers (e.g. notification). */
     fun togglePlayPause() {
-        if (blockedByActiveAlarm()) return
-        if (playbackState.value.isPlaying) pause() else resume()
+        issueCommand {
+            if (playbackState.value.isPlaying) pause() else resume()
+        }
     }
 
     fun stop() {
-        if (blockedByActiveAlarm()) return
-        coreStop(skipSave = false)
+        issueCommand {
+            coreStop(skipSave = false)
+        }
     }
 
     fun setPlayMode(mode: PlayMode) {
-        if (blockedByActiveAlarm()) return
-        Timber.i("Setting play mode: $mode")
-        playerPort.setShuffleEnabled(mode == PlayMode.RANDOM)
-        playerPort.setRepeatMode(
-            when (mode) {
-                PlayMode.REPEAT_ONE -> PlayerRepeatMode.ONE
-                else -> PlayerRepeatMode.OFF
-            }
-        )
-        updateState { it.copy(playMode = mode) }
+        issueCommand {
+            Timber.i("Setting play mode: $mode")
+            playerPort.setShuffleEnabled(mode == PlayMode.RANDOM)
+            playerPort.setRepeatMode(
+                when (mode) {
+                    PlayMode.REPEAT_ONE -> PlayerRepeatMode.ONE
+                    else -> PlayerRepeatMode.OFF
+                }
+            )
+            updateState { it.copy(playMode = mode) }
+        }
     }
 
     // pause/resume/seekTo guards are inherited from SessionCore.issueCommand.
