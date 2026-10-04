@@ -2,6 +2,7 @@ package com.rabbithole.musicbbit.service.alarm
 
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.di.MainDispatcher
+import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
 import com.rabbithole.musicbbit.service.alarm.ports.NotificationPort
@@ -62,6 +63,11 @@ class AlarmFireSession @Inject constructor(
 
     private val _state = MutableStateFlow<AlarmFireState>(AlarmFireState.Idle)
     val state: StateFlow<AlarmFireState> = _state.asStateFlow()
+
+    /** Fire context: the alarm + audibility plan of the current session. Set in
+     *  startPlayback, cleared in onPlaybackStopped / transitionToError. */
+    private var firedAlarm: Alarm? = null
+    private var currentBypassPlan: AlarmBypassPlan? = null
 
     init {
         // Subscribe to playback transitions for auto-stop, extend-to-end, and external stop
@@ -139,7 +145,10 @@ class AlarmFireSession @Inject constructor(
         Timber.i("AlarmFireSession.pause: alarmId=${current.alarmId}")
         volumeRampPort.restoreVolume()
         alarmPlaybackSession.pause()
-        notificationPort.showAlarmPaused(current.alarmId)
+        val plan = requireNotNull(currentBypassPlan) {
+            "pause() requires an active fire (bypass plan set in startPlayback)"
+        }
+        notificationPort.showAlarmPaused(current.alarmId, bypassDnd = plan.useBypassNotificationChannel)
         _state.value = AlarmFireState.Paused(
             alarmId = current.alarmId,
             currentSong = current.currentSong,
@@ -249,6 +258,11 @@ class AlarmFireSession @Inject constructor(
         notificationPort.showAlarmPlaying(alarm, startSong, bypassDnd = bypassPlan.useBypassNotificationChannel)
         Timber.i("Alarm notification shown for alarm id=${alarm.id}, song=${startSong.title}")
 
+        // Record fire context so pause/resume/onPlaybackStopped can route notifications
+        // through the same channel without re-deriving the bypass decision.
+        firedAlarm = alarm
+        currentBypassPlan = bypassPlan
+
         _state.value = AlarmFireState.Playing(
             alarmId = alarm.id,
             currentSong = startSong,
@@ -284,6 +298,8 @@ class AlarmFireSession @Inject constructor(
         Timber.w("AlarmFireSession transitioning to Error: alarmId=$alarmId, reason=$reason")
         if (wakeLockPort.isHeld) wakeLockPort.release()
         autoStopController.reset()
+        firedAlarm = null
+        currentBypassPlan = null
         _state.value = AlarmFireState.Error(alarmId, reason)
     }
 
@@ -302,6 +318,8 @@ class AlarmFireSession @Inject constructor(
         if (alarmId != null) {
             notificationPort.cancel(alarmId)
         }
+        firedAlarm = null
+        currentBypassPlan = null
         _state.value = AlarmFireState.Stopped
     }
 

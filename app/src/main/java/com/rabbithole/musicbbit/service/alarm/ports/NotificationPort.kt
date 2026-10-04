@@ -23,8 +23,12 @@ interface NotificationPort {
 
     /**
      * Update the existing alarm notification to a paused state.
+     *
+     * @param bypassDnd Same decision as [showAlarmPlaying]'s — computed once per fire
+     *   by QuietModeBypassResolver. The paused update must land on the same channel
+     *   the user has been seeing; the port keeps no cross-call state.
      */
-    fun showAlarmPaused(alarmId: Long)
+    fun showAlarmPaused(alarmId: Long, bypassDnd: Boolean)
 
     /**
      * Cancel the notification associated with the given alarm.

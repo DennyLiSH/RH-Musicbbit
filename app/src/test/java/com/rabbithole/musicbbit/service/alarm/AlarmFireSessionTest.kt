@@ -761,8 +761,9 @@ class AlarmFireSessionTest {
             lastBypassDnd = bypassDnd
         }
 
-        override fun showAlarmPaused(alarmId: Long) {
+        override fun showAlarmPaused(alarmId: Long, bypassDnd: Boolean) {
             pauseCount++
+            lastBypassDnd = bypassDnd
         }
 
         override fun cancel(alarmId: Long) {

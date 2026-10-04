@@ -92,7 +92,7 @@ class AlarmNotificationHelperTest {
     fun `paused notification reuses the channel chosen by playing`() {
         helper.showAlarmPlaying(alarm(ignoreQuietMode = true), SONG, bypassDnd = true)
 
-        helper.showAlarmPaused(alarmId = 7L)
+        helper.showAlarmPaused(alarmId = 7L, bypassDnd = true)
 
         assertEquals(BYPASS_CHANNEL, latestNotificationChannelId())
     }
@@ -104,6 +104,19 @@ class AlarmNotificationHelperTest {
 
         helper.showError(notificationId = 99, title = "Error", message = "Playback failed")
 
+        assertEquals(NORMAL_CHANNEL, latestNotificationChannelId())
+    }
+
+    @Test
+    fun `showAlarmPaused uses bypassDnd parameter without prior showAlarmPlaying`() {
+        // New explicit-contract behavior: channel is chosen from bypassDnd directly,
+        // no helper-mutable lastChannelId requirement.
+        helper.showAlarmPaused(alarmId = 7L, bypassDnd = true)
+        assertEquals(BYPASS_CHANNEL, latestNotificationChannelId())
+
+        // Calling again with bypassDnd=false after a true call lands on the normal channel
+        // — no shared mutable state across calls.
+        helper.showAlarmPaused(alarmId = 8L, bypassDnd = false)
         assertEquals(NORMAL_CHANNEL, latestNotificationChannelId())
     }
 }

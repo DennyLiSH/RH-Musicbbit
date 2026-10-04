@@ -45,17 +45,14 @@ class AlarmNotificationHelper @Inject constructor(
         playbackPausedText = resources.getString(R.string.notification_playback_paused, "Playback has been paused"),
     )
 
-    // Channel chosen by the last showAlarmPlaying call; showAlarmPaused reuses it so the
-    // paused update lands on the same channel the user saw. Reset in cancel() — valid
-    // only within a single fire session (Playing always precedes Paused).
-    private var lastChannelId: String? = null
-
+    // Channel for each notification is chosen by the call's bypassDnd parameter;
+    // showAlarmPaused takes its own bypassDnd — no cross-call state. Caller (AlarmFireSession)
+    // computes the decision once per fire and passes the same one to Playing then Paused.
     override fun showAlarmPlaying(alarm: Alarm, song: Song, bypassDnd: Boolean) {
         // bypassDnd is passed in from AlarmBypassPlan — computed once per fire by
         // QuietModeBypassResolver (ignoreQuietMode + Notification Policy Access).
         val useBypassChannel = bypassDnd
         val channelId = if (useBypassChannel) CHANNEL_BYPASS_DND_ID else CHANNEL_ID
-        lastChannelId = channelId
         channelFactory.ensureChannel(
             channelId = channelId,
             nameRes = if (useBypassChannel) {
@@ -78,23 +75,20 @@ class AlarmNotificationHelper @Inject constructor(
         Timber.d("Alarm notification shown for alarmId=${alarm.id}, channel=$channelId")
     }
 
-    override fun showAlarmPaused(alarmId: Long) {
-        val channelId = requireNotNull(lastChannelId) {
-            "showAlarmPaused must be preceded by showAlarmPlaying in the same fire session"
-        }
+    override fun showAlarmPaused(alarmId: Long, bypassDnd: Boolean) {
+        val channelId = if (bypassDnd) CHANNEL_BYPASS_DND_ID else CHANNEL_ID
         val content = contentBuilder.buildPaused()
         val notification = renderNotification(content, alarmId, channelId)
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
             as NotificationManager
         notificationManager.notify(alarmId.toInt(), notification)
-        Timber.d("Alarm notification updated to paused state for alarmId=$alarmId")
+        Timber.d("Alarm notification updated to paused state for alarmId=$alarmId, channel=$channelId")
     }
 
     override fun cancel(alarmId: Long) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
             as NotificationManager
         notificationManager.cancel(alarmId.toInt())
-        lastChannelId = null
         Timber.d("Alarm notification cancelled for alarmId=$alarmId")
     }
 
