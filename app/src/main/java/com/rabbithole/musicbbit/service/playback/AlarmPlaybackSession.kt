@@ -62,12 +62,6 @@ class AlarmPlaybackSession @Inject constructor(
             Timber.w("playAlarmQueue called with invalid playlistId=$playlistId")
             return
         }
-        if (!audioFocusPort.requestFocus()) {
-            Timber.w("Failed to gain audio focus for alarm playback")
-            return
-        }
-
-        playbackCoordinator.activate(this)
 
         val safeIndex = startIndex.coerceIn(0, songs.lastIndex)
         val startSong = songs[safeIndex]
@@ -75,26 +69,24 @@ class AlarmPlaybackSession @Inject constructor(
         Timber.i(
             "Playing alarm queue of ${songs.size} songs, startIndex=$safeIndex, playlistId=$playlistId"
         )
-        audioStreamPort.setAlarmStream(useAlarmStream)
-        serviceStarter.startService()
 
-        val mediaItems = songs.map { song ->
-            PlayItem(uri = song.path, tag = song)
-        }
-        playerPort.setQueue(items = mediaItems, startIndex = safeIndex, startPositionMs = 0)
-        playerPort.play()
-
-        updateState {
-            it.copy(
-                currentSong = startSong,
-                currentPlaylistId = playlistId,
-                queue = songs,
-                queueIndex = safeIndex,
-                positionMs = 0,
-                durationMs = startSong.durationMs,
-                isPlaying = true,
-            )
-        }
+        coreStartQueue(
+            items = songs.map { song -> PlayItem(uri = song.path, tag = song) },
+            startIndex = safeIndex,
+            useAlarmStream = useAlarmStream,
+            focusFailLog = "Failed to gain audio focus for alarm playback",
+            applyState = {
+                it.copy(
+                    currentSong = startSong,
+                    currentPlaylistId = playlistId,
+                    queue = songs,
+                    queueIndex = safeIndex,
+                    positionMs = 0,
+                    durationMs = startSong.durationMs,
+                    isPlaying = true,
+                )
+            },
+        )
         // Note: tick/save loops are started by handleIsPlayingChanged(true) — aligned
         // with UserPlaybackSession. The loops are idempotent (cancel-then-launch) so the
         // IsPlayingChanged event re-starting them is safe.
