@@ -22,13 +22,12 @@ internal class MusicNotificationManager @Inject constructor(
     private val resources: NotificationResources,
     private val channelFactory: NotificationChannelFactory,
 ) : MusicNotificationPort {
-    private val channelId = "music_playback_channel"
     private val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
     override fun ensureChannelExists() {
         channelFactory.ensureChannel(
-            channelId = channelId,
+            channelId = CHANNEL_ID,
             nameRes = R.string.app_name,
             nameFallback = "MusicBbit",
             descRes = R.string.notification_music_channel_desc,
@@ -57,5 +56,9 @@ internal class MusicNotificationManager @Inject constructor(
             previousLabel = resources.getString(R.string.player_previous, "Previous"),
             nextLabel = resources.getString(R.string.player_next, "Next"),
         )
+    }
+
+    companion object {
+        const val CHANNEL_ID = "music_playback_channel"
     }
 }

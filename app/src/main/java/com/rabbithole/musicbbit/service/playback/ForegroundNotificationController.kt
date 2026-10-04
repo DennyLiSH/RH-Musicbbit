@@ -5,9 +5,10 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
-import com.rabbithole.musicbbit.MainActivity
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.di.MainDispatcher
+import com.rabbithole.musicbbit.service.MainActivityIntentFactory
+import com.rabbithole.musicbbit.service.MusicNotificationManager
 import com.rabbithole.musicbbit.service.MusicPlaybackService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -43,6 +44,7 @@ class ForegroundNotificationController @Inject constructor(
     private val playbackSession: UserPlaybackSession,
     private val musicNotificationPort: MusicNotificationPort,
     private val serviceStarter: ServiceStarter,
+    private val mainActivityIntentFactory: MainActivityIntentFactory,
     @param:ApplicationContext private val context: Context,
     @param:MainDispatcher private val mainDispatcher: CoroutineDispatcher,
 ) {
@@ -110,16 +112,9 @@ class ForegroundNotificationController @Inject constructor(
      * (not the adapter) per ADR 0008.
      */
     private fun buildNotification(spec: ForegroundNotificationSpec): Notification {
-        val contentIntent = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val contentIntent = mainActivityIntentFactory.create()
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, MusicNotificationManager.CHANNEL_ID)
             .setSmallIcon(spec.smallIconResId)
             .setContentTitle(spec.title)
             .setContentText(spec.text)
@@ -161,7 +156,6 @@ class ForegroundNotificationController @Inject constructor(
 
     companion object {
         const val NOTIFICATION_ID = 1
-        private const val CHANNEL_ID = "music_playback_channel"
         private const val STOP_FOREGROUND_REMOVE = android.app.Service.STOP_FOREGROUND_REMOVE
     }
 }

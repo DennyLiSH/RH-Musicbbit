@@ -7,7 +7,6 @@ import com.rabbithole.musicbbit.service.PlayMode
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -54,9 +53,6 @@ class UserPlaybackSession @Inject constructor(
     syncPositionOnPlayStart = true,
 ) {
 
-    val playerEvents: SharedFlow<PlayerEvent> = playerPort.events
-
-    /** True while another session (the alarm) owns the shared player — UI should disable controls. */
     val commandsBlocked: StateFlow<Boolean> = playbackCoordinator.activeConsumer
         .map { it != null && it !== this }
         .stateIn(sessionScope, SharingStarted.Eagerly, initialValue = false)

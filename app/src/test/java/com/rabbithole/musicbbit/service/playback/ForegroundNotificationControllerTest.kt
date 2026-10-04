@@ -43,6 +43,7 @@ class ForegroundNotificationControllerTest {
     private lateinit var playbackSession: UserPlaybackSession
     private lateinit var musicNotificationPort: MusicNotificationPort
     private lateinit var serviceStarter: ServiceStarter
+    private lateinit var mainActivityIntentFactory: com.rabbithole.musicbbit.service.MainActivityIntentFactory
     private lateinit var service: MusicPlaybackService
     private lateinit var controller: ForegroundNotificationController
 
@@ -75,11 +76,14 @@ class ForegroundNotificationControllerTest {
         musicNotificationPort = mock()
         whenever(musicNotificationPort.buildSpec(any())).thenAnswer { specFor(it.getArgument(0)) }
         serviceStarter = mock()
+        mainActivityIntentFactory = mock()
+        whenever(mainActivityIntentFactory.create(any())).thenAnswer { mock<android.app.PendingIntent>() }
         service = mock()
         controller = ForegroundNotificationController(
             playbackSession = playbackSession,
             musicNotificationPort = musicNotificationPort,
             serviceStarter = serviceStarter,
+            mainActivityIntentFactory = mainActivityIntentFactory,
             context = context,
             mainDispatcher = testDispatcher,
         )
