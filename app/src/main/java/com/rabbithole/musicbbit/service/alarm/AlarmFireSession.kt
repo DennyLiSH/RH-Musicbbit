@@ -168,6 +168,17 @@ class AlarmFireSession @Inject constructor(
         }
         Timber.i("AlarmFireSession.resume: alarmId=${current.alarmId}")
         alarmPlaybackSession.resume()
+        // Refresh the alarm notification to its playing state — pause() left the
+        // notification in its paused form, and the notification must match the actual
+        // playback state.
+        val alarm = requireNotNull(firedAlarm) { "resume() requires an active fire" }
+        val plan = requireNotNull(currentBypassPlan) { "resume() requires an active fire (bypass plan)" }
+        val song = current.currentSong
+        if (song != null) {
+            notificationPort.showAlarmPlaying(alarm, song, bypassDnd = plan.useBypassNotificationChannel)
+        } else {
+            Timber.w("resume: no song to refresh notification for")
+        }
         _state.value = AlarmFireState.Playing(
             alarmId = current.alarmId,
             currentSong = current.currentSong,

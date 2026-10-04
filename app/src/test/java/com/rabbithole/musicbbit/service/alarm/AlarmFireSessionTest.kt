@@ -624,6 +624,20 @@ class AlarmFireSessionTest {
     }
 
     @Test
+    fun `resume re-shows playing notification on same channel`() = scope.runTest {
+        firePlaying(alarmId = 1L, playlistId = 10L)
+        val playingBefore = notificationPort.playingCount
+        session.pause()
+        session.resume()
+
+        assertEquals(
+            "resume must refresh the notification to playing state",
+            playingBefore + 1,
+            notificationPort.playingCount,
+        )
+    }
+
+    @Test
     fun `onPlaybackStopped after autoStop does not call session stop again`() = scope.runTest {
         alarmRepository.insert(repeatingAlarm(id = 17L, playlistId = 170L).copy(autoStop = AutoStop.ByMinutes(1)))
         playlistRepository.set(170L, threeSongPlaylist(id = 170L))
