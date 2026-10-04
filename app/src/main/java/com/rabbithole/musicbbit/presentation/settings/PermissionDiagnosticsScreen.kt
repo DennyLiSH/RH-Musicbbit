@@ -123,27 +123,31 @@ fun PermissionDiagnosticsScreen(
 
                 items(
                     items = uiState.permissions,
-                    key = { it.name }
+                    key = { it.key }
                 ) { permission ->
                     PermissionCard(
                         permission = permission,
                         onOpenSettings = {
-                            when {
-                                permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_SCHEDULE_EXACT_ALARMS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-                                    val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-                                        data = Uri.parse("package:${context.packageName}")
-                                    }
-                                    if (!launchSettingsSafely(context, intent)) {
-                                        toast.showShort(settingsOpenFailedMessage)
+                            when (permission.key) {
+                                PermissionKey.SCHEDULE_EXACT_ALARMS -> {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                                            data = Uri.parse("package:${context.packageName}")
+                                        }
+                                        if (!launchSettingsSafely(context, intent)) {
+                                            toast.showShort(settingsOpenFailedMessage)
+                                        }
                                     }
                                 }
-                                permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_FULL_SCREEN_INTENT -> {
+                                PermissionKey.FULL_SCREEN_INTENT -> {
                                     if (!FullScreenIntentPermissionHelper.openSettings(context)) {
                                         toast.showShort(settingsOpenFailedMessage)
                                     }
                                 }
-                                permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_POST_NOTIFICATIONS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-                                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                PermissionKey.POST_NOTIFICATIONS -> {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    }
                                 }
                                 else -> {
                                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -214,7 +218,7 @@ private fun SummaryCard(allGranted: Boolean) {
 
 @Composable
 private fun PermissionCard(
-    permission: PermissionStatus,
+    permission: PermissionDiagnosticItem,
     onOpenSettings: () -> Unit
 ) {
     Card(
@@ -238,7 +242,7 @@ private fun PermissionCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = permission.name,
+                    text = stringResource(permission.nameResId),
                     style = MaterialTheme.typography.titleMedium
                 )
                 if (permission.isGranted) {
@@ -259,7 +263,7 @@ private fun PermissionCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = permission.description,
+                text = stringResource(permission.descriptionResId),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -274,15 +278,12 @@ private fun PermissionCard(
 
             if (!permission.isGranted) {
                 Spacer(modifier = Modifier.height(8.dp))
-                val buttonTextRes = if (
-                    !permission.isRuntime ||
-                    permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_SCHEDULE_EXACT_ALARMS ||
-                    permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_FULL_SCREEN_INTENT ||
-                    permission.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_POST_NOTIFICATIONS
-                ) {
-                    R.string.permission_diagnostics_fix
-                } else {
-                    R.string.permission_diagnostics_settings
+                val buttonTextRes = when (permission.key) {
+                    PermissionKey.SCHEDULE_EXACT_ALARMS,
+                    PermissionKey.FULL_SCREEN_INTENT,
+                    PermissionKey.POST_NOTIFICATIONS,
+                    PermissionKey.READ_MEDIA_AUDIO -> R.string.permission_diagnostics_fix
+                    else -> R.string.permission_diagnostics_settings
                 }
                 TextButton(
                     onClick = onOpenSettings,

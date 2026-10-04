@@ -7,6 +7,8 @@ import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
 import com.rabbithole.musicbbit.presentation.components.ListUiState
+import com.rabbithole.musicbbit.presentation.permissions.PermissionStatus
+import com.rabbithole.musicbbit.presentation.permissions.PermissionStatusMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -40,8 +42,13 @@ sealed interface MusicBrowseAction {
 @HiltViewModel
 class MusicBrowseViewModel @Inject constructor(
     private val musicRepository: MusicRepository,
-    private val scanDirectoryRepository: ScanDirectoryRepository
+    private val scanDirectoryRepository: ScanDirectoryRepository,
+    private val permissionStatusMonitor: PermissionStatusMonitor,
 ) : ViewModel() {
+
+    val permissionStatus: StateFlow<PermissionStatus> = permissionStatusMonitor.status
+
+    fun refreshPermissionStatus() = permissionStatusMonitor.refresh()
 
     private val _searchQuery = MutableStateFlow("")
     private val loadTrigger = MutableStateFlow(0)

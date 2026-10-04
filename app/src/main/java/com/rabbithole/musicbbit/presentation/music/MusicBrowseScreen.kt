@@ -19,9 +19,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -29,12 +26,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -55,32 +52,28 @@ fun MusicBrowseScreen(
     viewModel: MusicBrowseViewModel = hiltViewModel(),
     playerViewModel: UserPlaybackSession = LocalPlaybackSession.current
 ) {
-    val context = LocalContext.current
+    val permissionStatus by viewModel.permissionStatus.collectAsStateWithLifecycle()
+    val hasPermission = permissionStatus.isMediaAudioGranted
 
-    val permission = if (Build.VERSION.SDK_INT >= 33) {
-        Manifest.permission.READ_MEDIA_AUDIO
-    } else {
-        Manifest.permission.READ_EXTERNAL_STORAGE
-    }
-
-    var hasPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
-        )
+    // Re-read permission state on ON_RESUME — user may grant/revoke in Settings.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshPermissionStatus()
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasPermission = granted
+    ) {
+        viewModel.refreshPermissionStatus()
     }
 
     if (!hasPermission) {
+        // The system permission check uses Monitor's media audio permission constant.
+        // After granting, ON_RESUME will refresh state.
         EmptyState(
             title = stringResource(R.string.music_browse_permission_required),
             icon = rememberVectorPainter(Icons.Default.MusicNote),
             actionLabel = stringResource(R.string.music_browse_grant_access),
-            onAction = { permissionLauncher.launch(permission) }
+            onAction = { permissionLauncher.launch(android.Manifest.permission.READ_MEDIA_AUDIO) }
         )
         return
     }

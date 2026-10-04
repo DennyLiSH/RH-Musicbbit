@@ -1,6 +1,8 @@
 package com.rabbithole.musicbbit.presentation.permissions
 
+import android.Manifest
 import android.content.Intent
+import android.os.Build
 import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -18,6 +20,7 @@ data class PermissionStatus(
     val isFullScreenIntentGranted: Boolean = false,
     val isExactAlarmGranted: Boolean = false,
     val isDndAccessGranted: Boolean = false,
+    val isMediaAudioGranted: Boolean = false,
 )
 
 /**
@@ -55,5 +58,13 @@ class PermissionStatusMonitor @Inject constructor(
         isFullScreenIntentGranted = permissionPort.isFullScreenIntentGranted(),
         isExactAlarmGranted = permissionPort.canScheduleExactAlarms(),
         isDndAccessGranted = permissionPort.isNotificationPolicyAccessGranted(),
+        isMediaAudioGranted = permissionPort.checkPermission(mediaAudioPermission()),
     )
+
+    private fun mediaAudioPermission(): String =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
 }

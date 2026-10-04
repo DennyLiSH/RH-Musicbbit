@@ -5,6 +5,8 @@ import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
 import com.rabbithole.musicbbit.presentation.components.ListUiState
+import com.rabbithole.musicbbit.presentation.permissions.PermissionStatusMonitor
+import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -28,12 +30,15 @@ class MusicBrowseViewModelTest {
 
     private lateinit var musicRepository: MusicRepository
     private lateinit var scanDirectoryRepository: ScanDirectoryRepository
+    private lateinit var permissionStatusMonitor: PermissionStatusMonitor
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         musicRepository = mock()
         scanDirectoryRepository = mock()
+        val permissionPort = mock<PermissionPort>()
+        permissionStatusMonitor = PermissionStatusMonitor(permissionPort)
     }
 
     @After
@@ -41,12 +46,15 @@ class MusicBrowseViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private fun createViewModel(): MusicBrowseViewModel =
+        MusicBrowseViewModel(musicRepository, scanDirectoryRepository, permissionStatusMonitor)
+
     @Test
     fun `load with no scan directories emits Content NoScanDirectory`() = runTest(testDispatcher) {
         whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(emptyList()))
         whenever(musicRepository.getAllSongs()).thenReturn(flowOf(emptyList()))
 
-        val viewModel = MusicBrowseViewModel(musicRepository, scanDirectoryRepository)
+        val viewModel = createViewModel()
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as ListUiState.Content
@@ -60,7 +68,7 @@ class MusicBrowseViewModelTest {
         ))
         whenever(musicRepository.getAllSongs()).thenReturn(flowOf(emptyList()))
 
-        val viewModel = MusicBrowseViewModel(musicRepository, scanDirectoryRepository)
+        val viewModel = createViewModel()
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as ListUiState.Content
@@ -78,7 +86,7 @@ class MusicBrowseViewModelTest {
         ))
         whenever(musicRepository.getAllSongs()).thenReturn(flowOf(songs))
 
-        val viewModel = MusicBrowseViewModel(musicRepository, scanDirectoryRepository)
+        val viewModel = createViewModel()
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as ListUiState.Content
@@ -93,7 +101,7 @@ class MusicBrowseViewModelTest {
         whenever(scanDirectoryRepository.getAll()).thenReturn(errorFlow)
         whenever(musicRepository.getAllSongs()).thenReturn(flowOf(emptyList()))
 
-        val viewModel = MusicBrowseViewModel(musicRepository, scanDirectoryRepository)
+        val viewModel = createViewModel()
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value is ListUiState.Error)

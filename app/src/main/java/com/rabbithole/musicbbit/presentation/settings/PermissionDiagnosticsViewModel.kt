@@ -2,36 +2,47 @@ package com.rabbithole.musicbbit.presentation.settings
 
 import android.Manifest
 import android.os.Build
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
+
+/** Exhaustive key for every diagnostics row — replaces stringly dispatch. */
+enum class PermissionKey {
+    SCHEDULE_EXACT_ALARMS,
+    POST_NOTIFICATIONS,
+    READ_MEDIA_AUDIO,
+    FOREGROUND_SERVICE,
+    FULL_SCREEN_INTENT,
+    BOOT_COMPLETED,
+}
 
 @Immutable
-data class PermissionStatus(
-    val name: String,
-    val description: String,
+data class PermissionDiagnosticItem(
+    val key: PermissionKey,
+    @StringRes val nameResId: Int,
+    @StringRes val descriptionResId: Int,
     val isGranted: Boolean,
     val isRuntime: Boolean,
-    val canRequest: Boolean
+    val canRequest: Boolean,
 )
 
 data class PermissionDiagnosticsUiState(
-    val permissions: List<PermissionStatus> = emptyList(),
-    val allGranted: Boolean = true
+    val permissions: List<PermissionDiagnosticItem> = emptyList(),
+    val allGranted: Boolean = true,
 )
 
 @HiltViewModel
 class PermissionDiagnosticsViewModel @Inject constructor(
-    private val permissionPort: PermissionPort
+    private val permissionPort: PermissionPort,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PermissionDiagnosticsUiState())
@@ -45,115 +56,73 @@ class PermissionDiagnosticsViewModel @Inject constructor(
         Timber.i("Refreshing permission diagnostics")
         val permissions = buildPermissionList()
         val allGranted = permissions.all { it.isGranted }
-        _uiState.update {
-            it.copy(permissions = permissions, allGranted = allGranted)
-        }
+        _uiState.update { it.copy(permissions = permissions, allGranted = allGranted) }
         Timber.d("Permission diagnostics refreshed: allGranted=$allGranted, permissions=${permissions.size}")
     }
 
-    private fun buildPermissionList(): List<PermissionStatus> {
-        val list = mutableListOf<PermissionStatus>()
+    private fun buildPermissionList(): List<PermissionDiagnosticItem> {
+        val list = mutableListOf<PermissionDiagnosticItem>()
 
-        // 1. Schedule Exact Alarms (API 31+ only)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val canSchedule = permissionPort.canScheduleExactAlarms()
-            list.add(
-                PermissionStatus(
-                    name = PERMISSION_NAME_SCHEDULE_EXACT_ALARMS,
-                    description = "Required for precise alarm scheduling. Must be enabled in system settings.",
-                    isGranted = canSchedule,
-                    isRuntime = false,
-                    canRequest = false
-                )
+            list += item(
+                key = PermissionKey.SCHEDULE_EXACT_ALARMS,
+                nameResId = R.string.permission_name_exact_alarms,
+                descResId = R.string.permission_desc_exact_alarms,
+                isGranted = permissionPort.canScheduleExactAlarms(),
+                isRuntime = false, canRequest = false,
             )
-            Timber.d("Schedule Exact Alarms: granted=$canSchedule")
         }
-
-        // 2. Post Notifications (API 33+ only)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val granted = permissionPort.checkPermission(Manifest.permission.POST_NOTIFICATIONS)
-            list.add(
-                PermissionStatus(
-                    name = PERMISSION_NAME_POST_NOTIFICATIONS,
-                    description = "Required to show alarm notifications and playback controls.",
-                    isGranted = granted,
-                    isRuntime = true,
-                    canRequest = true
-                )
+            list += item(
+                key = PermissionKey.POST_NOTIFICATIONS,
+                nameResId = R.string.permission_name_post_notifications,
+                descResId = R.string.permission_desc_post_notifications,
+                isGranted = permissionPort.checkPermission(Manifest.permission.POST_NOTIFICATIONS),
+                isRuntime = true, canRequest = true,
             )
-            Timber.d("Post Notifications: granted=$granted")
         }
-
-        // 3. Read Media Audio / External Storage
-        val readMediaPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val mediaPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_AUDIO
         } else {
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
-        val readMediaGranted = permissionPort.checkPermission(readMediaPermission)
-        list.add(
-            PermissionStatus(
-                name = PERMISSION_NAME_READ_MEDIA_AUDIO,
-                description = "Required to access local music files on your device.",
-                isGranted = readMediaGranted,
-                isRuntime = true,
-                canRequest = true
-            )
+        list += item(
+            key = PermissionKey.READ_MEDIA_AUDIO,
+            nameResId = R.string.permission_name_read_media_audio,
+            descResId = R.string.permission_desc_read_media_audio,
+            isGranted = permissionPort.checkPermission(mediaPermission),
+            isRuntime = true, canRequest = true,
         )
-        Timber.d("Read Media Audio: granted=$readMediaGranted")
-
-        // 4. Foreground Service (informational)
-        val foregroundServiceGranted = permissionPort.checkPermission(
-            Manifest.permission.FOREGROUND_SERVICE
+        list += item(
+            key = PermissionKey.FOREGROUND_SERVICE,
+            nameResId = R.string.permission_name_foreground_service,
+            descResId = R.string.permission_desc_foreground_service,
+            isGranted = permissionPort.checkPermission(Manifest.permission.FOREGROUND_SERVICE),
+            isRuntime = false, canRequest = false,
         )
-        list.add(
-            PermissionStatus(
-                name = PERMISSION_NAME_FOREGROUND_SERVICE,
-                description = "Required for continuous music playback in the background.",
-                isGranted = foregroundServiceGranted,
-                isRuntime = false,
-                canRequest = false
-            )
+        list += item(
+            key = PermissionKey.FULL_SCREEN_INTENT,
+            nameResId = R.string.permission_name_full_screen_intent,
+            descResId = R.string.permission_desc_full_screen_intent,
+            isGranted = permissionPort.isFullScreenIntentGranted(),
+            isRuntime = false, canRequest = true,
         )
-        Timber.d("Foreground Service: granted=$foregroundServiceGranted")
-
-        // 5. Full Screen Intent (API 34+ runtime gate via NotificationManager)
-        val fullScreenIntentGranted = permissionPort.isFullScreenIntentGranted()
-        list.add(
-            PermissionStatus(
-                name = PERMISSION_NAME_FULL_SCREEN_INTENT,
-                description = "Required to show the full-screen alarm ringing interface over the lock screen on Android 14+.",
-                isGranted = fullScreenIntentGranted,
-                isRuntime = false,
-                canRequest = true
-            )
+        list += item(
+            key = PermissionKey.BOOT_COMPLETED,
+            nameResId = R.string.permission_name_boot_completed,
+            descResId = R.string.permission_desc_boot_completed,
+            isGranted = permissionPort.checkPermission(Manifest.permission.RECEIVE_BOOT_COMPLETED),
+            isRuntime = false, canRequest = false,
         )
-        Timber.d("Full Screen Intent: granted=$fullScreenIntentGranted")
-
-        // 6. Boot Completed (informational)
-        val bootCompletedGranted = permissionPort.checkPermission(
-            Manifest.permission.RECEIVE_BOOT_COMPLETED
-        )
-        list.add(
-            PermissionStatus(
-                name = PERMISSION_NAME_BOOT_COMPLETED,
-                description = "Required to restore alarms after device reboot.",
-                isGranted = bootCompletedGranted,
-                isRuntime = false,
-                canRequest = false
-            )
-        )
-        Timber.d("Boot Completed: granted=$bootCompletedGranted")
-
         return list
     }
 
-    companion object {
-        const val PERMISSION_NAME_SCHEDULE_EXACT_ALARMS = "Schedule Exact Alarms"
-        const val PERMISSION_NAME_POST_NOTIFICATIONS = "Post Notifications"
-        const val PERMISSION_NAME_READ_MEDIA_AUDIO = "Read Media Audio"
-        const val PERMISSION_NAME_FOREGROUND_SERVICE = "Foreground Service"
-        const val PERMISSION_NAME_FULL_SCREEN_INTENT = "Full Screen Intent"
-        const val PERMISSION_NAME_BOOT_COMPLETED = "Boot Completed"
-    }
+    private fun item(
+        key: PermissionKey,
+        @StringRes nameResId: Int,
+        @StringRes descResId: Int,
+        isGranted: Boolean,
+        isRuntime: Boolean,
+        canRequest: Boolean,
+    ) = PermissionDiagnosticItem(key, nameResId, descResId, isGranted, isRuntime, canRequest)
 }

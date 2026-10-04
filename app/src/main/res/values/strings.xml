@@ -258,4 +258,16 @@
     <string name="autostart_manual_guide_message">To ensure alarms ring on time, please manually enable auto-start permission:\n\n1. Open system \"Settings\"\n2. Go to \"Apps\"\n3. Tap \"Auto-start management\"\n4. Find \"Music Rabbit\" and enable it\n\nOtherwise, the system may kill the app in the background, causing alarms to fail.</string>
     <string name="autostart_manual_guide_open_settings">Open System Settings</string>
     <string name="playlist_not_found">This playlist no longer exists</string>
+    <string name="permission_name_exact_alarms">Schedule Exact Alarms</string>
+    <string name="permission_desc_exact_alarms">Required for precise alarm scheduling. Must be enabled in system settings.</string>
+    <string name="permission_name_post_notifications">Post Notifications</string>
+    <string name="permission_desc_post_notifications">Required to show alarm notifications and playback controls.</string>
+    <string name="permission_name_read_media_audio">Read Media Audio</string>
+    <string name="permission_desc_read_media_audio">Required to access local music files on your device.</string>
+    <string name="permission_name_foreground_service">Foreground Service</string>
+    <string name="permission_desc_foreground_service">Required for continuous music playback in the background.</string>
+    <string name="permission_name_full_screen_intent">Full Screen Intent</string>
+    <string name="permission_desc_full_screen_intent">Required to show the full-screen alarm ringing interface over the lock screen on Android 14+.</string>
+    <string name="permission_name_boot_completed">Boot Completed</string>
+    <string name="permission_desc_boot_completed">Required to restore alarms after device reboot.</string>
 </resources>

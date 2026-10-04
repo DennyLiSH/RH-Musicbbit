@@ -1,5 +1,6 @@
 package com.rabbithole.musicbbit.presentation.settings
 
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
 import org.mockito.kotlin.any
 import org.mockito.kotlin.atLeast
@@ -8,6 +9,7 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -16,10 +18,12 @@ import org.junit.Test
  * Unit tests for [PermissionDiagnosticsViewModel].
  *
  * Uses a mocked [PermissionPort] so no Android framework classes are needed.
- * Because the ViewModel reads Build.VERSION.SDK_INT at construction time,
- * tests run under whatever SDK the test JVM shadows (typically API 33 via
- * Robolectric or the raw JVM default). The permission list size therefore
- * varies by SDK level; tests assert relative to the actual list size.
+ * The ViewModel reads Build.VERSION.SDK_INT at construction time; tests run on
+ * whatever SDK the test JVM shadows. The permission list size therefore varies
+ * by SDK level; tests assert relative to the actual list size.
+ *
+ * Permission rows use [PermissionKey] enum + [nameResId]/[descriptionResId]
+ * instead of stringly dispatch (Plan B Task 7).
  */
 class PermissionDiagnosticsViewModelTest {
 
@@ -29,10 +33,6 @@ class PermissionDiagnosticsViewModelTest {
     fun setUp() {
         permissionPort = mock()
     }
-
-    // ------------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------------
 
     private fun allGrantedPort(): PermissionPort = mock<PermissionPort>().apply {
         whenever(canScheduleExactAlarms()).thenReturn(true)
@@ -46,10 +46,6 @@ class PermissionDiagnosticsViewModelTest {
         whenever(isFullScreenIntentGranted()).thenReturn(false)
     }
 
-    // ------------------------------------------------------------------
-    // Tests: all granted
-    // ------------------------------------------------------------------
-
     @Test
     fun `init loads permissions with allGranted true when all permissions granted`() {
         val viewModel = PermissionDiagnosticsViewModel(allGrantedPort())
@@ -57,15 +53,10 @@ class PermissionDiagnosticsViewModelTest {
         val state = viewModel.uiState.value
         assertTrue(state.allGranted)
         assertFalse(state.permissions.isEmpty())
-        // Every permission entry should be granted
         state.permissions.forEach { perm ->
-            assertTrue("Permission '${perm.name}' should be granted", perm.isGranted)
+            assertTrue("Permission ${perm.key} should be granted", perm.isGranted)
         }
     }
-
-    // ------------------------------------------------------------------
-    // Tests: some denied
-    // ------------------------------------------------------------------
 
     @Test
     fun `init loads permissions with allGranted false when some permissions denied`() {
@@ -73,51 +64,39 @@ class PermissionDiagnosticsViewModelTest {
 
         val state = viewModel.uiState.value
         assertFalse(state.allGranted)
-        assertFalse(state.permissions.isEmpty())
-        // At least one permission should be denied
         assertTrue(
             "At least one permission should be denied",
             state.permissions.any { !it.isGranted }
         )
     }
 
-    // ------------------------------------------------------------------
-    // Tests: permission names
-    // ------------------------------------------------------------------
-
     @Test
-    fun `permission list contains expected permission names`() {
+    fun `permission list contains expected permission keys`() {
         val viewModel = PermissionDiagnosticsViewModel(allGrantedPort())
 
-        val names = viewModel.uiState.value.permissions.map { it.name }
-        assertTrue(
-            "Should contain Read Media Audio",
-            names.contains(PermissionDiagnosticsViewModel.PERMISSION_NAME_READ_MEDIA_AUDIO)
-        )
-        assertTrue(
-            "Should contain Foreground Service",
-            names.contains(PermissionDiagnosticsViewModel.PERMISSION_NAME_FOREGROUND_SERVICE)
-        )
-        assertTrue(
-            "Should contain Full Screen Intent",
-            names.contains(PermissionDiagnosticsViewModel.PERMISSION_NAME_FULL_SCREEN_INTENT)
-        )
-        assertTrue(
-            "Should contain Boot Completed",
-            names.contains(PermissionDiagnosticsViewModel.PERMISSION_NAME_BOOT_COMPLETED)
-        )
+        val keys = viewModel.uiState.value.permissions.map { it.key }
+        assertTrue("Should contain READ_MEDIA_AUDIO", keys.contains(PermissionKey.READ_MEDIA_AUDIO))
+        assertTrue("Should contain FOREGROUND_SERVICE", keys.contains(PermissionKey.FOREGROUND_SERVICE))
+        assertTrue("Should contain FULL_SCREEN_INTENT", keys.contains(PermissionKey.FULL_SCREEN_INTENT))
+        assertTrue("Should contain BOOT_COMPLETED", keys.contains(PermissionKey.BOOT_COMPLETED))
     }
 
-    // ------------------------------------------------------------------
-    // Tests: runtime vs non-runtime
-    // ------------------------------------------------------------------
+    @Test
+    fun `every permission row has a non-zero nameResId and descriptionResId`() {
+        val viewModel = PermissionDiagnosticsViewModel(allGrantedPort())
+
+        viewModel.uiState.value.permissions.forEach { perm ->
+            assertNotEquals("nameResId for ${perm.key} must be a real string", 0, perm.nameResId)
+            assertNotEquals("descriptionResId for ${perm.key} must be a real string", 0, perm.descriptionResId)
+        }
+    }
 
     @Test
     fun `foreground service permission is not runtime and not requestable`() {
         val viewModel = PermissionDiagnosticsViewModel(allGrantedPort())
 
         val fgService = viewModel.uiState.value.permissions.first {
-            it.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_FOREGROUND_SERVICE
+            it.key == PermissionKey.FOREGROUND_SERVICE
         }
         assertFalse(fgService.isRuntime)
         assertFalse(fgService.canRequest)
@@ -128,7 +107,7 @@ class PermissionDiagnosticsViewModelTest {
         val viewModel = PermissionDiagnosticsViewModel(allGrantedPort())
 
         val bootPerm = viewModel.uiState.value.permissions.first {
-            it.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_BOOT_COMPLETED
+            it.key == PermissionKey.BOOT_COMPLETED
         }
         assertFalse(bootPerm.isRuntime)
         assertFalse(bootPerm.canRequest)
@@ -139,25 +118,14 @@ class PermissionDiagnosticsViewModelTest {
         val viewModel = PermissionDiagnosticsViewModel(allGrantedPort())
 
         val readMedia = viewModel.uiState.value.permissions.first {
-            it.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_READ_MEDIA_AUDIO
+            it.key == PermissionKey.READ_MEDIA_AUDIO
         }
         assertTrue(readMedia.isRuntime)
         assertTrue(readMedia.canRequest)
     }
 
-    // ------------------------------------------------------------------
-    // Tests: refreshPermissions
-    // ------------------------------------------------------------------
-
     @Test
     fun `refreshPermissions updates state when permissions change`() {
-        // Start with all denied
-        val viewModel = PermissionDiagnosticsViewModel(allDeniedPort())
-        assertFalse(viewModel.uiState.value.allGranted)
-
-        // Re-configure the port to return granted (but the viewModel captured the port reference)
-        // Since the port is captured at construction, we use a different approach:
-        // Create a new viewModel with a port that changes behavior
         val mutablePort = mock<PermissionPort>().apply {
             whenever(canScheduleExactAlarms()).thenReturn(false)
             whenever(checkPermission(any())).thenReturn(false)
@@ -166,7 +134,6 @@ class PermissionDiagnosticsViewModelTest {
         val vm = PermissionDiagnosticsViewModel(mutablePort)
         assertFalse(vm.uiState.value.allGranted)
 
-        // Change the port behavior
         whenever(mutablePort.canScheduleExactAlarms()).thenReturn(true)
         whenever(mutablePort.checkPermission(any())).thenReturn(true)
         whenever(mutablePort.isFullScreenIntentGranted()).thenReturn(true)
@@ -183,14 +150,9 @@ class PermissionDiagnosticsViewModelTest {
 
         viewModel.refreshPermissions()
 
-        // Verify the port was queried
         verify(port, atLeast(1)).checkPermission(any())
         verify(port, atLeast(1)).isFullScreenIntentGranted()
     }
-
-    // ------------------------------------------------------------------
-    // Tests: specific permission reflects port value
-    // ------------------------------------------------------------------
 
     @Test
     fun `full screen intent permission reflects port return value`() {
@@ -202,7 +164,7 @@ class PermissionDiagnosticsViewModelTest {
         val viewModel = PermissionDiagnosticsViewModel(port)
 
         val fsi = viewModel.uiState.value.permissions.first {
-            it.name == PermissionDiagnosticsViewModel.PERMISSION_NAME_FULL_SCREEN_INTENT
+            it.key == PermissionKey.FULL_SCREEN_INTENT
         }
         assertFalse(fsi.isGranted)
     }
@@ -211,7 +173,6 @@ class PermissionDiagnosticsViewModelTest {
     fun `uiState is initially populated on construction`() {
         val viewModel = PermissionDiagnosticsViewModel(allGrantedPort())
 
-        // Should already have permissions populated from init block
         assertTrue(viewModel.uiState.value.permissions.isNotEmpty())
     }
 }
