@@ -44,6 +44,7 @@ import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ThemeMode
 import com.rabbithole.musicbbit.presentation.settings.ThemeViewModel
 import com.rabbithole.musicbbit.presentation.util.formatClockTime
+import com.rabbithole.musicbbit.presentation.components.CollectUserMessages
 import com.rabbithole.musicbbit.service.AlarmActionReceiver
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import com.rabbithole.musicbbit.ui.theme.音乐兔Theme
@@ -175,6 +176,7 @@ internal fun AlarmRingScreen(
     onStop: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    CollectUserMessages(viewModel.messages)
     val context = LocalContext.current
 
     // Auto-close activity when playback stops

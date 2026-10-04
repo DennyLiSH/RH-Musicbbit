@@ -43,6 +43,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
+import com.rabbithole.musicbbit.presentation.components.CollectUserMessages
 import com.rabbithole.musicbbit.presentation.components.ErrorContent
 import com.rabbithole.musicbbit.presentation.components.LoadingState
 import com.rabbithole.musicbbit.presentation.components.rememberAppToast
@@ -56,6 +57,7 @@ fun ScanDirectorySettingsScreen(
     viewModel: ScanDirectorySettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    CollectUserMessages(viewModel.messages)
     val context = LocalContext.current
     val toast = rememberAppToast()
     val externalStorageMessage = stringResource(R.string.settings_toast_external_storage)
@@ -213,7 +215,6 @@ private fun SuccessContent(
     if (state.pendingDirectory != null) {
         ConfirmAddDirectoryDialog(
             directory = state.pendingDirectory,
-            errorResId = state.errorMessageResId,
             onConfirm = onConfirmDirectory,
             onDismiss = onCancelDirectory
         )
@@ -223,7 +224,6 @@ private fun SuccessContent(
 @Composable
 private fun ConfirmAddDirectoryDialog(
     directory: PendingDirectory,
-    errorResId: Int?,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -242,14 +242,6 @@ private fun ConfirmAddDirectoryDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (errorResId != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(errorResId),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
             }
         },
         confirmButton = {

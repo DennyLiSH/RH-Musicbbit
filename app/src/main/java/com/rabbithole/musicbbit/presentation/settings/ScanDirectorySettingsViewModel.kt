@@ -8,15 +8,17 @@ import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
 import com.rabbithole.musicbbit.domain.validation.ScanDirectoryValidator
+import com.rabbithole.musicbbit.presentation.components.UserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job as CoroutineJob
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -36,7 +38,6 @@ sealed interface ScanDirectorySettingsUiState {
         val directoryCount: Int = 0,
         val lastScanTime: String? = null,
         val pendingDirectory: PendingDirectory? = null,
-        val errorMessageResId: Int? = null,
         val refreshingDirectoryIds: Set<Long> = emptySet()
     ) : ScanDirectorySettingsUiState
 }
@@ -59,7 +60,10 @@ class ScanDirectorySettingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<ScanDirectorySettingsUiState>(ScanDirectorySettingsUiState.Loading)
     val uiState: StateFlow<ScanDirectorySettingsUiState> = _uiState.asStateFlow()
 
-    private var loadJob: Job? = null
+    private var loadJob: CoroutineJob? = null
+
+    private val _messages = Channel<UserMessage>(Channel.BUFFERED)
+    val messages = _messages.receiveAsFlow()
 
     init {
         observeDirectories()
@@ -106,7 +110,7 @@ class ScanDirectorySettingsViewModel @Inject constructor(
 
             is ScanDirectorySettingsAction.OnScanDirectoryPreview -> {
                 updateSuccess {
-                    it.copy(pendingDirectory = PendingDirectory(action.path, action.name), errorMessageResId = null)
+                    it.copy(pendingDirectory = PendingDirectory(action.path, action.name))
                 }
             }
 
@@ -115,15 +119,13 @@ class ScanDirectorySettingsViewModel @Inject constructor(
                 if (currentState is ScanDirectorySettingsUiState.Success) {
                     currentState.pendingDirectory?.let { pending ->
                         addDirectory(pending.path, pending.name)
-                    } ?: run {
-                        updateSuccess { it.copy(errorMessageResId = R.string.settings_error_no_directory) }
-                    }
+                    } ?: sendMessage(R.string.settings_error_no_directory)
                 }
             }
 
             is ScanDirectorySettingsAction.OnCancelDirectoryPreview -> {
                 updateSuccess {
-                    it.copy(pendingDirectory = null, errorMessageResId = null)
+                    it.copy(pendingDirectory = null)
                 }
             }
 
@@ -144,9 +146,8 @@ class ScanDirectorySettingsViewModel @Inject constructor(
                         is ScanDirectoryValidator.Error.InvalidPath -> R.string.settings_error_invalid_path
                         is ScanDirectoryValidator.Error.AlreadyExists -> R.string.settings_error_add_failed
                     }
-                    updateSuccess {
-                        it.copy(errorMessageResId = errorResId, pendingDirectory = null)
-                    }
+                    sendMessage(errorResId)
+                    updateSuccess { it.copy(pendingDirectory = null) }
                     return@launch
                 }
                 is ScanDirectoryValidator.ValidationResult.Success -> {
@@ -164,15 +165,12 @@ class ScanDirectorySettingsViewModel @Inject constructor(
             scanDirectoryRepository.add(directory)
                 .onSuccess {
                     musicRepository.refreshSongs()
-                    updateSuccess {
-                        it.copy(pendingDirectory = null, errorMessageResId = null)
-                    }
+                    updateSuccess { it.copy(pendingDirectory = null) }
                 }
                 .onFailure { e ->
                     Timber.w(e, "Failed to add scan directory: $path")
-                    updateSuccess {
-                        it.copy(errorMessageResId = R.string.settings_error_add_failed, pendingDirectory = null)
-                    }
+                    sendMessage(R.string.settings_error_add_failed)
+                    updateSuccess { it.copy(pendingDirectory = null) }
                 }
         }
     }
@@ -198,6 +196,11 @@ class ScanDirectorySettingsViewModel @Inject constructor(
                 Timber.e(result.exceptionOrNull(), "Failed to refresh directory: ${directory.path}")
             }
         }
+    }
+
+    private fun sendMessage(messageResId: Int) {
+        val sent = _messages.trySend(UserMessage(messageResId))
+        if (!sent.isSuccess) Timber.w("UserMessage dropped: channel full or closed")
     }
 
     private inline fun updateSuccess(

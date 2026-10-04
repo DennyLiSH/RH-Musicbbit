@@ -60,6 +60,9 @@ class SettingsScreenTest {
                     ThemeViewModel.ThemeUiState(themeMode = ThemeMode.SYSTEM)
                 )
             )
+            whenever(it.messages).thenReturn(
+                kotlinx.coroutines.flow.emptyFlow()
+            )
         }
         alarmRingViewModel = mock<AlarmRingSettingsViewModel>().also {
             whenever(it.uiState).thenReturn(

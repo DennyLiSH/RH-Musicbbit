@@ -45,6 +45,7 @@ class AlarmRingSmokeTest {
     fun `ring screen composition renders controls without crashing`() {
         val viewModel = mock<AlarmRingViewModel>().also {
             whenever(it.uiState).thenReturn(MutableStateFlow(AlarmRingUiState()))
+            whenever(it.messages).thenReturn(kotlinx.coroutines.flow.emptyFlow())
         }
 
         composeTestRule.setContent {

@@ -36,6 +36,7 @@ import com.rabbithole.musicbbit.domain.model.ThemeMode
 import com.rabbithole.musicbbit.navigation.About
 import com.rabbithole.musicbbit.navigation.PermissionDiagnostics
 import com.rabbithole.musicbbit.navigation.ScanDirectorySettings
+import com.rabbithole.musicbbit.presentation.components.CollectUserMessages
 import com.rabbithole.musicbbit.presentation.components.SingleChoiceDropdown
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +50,7 @@ fun SettingsScreen(
     val themeUiState by themeViewModel.uiState.collectAsStateWithLifecycle()
     val alarmRingUiState by alarmRingSettingsViewModel.uiState.collectAsStateWithLifecycle()
     val languageUiState by languageViewModel.uiState.collectAsStateWithLifecycle()
+    CollectUserMessages(themeViewModel.messages)
 
     Scaffold(
         topBar = {

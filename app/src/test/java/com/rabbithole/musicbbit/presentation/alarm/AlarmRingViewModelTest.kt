@@ -5,6 +5,7 @@ import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
+import com.rabbithole.musicbbit.presentation.components.UserMessage
 import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
 import com.rabbithole.musicbbit.service.alarm.AlarmFireState
 import org.mockito.kotlin.doAnswer
@@ -16,6 +17,7 @@ import org.mockito.kotlin.wheneverBlocking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -118,7 +120,6 @@ class AlarmRingViewModelTest {
         assertEquals("", state.alarmLabel)
         assertNull(state.currentSongTitle)
         assertNull(state.currentSongArtist)
-        assertNull(state.errorMessageResId)
     }
 
     // ------------------------------------------------------------------
@@ -251,9 +252,8 @@ class AlarmRingViewModelTest {
         val state = viewModel.uiState.value
         assertFalse(state.isPlaying)
         assertFalse(state.hasPlayback)
-        // Error state value does not trigger the flow catch block; errorMessageResId
-        // is only set when the flow itself throws an exception.
-        assertNull(state.errorMessageResId)
+        // Error state value does not trigger the flow catch block; messages channel
+        // is only populated when the flow itself throws an exception.
     }
 
     @Test
@@ -265,7 +265,6 @@ class AlarmRingViewModelTest {
         val state = viewModel.uiState.value
         assertFalse(state.isPlaying)
         assertFalse(state.hasPlayback)
-        assertNull(state.errorMessageResId)
     }
 
     // ------------------------------------------------------------------
@@ -338,14 +337,19 @@ class AlarmRingViewModelTest {
     }
 
     @Test
-    fun `breathing settings error sets errorMessageResId`() = runTest {
+    fun `breathing settings error emits UserMessage`() = runTest {
         whenever(alarmRingSettingsRepository.isBreathingEnabled()).thenReturn(
             kotlinx.coroutines.flow.flow { throw RuntimeException("DataStore error") }
         )
 
         val viewModel = createViewModel()
+        advanceUntilIdle()
 
-        assertEquals(R.string.error_load_failed, viewModel.uiState.value.errorMessageResId)
+        val message = viewModel.messages.first()
+        assertEquals(
+            com.rabbithole.musicbbit.presentation.components.UserMessage(R.string.error_load_failed),
+            message,
+        )
     }
 
     // ------------------------------------------------------------------

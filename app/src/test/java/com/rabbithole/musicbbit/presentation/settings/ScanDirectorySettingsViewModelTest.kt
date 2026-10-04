@@ -4,8 +4,10 @@ import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
+import com.rabbithole.musicbbit.presentation.components.UserMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -77,7 +79,7 @@ class ScanDirectorySettingsViewModelTest {
     }
 
     @Test
-    fun `add directory success clears pendingDirectory`() = runTest {
+    fun `add directory success clears pendingDirectory and emits no message`() = runTest {
         whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(emptyList()))
         wheneverBlocking { scanDirectoryRepository.add(any()) } doAnswer { Result.success(1L) }
         wheneverBlocking { musicRepository.refreshSongs() } doReturn Result.success(Unit)
@@ -95,11 +97,10 @@ class ScanDirectorySettingsViewModelTest {
 
         val state = viewModel.uiState.value as ScanDirectorySettingsUiState.Success
         assertNull(state.pendingDirectory)
-        assertNull(state.errorMessageResId)
     }
 
     @Test
-    fun `add directory failure sets error`() = runTest {
+    fun `add directory failure emits UserMessage with add failed`() = runTest {
         whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(emptyList()))
         wheneverBlocking { scanDirectoryRepository.add(any()) } doReturn Result.failure(RuntimeException("Failed"))
 
@@ -115,8 +116,9 @@ class ScanDirectorySettingsViewModelTest {
         viewModel.onAction(ScanDirectorySettingsAction.OnConfirmAddDirectory)
         testDispatcher.scheduler.advanceUntilIdle()
 
+        val message = viewModel.messages.first()
+        assertEquals(UserMessage(R.string.settings_error_add_failed), message)
         val state = viewModel.uiState.value as ScanDirectorySettingsUiState.Success
-        assertEquals(R.string.settings_error_add_failed, state.errorMessageResId)
         assertNull(state.pendingDirectory)
     }
 

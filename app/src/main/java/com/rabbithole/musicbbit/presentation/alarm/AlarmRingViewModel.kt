@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
+import com.rabbithole.musicbbit.presentation.components.UserMessage
 import com.rabbithole.musicbbit.service.alarm.AlarmFireSession
 import com.rabbithole.musicbbit.service.alarm.AlarmFireState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,8 +22,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
-import com.rabbithole.musicbbit.R
 import timber.log.Timber
 
 /**
@@ -35,7 +37,6 @@ data class AlarmRingUiState(
     val alarmLabel: String = "",
     val breathingEnabled: Boolean = true,
     val breathingPeriodMs: Long = 3500L,
-    val errorMessageResId: Int? = null
 )
 
 /**
@@ -57,6 +58,9 @@ class AlarmRingViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AlarmRingUiState())
     val uiState: StateFlow<AlarmRingUiState> = _uiState.asStateFlow()
 
+    private val _messages = Channel<UserMessage>(Channel.BUFFERED)
+    val messages = _messages.receiveAsFlow()
+
     init {
         observeAlarmFireState()
         observeBreathingSettings()
@@ -74,7 +78,7 @@ class AlarmRingViewModel @Inject constructor(
         }
             .catch { e ->
                 Timber.e(e, "Breathing settings flow failed")
-                _uiState.update { it.copy(errorMessageResId = R.string.error_load_failed) }
+                sendLoadFailed()
             }
             .launchIn(viewModelScope)
     }
@@ -98,7 +102,7 @@ class AlarmRingViewModel @Inject constructor(
             }
             .catch { e ->
                 Timber.e(e, "Alarm fire state flow failed")
-                _uiState.update { it.copy(errorMessageResId = R.string.error_load_failed) }
+                sendLoadFailed()
             }
             .launchIn(viewModelScope)
     }
@@ -124,9 +128,14 @@ class AlarmRingViewModel @Inject constructor(
             }
             .catch { e ->
                 Timber.e(e, "Alarm label flow failed")
-                _uiState.update { it.copy(errorMessageResId = R.string.error_load_failed) }
+                sendLoadFailed()
             }
             .launchIn(viewModelScope)
+    }
+
+    private fun sendLoadFailed() {
+        val sent = _messages.trySend(UserMessage(com.rabbithole.musicbbit.R.string.error_load_failed))
+        if (!sent.isSuccess) Timber.w("UserMessage dropped: channel full or closed")
     }
 
     /** Pause playback through the active alarm session. */
