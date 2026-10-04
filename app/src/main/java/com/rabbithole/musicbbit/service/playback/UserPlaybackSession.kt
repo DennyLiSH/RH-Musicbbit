@@ -193,6 +193,16 @@ class UserPlaybackSession @Inject constructor(
         }
     }
 
+    /** Cycles SEQUENTIAL → RANDOM → REPEAT_ONE → SEQUENTIAL. Domain behavior, not UI's. */
+    fun cyclePlayMode() {
+        val next = when (playbackState.value.playMode) {
+            PlayMode.SEQUENTIAL -> PlayMode.RANDOM
+            PlayMode.RANDOM -> PlayMode.REPEAT_ONE
+            PlayMode.REPEAT_ONE -> PlayMode.SEQUENTIAL
+        }
+        setPlayMode(next)
+    }
+
     // pause/resume/seekTo guards are inherited from SessionCore.issueCommand.
 
     // -------------------------------------------------------------------------

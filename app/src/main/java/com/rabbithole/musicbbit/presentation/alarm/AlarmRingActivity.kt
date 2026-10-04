@@ -41,8 +41,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.rabbithole.musicbbit.LocaleHelper
 import com.rabbithole.musicbbit.R
-import com.rabbithole.musicbbit.domain.model.ThemeMode
 import com.rabbithole.musicbbit.presentation.settings.ThemeViewModel
+import com.rabbithole.musicbbit.presentation.settings.appDarkTheme
 import com.rabbithole.musicbbit.presentation.util.formatClockTime
 import com.rabbithole.musicbbit.presentation.components.CollectUserMessages
 import com.rabbithole.musicbbit.service.AlarmActionReceiver
@@ -110,14 +110,7 @@ class AlarmRingActivity : ComponentActivity() {
         }
 
         setContent {
-            val themeUiState by themeViewModel.uiState.collectAsStateWithLifecycle()
-            val darkTheme = when (themeUiState.themeMode) {
-                ThemeMode.LIGHT -> false
-                ThemeMode.DARK -> true
-                ThemeMode.SYSTEM -> isSystemInDarkTheme()
-            }
-
-            音乐兔Theme(darkTheme = darkTheme) {
+            音乐兔Theme(darkTheme = themeViewModel.appDarkTheme()) {
                 AlarmRingScreen(
                     alarmId = alarmId,
                     viewModel = viewModel,

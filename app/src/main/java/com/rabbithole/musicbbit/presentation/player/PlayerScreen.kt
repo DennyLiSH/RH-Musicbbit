@@ -171,14 +171,7 @@ fun PlayerScreen(
         ) {
             // Play mode button
             IconButton(
-                onClick = {
-                    val nextMode = when (playbackState.playMode) {
-                        PlayMode.SEQUENTIAL -> PlayMode.RANDOM
-                        PlayMode.RANDOM -> PlayMode.REPEAT_ONE
-                        PlayMode.REPEAT_ONE -> PlayMode.SEQUENTIAL
-                    }
-                    viewModel.setPlayMode(nextMode)
-                },
+                onClick = { viewModel.cyclePlayMode() },
                 enabled = !commandsBlocked,
             ) {
                 Icon(

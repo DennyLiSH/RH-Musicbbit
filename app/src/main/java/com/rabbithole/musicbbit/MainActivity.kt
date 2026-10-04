@@ -6,12 +6,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.runtime.getValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.rabbithole.musicbbit.domain.model.ThemeMode
 import com.rabbithole.musicbbit.navigation.AppNavigation
 import com.rabbithole.musicbbit.presentation.settings.ThemeViewModel
+import com.rabbithole.musicbbit.presentation.settings.appDarkTheme
 import com.rabbithole.musicbbit.ui.theme.音乐兔Theme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -31,14 +28,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val themeUiState by themeViewModel.uiState.collectAsStateWithLifecycle()
-            val darkTheme = when (themeUiState.themeMode) {
-                ThemeMode.LIGHT -> false
-                ThemeMode.DARK -> true
-                ThemeMode.SYSTEM -> isSystemInDarkTheme()
-            }
-
-            音乐兔Theme(darkTheme = darkTheme) {
+            音乐兔Theme(darkTheme = themeViewModel.appDarkTheme()) {
                 AppNavigation(playbackSession = playbackSession)
             }
         }
