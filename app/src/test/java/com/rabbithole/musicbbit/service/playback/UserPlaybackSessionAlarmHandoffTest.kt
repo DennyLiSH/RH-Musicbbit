@@ -5,6 +5,7 @@ import com.rabbithole.musicbbit.service.alarm.FakeProgressRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -246,6 +247,59 @@ class UserPlaybackSessionAlarmHandoffTest {
             userSession.playbackState.value.currentSong)
         Unit
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `user play during queue-ended window is blocked until teardown completes`() =
+        kotlinx.coroutines.test.runTest {
+            // Both sessions + coordinator share a StandardTestDispatcher so stopDeferred's
+            // launch is suspendable on cancelAndAwaitPendingSave.
+            val dispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+            val player = FakePlayerPort()
+            val focus = FakeAudioFocusPort()
+            val progressRepo = com.rabbithole.musicbbit.service.alarm.FakeProgressRepository()
+            val serviceStarter: ServiceStarter = mock()
+            val sharedCoordinator = PlaybackCoordinator(
+                playerPort = player,
+                audioFocusPort = focus,
+                mainDispatcher = dispatcher,
+            )
+            val userSess = UserPlaybackSession(
+                playerPort = player,
+                audioStreamPort = FakeAudioStreamPort(),
+                playbackProgressRepository = progressRepo,
+                serviceStarter = serviceStarter,
+                audioFocusPort = focus,
+                playbackCoordinator = sharedCoordinator,
+                mainDispatcher = dispatcher,
+            )
+            val alarmSess = AlarmPlaybackSession(
+                playerPort = player,
+                audioStreamPort = FakeAudioStreamPort(),
+                playbackProgressRepository = progressRepo,
+                audioFocusPort = focus,
+                serviceStarter = serviceStarter,
+                playbackCoordinator = sharedCoordinator,
+                mainDispatcher = dispatcher,
+            )
+
+            alarmSess.playAlarmQueue(listOf(ALARM_SONG_1), startIndex = 0, playlistId = 1L, useAlarmStream = false)
+            player.emitEvent(PlayerEvent.QueueEnded)
+            // Before advanceUntilIdle, the alarm's stopDeferred is suspended on
+            // cancelAndAwaitPendingSave. Issue a user.playQueue; it must be dropped
+            // (or otherwise blocked) because the alarm still owns the player.
+            userSess.playQueue(listOf(USER_SONG), startIndex = 0, playlistId = 2L)
+            // The only setQueue on the playerPort should be the alarm's.
+            // (User's playQueue is gated by issueCommand, which returns false when
+            // another session owns the player — so setQueue never runs.)
+            // The test asserts the count remains 1 (alarm only).
+            assertEquals(1, player.queueCalls.size)
+            advanceUntilIdle()
+
+            userSess.close()
+            alarmSess.close()
+            sharedCoordinator.close()
+        }
 
     @Test
     fun `user idle when alarm fires is no-op safe`() = runBlocking {

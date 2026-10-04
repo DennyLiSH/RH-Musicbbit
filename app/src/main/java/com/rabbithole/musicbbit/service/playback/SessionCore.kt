@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /**
@@ -26,8 +27,8 @@ import timber.log.Timber
  * The two concrete sessions differ only in how a queue starts ([UserPlaybackSession.playQueue]
  * restores progress, [AlarmPlaybackSession.playAlarmQueue] routes the alarm stream) and in
  * their queue-ended policy ([UserPlaybackSession] stops immediately; [AlarmPlaybackSession]
- * defers the stop to AlarmFireSession and suppresses the final save via
- * `queueEndedPending`). That policy is the one [handleQueueEnded] hook; everything else
+ * defers the stop via [stopDeferred] and emits the [PlaybackTransition] as the single
+ * terminal transition). That policy is the one [handleQueueEnded] hook; everything else
  * lives here so ordering contracts (save/tick/deactivate/emit) are maintained in one place.
  *
  * Subclasses expose the public session interface; [close] must be called by whoever owns
@@ -172,6 +173,36 @@ abstract class SessionCore protected constructor(
      */
     protected fun coreStop(skipSave: Boolean) {
         Timber.i("Stopping playback")
+        teardownPlayer(skipSave)
+        _playbackTransitions.tryEmit(PlaybackTransition.PlaybackStopped)
+    }
+
+    /**
+     * Deferred stop for natural queue end: hold ownership until teardown completes,
+     * await any in-flight save (suppressed — the finished song's end position must
+     * not be written), then emit [terminal] as the single terminal transition.
+     *
+     * Ownership is kept for the whole window, so a user session cannot start playing
+     * between "queue ended" and "player stopped" — that race is structurally closed.
+     */
+    protected fun stopDeferred(terminal: PlaybackTransition) {
+        sessionScope.launch {
+            try {
+                progressTracker.stopSaveLoop()
+                progressTracker.stopTickLoop()
+                progressTracker.cancelAndAwaitPendingSave()
+                teardownPlayer(skipSave = true)
+                _playbackTransitions.tryEmit(terminal)
+            } finally {
+                // Ownership must be released even if teardown throws — otherwise the
+                // alarm session keeps "owning" the player forever and user playback
+                // stays blocked. deactivate is idempotent (identity check).
+                playbackCoordinator.deactivate(this@SessionCore)
+            }
+        }
+    }
+
+    private fun teardownPlayer(skipSave: Boolean) {
         audioFocusPort.abandonFocus()
         if (!skipSave && _playbackState.value.currentSong != null) {
             progressTracker.saveProgress()
@@ -179,7 +210,6 @@ abstract class SessionCore protected constructor(
         playerPort.stop()
         playerPort.clearQueue()
         _playbackState.update { PlaybackState() }
-        _playbackTransitions.tryEmit(PlaybackTransition.PlaybackStopped)
         progressTracker.stopSaveLoop()
         progressTracker.stopTickLoop()
         playbackCoordinator.deactivate(this)

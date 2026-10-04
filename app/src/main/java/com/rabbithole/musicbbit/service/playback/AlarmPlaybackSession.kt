@@ -17,8 +17,8 @@ import timber.log.Timber
  *
  * State/event/progress/focus machinery lives in [SessionCore]; this class adds the alarm
  * queue entry points (alarm-stream routing) and the queue-ended
- * policy: the stop is deferred to [com.rabbithole.musicbbit.service.alarm.AlarmFireSession]
- * and the final save is suppressed so the just-finished song's end position is not written.
+ * policy: the stop is deferred via [stopDeferred] and the final save is suppressed so the
+ * just-finished song's end position is not written.
  */
 @Singleton
 class AlarmPlaybackSession @Inject constructor(
@@ -38,15 +38,6 @@ class AlarmPlaybackSession @Inject constructor(
     mainDispatcher = mainDispatcher,
     syncPositionOnPlayStart = false,
 ) {
-
-    /**
-     * Set by [handleQueueEnded] to signal that the subsequent [stop] call (driven by
-     * AlarmFireSession upon receiving QueueEnded) should skip saveProgress — at this
-     * point the queue has ended naturally and any save would write the just-finished
-     * song's end position. Cancels the saveProgress branch in [stop] without changing
-     * its `currentSong != null` guard semantics.
-     */
-    private var queueEndedPending = false
 
     init {
         Timber.i("AlarmPlaybackSession created")
@@ -110,25 +101,12 @@ class AlarmPlaybackSession @Inject constructor(
 
     fun stop() {
         Timber.i("Stopping alarm playback")
-        val skipSave = queueEndedPending
-        queueEndedPending = false
-        coreStop(skipSave = skipSave)
+        coreStop(skipSave = false)
     }
 
     override fun handleQueueEnded() {
         Timber.i("Alarm queue ended")
         val playlistId = playbackState.value.currentPlaylistId
-        queueEndedPending = true
-        progressTracker.stopSaveLoop()
-        progressTracker.stopTickLoop()
-        playbackCoordinator.deactivate(this)
-        sessionScope.launch {
-            // cancelAndAwaitPendingSave MUST complete before emit QueueEnded — ensures
-            // AlarmFireSession's deletePlaylistProgressIfMatches runs after any in-flight
-            // save completes (or is cancelled). See commit 20daaa5: prevents pending save
-            // from racing past delete.
-            progressTracker.cancelAndAwaitPendingSave()
-            tryEmitTransition(PlaybackTransition.QueueEnded(playlistId))
-        }
+        stopDeferred(PlaybackTransition.QueueEnded(playlistId))
     }
 }

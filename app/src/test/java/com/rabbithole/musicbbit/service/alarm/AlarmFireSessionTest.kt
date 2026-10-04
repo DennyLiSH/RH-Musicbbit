@@ -527,8 +527,12 @@ class AlarmFireSessionTest {
         fakeControls.emitPlaybackTransition(PlaybackTransition.QueueEnded(playlistId = 320L))
         runCurrent()
 
-        verify(alarmPlaybackSession).stop()
+        // New protocol (Plan A Task 6): stopDeferred owns teardown. AlarmFireSession
+        // no longer calls alarmPlaybackSession.stop() after QueueEnded — single
+        // terminal transition is sufficient.
+        verify(alarmPlaybackSession, times(0)).stop()
         assertEquals(320L, deletedPlaylistId)
+        assertTrue(session.state.value is AlarmFireState.Stopped)
     }
 
     @Test
@@ -554,7 +558,7 @@ class AlarmFireSessionTest {
         fakeControls.emitPlaybackTransition(PlaybackTransition.QueueEnded(playlistId = 999L))
         runCurrent()
 
-        verify(alarmPlaybackSession).stop()
+        verify(alarmPlaybackSession, times(0)).stop()
         assertNull(deletedPlaylistId)
     }
 

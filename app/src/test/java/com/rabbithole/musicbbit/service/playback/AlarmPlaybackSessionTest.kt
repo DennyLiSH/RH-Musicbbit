@@ -323,20 +323,14 @@ class AlarmPlaybackSessionTest {
     @Test
     fun `QueueEnded does not delete playlist progress`() {
         progressRepository.set(10L, emptyList())
-        // FakeProgressRepository.deleteAllProgressForPlaylist does not track call count,
-        // so we verify indirectly: QueueEnded alone must NOT reset state (Fix 2 moved the
-        // reset into stop()'s path). State reset happens when AlarmFireSession receives
-        // the QueueEnded transition and calls stop().
+        // New protocol (Plan A Task 6): QueueEnded alone drives the full teardown via
+        // stopDeferred — state IS reset on the QueueEnded transition itself, and the
+        // caller (AlarmFireSession) just finalizes without calling stop() again.
         session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         playerPort.emitEvent(PlayerEvent.QueueEnded)
 
-        // Post-Fix-2: state is NOT reset by QueueEnded alone (queueEndedPending flag set,
-        // but state preserved until stop() runs).
-        assertEquals(SONG_1, session.playbackState.value.currentSong)
-
-        // stop() — simulating AlarmFireSession's response to QueueEnded — resets state.
-        session.stop()
+        // Single QueueEnded terminal — state has been reset by stopDeferred's teardown.
         assertNull(session.playbackState.value.currentSong)
         assertEquals(-1L, session.playbackState.value.currentPlaylistId)
     }

@@ -93,9 +93,11 @@ class AlarmFireSession @Inject constructor(
                 }
             }
             is PlaybackTransition.QueueEnded -> {
+                // Teardown already completed inside stopDeferred (single terminal
+                // transition); finalize the session here instead of calling stop() again.
                 autoStopController.onQueueEnded()
                 deletePlaylistProgressIfMatches(transition.playlistId, current.alarmId)
-                alarmPlaybackSession.stop()
+                onPlaybackStopped()
             }
             is PlaybackTransition.PlaybackStopped -> Unit // handled above
         }
