@@ -37,11 +37,6 @@ class FakeAlarmRepository : AlarmRepository {
         return Result.success(id)
     }
 
-    override suspend fun updateAlarm(alarm: Alarm): Result<Unit> {
-        rows[alarm.id] = alarm
-        return Result.success(Unit)
-    }
-
     override suspend fun deleteAlarm(alarm: Alarm): Result<Unit> {
         rows.remove(alarm.id)
         return Result.success(Unit)

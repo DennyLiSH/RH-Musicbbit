@@ -49,12 +49,6 @@ class AlarmPersistenceRepositoryImpl @Inject constructor(
         id
     }
 
-    override suspend fun update(alarm: Alarm) = withContext(ioDispatcher) {
-        val entity = alarm.toEntity()
-        alarmDao.update(entity)
-        Timber.i("Alarm updated id=${alarm.id}")
-    }
-
     override suspend fun delete(alarm: Alarm) = withContext(ioDispatcher) {
         alarmDao.delete(alarm.toEntity())
         Timber.i("Alarm deleted id=${alarm.id}")

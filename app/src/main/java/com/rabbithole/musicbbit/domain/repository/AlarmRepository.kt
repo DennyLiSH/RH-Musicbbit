@@ -4,7 +4,11 @@ import com.rabbithole.musicbbit.domain.model.Alarm
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Repository interface for alarm CRUD operations and scheduling state management.
+ * Alarm aggregate: persistence + AlarmManager scheduling, coordinated.
+ *
+ * Error contract: writes return [Result] (failure = persistence or scheduling error,
+ * never throws); single reads return nullable; flows never throw — upstream Room
+ * errors surface as flow cancellation.
  */
 interface AlarmRepository {
     /**
@@ -27,11 +31,6 @@ interface AlarmRepository {
      * Returns the ID of the saved alarm.
      */
     suspend fun saveAlarm(alarm: Alarm): Result<Long>
-
-    /**
-     * Updates an existing alarm.
-     */
-    suspend fun updateAlarm(alarm: Alarm): Result<Unit>
 
     /**
      * Deletes an alarm.

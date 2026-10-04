@@ -107,17 +107,7 @@ class AlarmRepositoryImplTest {
         verifyBlocking(alarmScheduler) { schedule(argThat { id == 42L && hour == 8 }) }
     }
 
-    @Test
-    fun `updateAlarm updates entity and reschedules`() = runTest(testDispatcher) {
-        val alarm = alarmDomain(id = 5L, hour = 9, minute = 15)
-        wheneverBlocking { alarmDao.update(any()) } doReturn Unit
-
-        val result = repository.updateAlarm(alarm)
-
-        assertTrue(result.isSuccess)
-        verifyBlocking(alarmDao) { update(argThat { id == 5L && hour == 9 && minute == 15 }) }
-        verifyBlocking(alarmScheduler) { schedule(argThat { id == 5L }) }
-    }
+    
 
     @Test
     fun `deleteAlarm cancels and deletes`() = runTest(testDispatcher) {

@@ -47,13 +47,6 @@ class AlarmRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateAlarm(alarm: Alarm): Result<Unit> = runCatching {
-        withContext(ioDispatcher) {
-            persistence.update(alarm)
-            alarmScheduler.schedule(alarm)
-        }
-    }
-
     override suspend fun deleteAlarm(alarm: Alarm): Result<Unit> = runCatching {
         withContext(ioDispatcher) {
             alarmScheduler.cancel(alarm.id)

@@ -4,6 +4,11 @@ import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.model.PlaylistWithSongs
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Error contract: `getPlaylistById` returns nullable (missing playlist → null, not error);
+ * writes return [Result]; `Flow` reads never throw — upstream Room errors surface as
+ * flow cancellation.
+ */
 interface PlaylistRepository {
     fun getAllPlaylists(): Flow<List<Playlist>>
     suspend fun getPlaylistById(id: Long): Playlist?

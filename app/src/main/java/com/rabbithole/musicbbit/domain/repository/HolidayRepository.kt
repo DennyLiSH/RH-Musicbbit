@@ -7,6 +7,10 @@ import kotlinx.coroutines.flow.Flow
  * Repository for Chinese holiday data.
  *
  * Provides both cached local data and remote refresh capability.
+ *
+ * Error contract: `maybeRefreshHolidays` returns [Result] — callers decide whether
+ * to fall back to cached data; `isWorkday` parse failures throw explicitly per
+ * ADR 0007 (prefer errors over silent degradation).
  */
 interface HolidayRepository {
 

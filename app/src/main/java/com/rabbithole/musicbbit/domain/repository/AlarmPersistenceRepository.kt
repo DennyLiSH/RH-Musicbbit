@@ -14,7 +14,6 @@ interface AlarmPersistenceRepository {
     fun getEnabledAlarms(): Flow<List<Alarm>>
     suspend fun getAlarmById(id: Long): Alarm?
     suspend fun save(alarm: Alarm): Long
-    suspend fun update(alarm: Alarm)
     suspend fun delete(alarm: Alarm)
     suspend fun enableAlarm(id: Long, enabled: Boolean)
     suspend fun recordTriggered(alarmId: Long)
