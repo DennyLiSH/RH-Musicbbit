@@ -73,9 +73,9 @@
 
 | 术语 | 含义 |
 |---|---|
-| **PermissionStatusMonitor** | <!-- 2026-09-06 --> `PermissionPort` 之上的 UI 深模块：单一 `StateFlow<PermissionStatus>`（电池优化 / 全屏意图 / DND 访问）+ 三个设置页 Intent 构造。替代各 ViewModel 手写的 boolean + refresh 样板；`launchSettingsSafely` 负责"打开设置"副作用 |
+| **PermissionStatusMonitor** | <!-- 2026-09-06 --> `PermissionPort` 之上的 UI 深模块：单一 `StateFlow<PermissionStatus>`（电池优化 / 全屏意图 / DND 访问 / READ_MEDIA_AUDIO）+ 三个设置页 Intent 构造。替代各 ViewModel 手写的 boolean + refresh 样板；`launchSettingsSafely` 负责“打开设置”副作用 |
 | **LocalPlaybackSession** | <!-- 2026-09-06 --> CompositionLocal，向各屏幕提供应用级 `UserPlaybackSession`。`PlayerViewModel` 纯透传模块已删除（连带 `ViewModelUtils` 作用域 hack）；屏幕直接 collect `UserPlaybackSession.playbackState` |
-| **LibraryRefresher** | <!-- 2026-09-06 --> 数据层刷新配方深模块：scan → `SongSyncEngine.sync` → `SyncResult`。"无扫描目录 ⇒ 清空曲库"策略在此显式化；全库/单目录刷新共用一条实现 |
+| **LibraryRefresher** | <!-- 2026-09-06 --> 数据层刷新配方深模块：scan → `SongSyncEngine.sync` → `SyncResult` + 目录生命周期：addDirectoryAndRefresh / removeDirectoryAndCascade 都在此处；进度孤儿由 playback_progress FK CASCADE 兜底（迁移 10→11）。"无扫描目录 ⇒ 清空曲库"策略在此显式化 |
 | **MediaStorePort** | <!-- 2026-09-06 --> `ContentResolver` 媒体查询 seam。`MusicScanner` 的 selection 构造与格式白名单变为纯函数（`buildAudioSelection` / `isSupportedAudioFormat`），JVM 可测 |
 
 ---
@@ -102,6 +102,12 @@
 | `AlarmFireSession` QueueEnded 分支回调 `alarmPlaybackSession.stop()` | `stopDeferred` 内完成 teardown，分支内直接 `onPlaybackStopped()` |
 | `AlarmActionReceiver` 的 `ACTION_SERVICE_*` 常量与 service intent 转发 | 直接调 `AlarmFireSession` 方法 |
 | `AlarmScheduler.calculateNextTriggerTime`（Companion） / `calculateNextTriggerTimeWithHolidays`（重复实现） | `NextOccurrenceCalculator`（单点） |
+| `AlarmListViewModel.playlistNameCache / resolvePlaylistName` | <!-- 2026-10-04 --> `AlarmRepository.getAlarmsWithPlaylistName()` 双表 combine |
+| `ScanDirectoryRepositoryImpl` 手写级联删除 | <!-- 2026-10-04 --> `LibraryRefresher.removeDirectoryAndCascade`（含目录边界 prefix 匹配） |
+| `updateAlarm / persistence.update / deleteProgress` | <!-- 2026-10-04 --> 死代码删除；写入全部走 `saveAlarm` / `setMode` / `deleteAllProgressForPlaylist` |
+| `ThemeRepositoryImpl / AlarmRingSettingsRepositoryImpl / HolidayRepositoryImpl` 直连 DataStore | <!-- 2026-10-04 --> `SettingsStore` 小深模块（key + 默认值并置声明） |
+| `AlarmPersistenceRepository` 在 domain 包 | <!-- 2026-10-04 --> 移到 data 包（internal seam，不进入领域词汇） |
+| `PermissionDiagnosticsViewModel.PermissionStatus` 同名异义类 | <!-- 2026-10-04 --> `PermissionDiagnosticItem` + `PermissionKey` enum |
 | `SongEntity` / `PlaylistEntity` / `PlaybackProgressEntity` / `ScanDirectoryEntity` | 领域模型 `Song` / `Playlist` / `PlaybackProgress` / `ScanDirectory` 兼作 Room entity |
 | `IsWorkdayUseCase` / `AddSongToPlaylistUseCase` / `CreatePlaylistUseCase` / `AddScanDirectoryUseCase` | 逻辑移入 `HolidayRepository` / `PlaylistRepository` / ViewModel；use-case 层已删除 |
 | `AlarmScheduler.schedule(AlarmEntity)` | `AlarmScheduler.schedule(Alarm)` — 接受领域模型 |
@@ -141,3 +147,4 @@
 | 2026-08-06 | 架构深化 6 候选全部落地：`SongSyncEngine.sync` 事务化 / `NextOccurrenceCalculator` 删除 silent fallback（ADR 0007 延续）/ `AlarmNotificationContent.ActionType` 映射收回纯部分 / `AlarmEditScreen` dialog 状态收敛为单一 `AlarmEditDialogState` / `MusicPlaybackService` 薄壳化（toggle + wake-lock 迁回 session，ADR 0003 收尾）/ 删除 `MusicPlaybackServiceForegroundBridge` singleton（ADR 0008） |
 | 2026-10-04 | Plan A 架构审查 #6 落地：播放所有权 seam 收敛（`SessionCore.issueCommand` 单一守卫 / `PlaybackCoordinator.activeConsumer` StateFlow / `UserPlaybackSession.commandsBlocked` UI 禁用 / `stopDeferred` 一等操作删除 `queueEndedPending`）/ Paused 态终态修复 / FGS 前台义务无条件履行 / 播放 seam 卫生清理（`playerEvents` 删除、`CHANNEL_ID` 单点、`contentIntent` 走 `MainActivityIntentFactory`） |
 | 2026-10-04 | Plan B 架构审查 #6 落地：列表族状态收敛（`ListUiState<T>` + `ScreenStateCrossfade`）5 个消费者；`UserMessage` Channel 替代 6 处死 errorMessageResId 通道；权限读取统一（`PermissionStatusMonitor.isMediaAudioGranted` + `PermissionKey` 枚举 + i18n）；主题映射与播放模式 cycle 抽到 `ThemeExt` / `UserPlaybackSession.cyclePlayMode()` |
+| 2026-10-04 | Plan C 架构审查 #6 落地：playback_progress FK CASCADE 迁移 10→11（ad-hoc playlistId≤0 写门 guard）；ScanDirectory 生命周期双配方（addDirectoryAndRefresh + removeDirectoryAndCascade）入 `LibraryRefresher`；`SettingsStore` 小深模块收敛 3 个 RepositoryImpl 的 DataStore 样板；`AlarmPersistenceRepository` 降级到 data 包；删 `updateAlarm / persistence.update / deleteProgress` 死代码；闹钟列表名称 join 下沉到 repository（VM cache 删除） |
