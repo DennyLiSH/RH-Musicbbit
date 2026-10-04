@@ -6,6 +6,7 @@ import com.rabbithole.musicbbit.domain.model.PlaylistWithSongs
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
+import com.rabbithole.musicbbit.presentation.components.ListUiState
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
@@ -13,6 +14,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.verifyBlocking
 import org.mockito.kotlin.whenever
 import org.mockito.kotlin.wheneverBlocking
+import dagger.hilt.android.testing.HiltTestApplication
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -22,13 +24,19 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import timber.log.Timber
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33], application = HiltTestApplication::class)
 class PlaylistDetailViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
@@ -60,7 +68,7 @@ class PlaylistDetailViewModelTest {
     }
 
     @Test
-    fun `load playlist with songs emits Success state`() = runTest {
+    fun `load playlist with songs emits Content state`() = runTest {
         val playlist = Playlist(id = 1L, name = "Test", createdAt = 0L, updatedAt = 0L)
         val songs = listOf(
             Song(id = 1L, path = "/a.mp3", title = "Song A", artist = null, album = null, durationMs = 1000L, dateAdded = 0L, coverUri = null),
@@ -73,9 +81,9 @@ class PlaylistDetailViewModelTest {
 
         val viewModel = createViewModel()
 
-        val state = viewModel.uiState.value as PlaylistDetailUiState.Success
-        assertEquals(playlist, state.playlistWithSongs.playlist)
-        assertEquals(2, state.playlistWithSongs.songs.size)
+        val state = viewModel.uiState.value as ListUiState.Content
+        assertEquals(playlist, state.data?.playlist)
+        assertEquals(2, state.data?.songs?.size)
     }
 
     @Test
@@ -99,7 +107,7 @@ class PlaylistDetailViewModelTest {
     }
 
     @Test
-    fun `reorder songs updates ui state and calls reorderPlaylistSongs`() = runTest {
+    fun `reorder songs sets reorderPreview then clears on success`() = runTest {
         val playlist = Playlist(id = 1L, name = "Test", createdAt = 0L, updatedAt = 0L)
         val songs = listOf(
             Song(id = 1L, path = "/a.mp3", title = "Song A", artist = null, album = null, durationMs = 1000L, dateAdded = 0L, coverUri = null),
@@ -117,11 +125,8 @@ class PlaylistDetailViewModelTest {
         viewModel.onAction(PlaylistDetailAction.OnReorderSongs(fromIndex = 0, toIndex = 2))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        val state = viewModel.uiState.value as PlaylistDetailUiState.Success
-        assertEquals(3, state.playlistWithSongs.songs.size)
-        assertEquals("Song B", state.playlistWithSongs.songs[0].title)
-        assertEquals("Song C", state.playlistWithSongs.songs[1].title)
-        assertEquals("Song A", state.playlistWithSongs.songs[2].title)
+        // After success the preview clears (rollback contract).
+        assertNull(viewModel.reorderPreview.value)
 
         verifyBlocking(playlistRepository) { reorderPlaylistSongs(1L, listOf(2L, 3L, 1L)) }
     }
@@ -144,6 +149,18 @@ class PlaylistDetailViewModelTest {
     }
 
     @Test
+    fun `null playlist emits Content with null data (not found)`() = runTest {
+        whenever(playlistRepository.getPlaylistWithSongs(1L)).thenReturn(flowOf(null))
+        whenever(musicRepository.getAllSongs()).thenReturn(flowOf(emptyList()))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as ListUiState.Content
+        assertNull(state.data)
+    }
+
+    @Test
     fun `retry reloads playlist after error`() = runTest {
         val errorFlow = kotlinx.coroutines.flow.flow<PlaylistWithSongs?> { throw RuntimeException("DB error") }
         whenever(playlistRepository.getPlaylistWithSongs(1L)).thenReturn(errorFlow)
@@ -152,14 +169,18 @@ class PlaylistDetailViewModelTest {
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value is PlaylistDetailUiState.Error)
+        assertTrue(viewModel.uiState.value is ListUiState.Error)
 
+        // Replace stub with success flow before retry.
         val playlist = Playlist(id = 1L, name = "Test", createdAt = 0L, updatedAt = 0L)
         whenever(playlistRepository.getPlaylistWithSongs(1L)).thenReturn(flowOf(PlaylistWithSongs(playlist, emptyList())))
         viewModel.retry()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value is PlaylistDetailUiState.Success)
+        assertTrue(
+            "after retry with success stub, uiState should be Content (was: ${viewModel.uiState.value})",
+            viewModel.uiState.value is ListUiState.Content
+        )
     }
 
     private fun createViewModel(): PlaylistDetailViewModel {

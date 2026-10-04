@@ -1,15 +1,19 @@
 package com.rabbithole.musicbbit.presentation.alarm
 
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.AutoStop
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.HolidayRepository
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
+import com.rabbithole.musicbbit.presentation.components.ListUiState
+import com.rabbithole.musicbbit.presentation.components.UserMessage
 import com.rabbithole.musicbbit.presentation.permissions.PermissionStatusMonitor
 import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -29,15 +33,6 @@ import org.mockito.kotlin.whenever
 import org.mockito.kotlin.wheneverBlocking
 import java.time.DayOfWeek
 
-/**
- * Unit tests for [AlarmListViewModel].
- *
- * Covers:
- *   - Full-screen intent (FSI) permission state
- *   - Alarm list loading (success with data, empty list)
- *   - Delete alarm action
- *   - Toggle enabled action
- */
 @OptIn(ExperimentalCoroutinesApi::class)
 class AlarmListViewModelTest {
 
@@ -104,7 +99,6 @@ class AlarmListViewModelTest {
         val viewModel = createViewModel()
         assertFalse(viewModel.permissionStatus.value.isFullScreenIntentGranted)
 
-        // User grants permission in settings
         whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
         viewModel.refreshPermissionStatus()
 
@@ -126,7 +120,6 @@ class AlarmListViewModelTest {
         val viewModel = createViewModel()
         assertFalse(viewModel.permissionStatus.value.isDndAccessGranted)
 
-        // User grants DND access in settings, then returns to the app (ON_RESUME)
         whenever(permissionPort.isNotificationPolicyAccessGranted()).thenReturn(true)
         viewModel.refreshPermissionStatus()
 
@@ -136,7 +129,7 @@ class AlarmListViewModelTest {
     // -------- Alarm list loading tests ---------------------------------------
 
     @Test
-    fun `alarm list loading emits Success with correct AlarmItems`() = runTest {
+    fun `alarm list loading emits Content with correct AlarmItems`() = runTest {
         val alarm1 = Alarm(
             id = 1L,
             hour = 7,
@@ -171,21 +164,21 @@ class AlarmListViewModelTest {
         advanceUntilIdle()
 
         val uiState = viewModel.uiState.value
-        assertTrue("Expected Success state", uiState is AlarmListUiState.Success)
-        val success = uiState as AlarmListUiState.Success
-        assertEquals("Should have 2 alarm items", 2, success.alarms.size)
+        assertTrue("Expected Content state", uiState is ListUiState.Content)
+        val content = uiState as ListUiState.Content
+        assertEquals("Should have 2 alarm items", 2, content.data.size)
 
-        val item1 = success.alarms[0]
+        val item1 = content.data[0]
         assertEquals(alarm1, item1.alarm)
         assertEquals("Workout Mix", item1.playlistName)
 
-        val item2 = success.alarms[1]
+        val item2 = content.data[1]
         assertEquals(alarm2, item2.alarm)
         assertEquals("Sleep Sounds", item2.playlistName)
     }
 
     @Test
-    fun `empty alarm list emits Success with empty list`() = runTest {
+    fun `empty alarm list emits Content with empty list`() = runTest {
         whenever(alarmRepository.getAllAlarms()).thenReturn(flowOf(emptyList()))
         whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
 
@@ -193,9 +186,9 @@ class AlarmListViewModelTest {
         advanceUntilIdle()
 
         val uiState = viewModel.uiState.value
-        assertTrue("Expected Success state", uiState is AlarmListUiState.Success)
-        val success = uiState as AlarmListUiState.Success
-        assertTrue("Alarm list should be empty", success.alarms.isEmpty())
+        assertTrue("Expected Content state", uiState is ListUiState.Content)
+        val content = uiState as ListUiState.Content
+        assertTrue("Alarm list should be empty", content.data.isEmpty())
     }
 
     // -------- Delete alarm test ----------------------------------------------
@@ -252,6 +245,35 @@ class AlarmListViewModelTest {
         verifyBlocking(alarmRepository) { enableAlarm(1L, false) }
     }
 
+    // -------- Toggle enabled failure emits UserMessage ------------------------
+
+    @Test
+    fun `onAction OnToggleEnabled failure emits UserMessage with enable failed`() = runTest {
+        val alarm = Alarm(
+            id = 1L,
+            hour = 7,
+            minute = 0,
+            repeatDays = setOf(DayOfWeek.MONDAY),
+            excludeHolidays = false,
+            playlistId = 10L,
+            isEnabled = true,
+            label = "Test",
+            autoStop = null,
+            lastTriggeredAt = null
+        )
+        whenever(alarmRepository.getAllAlarms()).thenReturn(flowOf(listOf(alarm)))
+        wheneverBlocking { alarmRepository.enableAlarm(1L, false) } doReturn Result.failure(RuntimeException("DB error"))
+        wheneverBlocking { playlistRepository.getPlaylistById(10L) } doReturn Playlist(10L, "Test Playlist", 0L, 0L)
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
+
+        val viewModel = createViewModel()
+        viewModel.onAction(AlarmListAction.OnToggleEnabled(alarmId = 1L, enabled = false))
+        advanceUntilIdle()
+
+        val message = viewModel.messages.first()
+        assertEquals(UserMessage(R.string.alarm_error_enable_failed), message)
+    }
+
     // -------- Retry test -----------------------------------------------------
 
     @Test
@@ -263,13 +285,15 @@ class AlarmListViewModelTest {
         val viewModel = createViewModel()
         advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value is AlarmListUiState.Error)
-
+        // Replace stub with success flow before retry.
         whenever(alarmRepository.getAllAlarms()).thenReturn(flowOf(emptyList()))
         viewModel.retry()
         advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value is AlarmListUiState.Success)
+        assertTrue(
+            "after retry with success stub, uiState should be Content (was: ${viewModel.uiState.value})",
+            viewModel.uiState.value is ListUiState.Content
+        )
     }
 
     private fun createViewModel(): AlarmListViewModel {

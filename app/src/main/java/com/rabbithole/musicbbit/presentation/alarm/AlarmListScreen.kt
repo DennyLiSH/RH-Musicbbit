@@ -1,13 +1,10 @@
 package com.rabbithole.musicbbit.presentation.alarm
 
 import android.os.Build
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -60,10 +57,10 @@ import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.navigation.AlarmEdit
+import com.rabbithole.musicbbit.presentation.components.CollectUserMessages
 import com.rabbithole.musicbbit.presentation.components.EmptyState
-import com.rabbithole.musicbbit.presentation.components.ErrorContent
 import com.rabbithole.musicbbit.presentation.components.InfoBanner
-import com.rabbithole.musicbbit.presentation.components.LoadingState
+import com.rabbithole.musicbbit.presentation.components.ScreenStateCrossfade
 import com.rabbithole.musicbbit.presentation.components.performHapticSafe
 import com.rabbithole.musicbbit.presentation.components.rememberAppToast
 import com.rabbithole.musicbbit.presentation.permissions.launchSettingsSafely
@@ -75,7 +72,7 @@ import java.time.DayOfWeek
 
 private val SwipeMaxDistance = 80.dp
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlarmListScreen(
     navController: NavController,
@@ -83,6 +80,7 @@ fun AlarmListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val permissionStatus by viewModel.permissionStatus.collectAsStateWithLifecycle()
+    CollectUserMessages(viewModel.messages)
     val context = LocalContext.current
     val toast = rememberAppToast()
     val settingsOpenFailedMessage = stringResource(R.string.common_settings_open_failed)
@@ -99,10 +97,7 @@ fun AlarmListScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = {
-                    viewModel.onAction(AlarmListAction.OnCreateAlarm)
-                    navController.navigate(AlarmEdit())
-                }
+                onClick = { navController.navigate(AlarmEdit()) }
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
@@ -116,89 +111,75 @@ fun AlarmListScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            Crossfade(
-                targetState = uiState,
-                animationSpec = tween(durationMillis = MotionTokens.DurationLong, easing = MotionTokens.EasingEmphasized),
-                modifier = Modifier.fillMaxSize(),
-                label = "AlarmListState"
-            ) { state ->
-                when (state) {
-                    is AlarmListUiState.Loading -> {
-                        LoadingState()
-                    }
-
-                    is AlarmListUiState.Error -> {
-                        ErrorContent(message = stringResource(state.messageResId), icon = rememberVectorPainter(Icons.Filled.Error), onRetry = viewModel::retry)
-                    }
-
-                    is AlarmListUiState.Success -> {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            val showBatteryBanner = !permissionStatus.isIgnoringBatteryOptimizations
-                            val showFsiBanner = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
-                                !permissionStatus.isFullScreenIntentGranted
-                            val showDndBanner = !permissionStatus.isDndAccessGranted &&
-                                QuietModeBypassResolver.needsDndAccessBanner(state.alarms.map { it.alarm })
-                            if (showBatteryBanner || showFsiBanner || showDndBanner) {
-                                Column(
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    if (showBatteryBanner) {
-                                        BatteryOptimizationBanner(
-                                            onClick = {
-                                                if (!launchSettingsSafely(context, viewModel.createBatteryOptimizationIntent())) {
-                                                    toast.showShort(settingsOpenFailedMessage)
-                                                }
-                                            }
-                                        )
-                                    }
-                                    if (showFsiBanner) {
-                                        if (showBatteryBanner) {
-                                            Spacer(modifier = Modifier.height(8.dp))
+            ScreenStateCrossfade(
+                state = uiState,
+                errorIcon = rememberVectorPainter(Icons.Filled.Error),
+                onRetry = viewModel::retry,
+            ) { alarmItems ->
+                Column(modifier = Modifier.fillMaxSize()) {
+                    val showBatteryBanner = !permissionStatus.isIgnoringBatteryOptimizations
+                    val showFsiBanner = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+                        !permissionStatus.isFullScreenIntentGranted
+                    val showDndBanner = !permissionStatus.isDndAccessGranted &&
+                        QuietModeBypassResolver.needsDndAccessBanner(alarmItems.map { it.alarm })
+                    if (showBatteryBanner || showFsiBanner || showDndBanner) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (showBatteryBanner) {
+                                BatteryOptimizationBanner(
+                                    onClick = {
+                                        if (!launchSettingsSafely(context, viewModel.createBatteryOptimizationIntent())) {
+                                            toast.showShort(settingsOpenFailedMessage)
                                         }
-                                        FullScreenIntentBanner(
-                                            onClick = {
-                                                if (!launchSettingsSafely(context, viewModel.createFullScreenIntentSettingsIntent())) {
-                                                    toast.showShort(settingsOpenFailedMessage)
-                                                }
-                                            }
-                                        )
                                     }
-                                    if (showDndBanner) {
-                                        if (showBatteryBanner || showFsiBanner) {
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                        }
-                                        DndAccessBanner(
-                                            onClick = {
-                                                if (!launchSettingsSafely(context, viewModel.createDndAccessSettingsIntent())) {
-                                                    toast.showShort(settingsOpenFailedMessage)
-                                                }
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                            if (state.alarms.isEmpty()) {
-                                EmptyState(
-                                    icon = rememberVectorPainter(Icons.Default.Alarm),
-                                    title = stringResource(R.string.alarm_empty_title),
-                                    subtitle = stringResource(R.string.alarm_empty_subtitle)
                                 )
-                            } else {
-                                AlarmListContent(
-                                    alarms = state.alarms,
-                                    onAlarmClick = { alarmId ->
-                                        viewModel.onAction(AlarmListAction.OnAlarmClick(alarmId))
-                                        navController.navigate(AlarmEdit(alarmId = alarmId))
-                                    },
-                                    onToggleEnabled = { alarmId, enabled ->
-                                        viewModel.onAction(AlarmListAction.OnToggleEnabled(alarmId, enabled))
-                                    },
-                                    onDeleteAlarm = { alarm ->
-                                        viewModel.onAction(AlarmListAction.OnDeleteAlarm(alarm))
+                            }
+                            if (showFsiBanner) {
+                                if (showBatteryBanner) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+                                FullScreenIntentBanner(
+                                    onClick = {
+                                        if (!launchSettingsSafely(context, viewModel.createFullScreenIntentSettingsIntent())) {
+                                            toast.showShort(settingsOpenFailedMessage)
+                                        }
+                                    }
+                                )
+                            }
+                            if (showDndBanner) {
+                                if (showBatteryBanner || showFsiBanner) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+                                DndAccessBanner(
+                                    onClick = {
+                                        if (!launchSettingsSafely(context, viewModel.createDndAccessSettingsIntent())) {
+                                            toast.showShort(settingsOpenFailedMessage)
+                                        }
                                     }
                                 )
                             }
                         }
+                    }
+                    if (alarmItems.isEmpty()) {
+                        EmptyState(
+                            icon = rememberVectorPainter(Icons.Default.Alarm),
+                            title = stringResource(R.string.alarm_empty_title),
+                            subtitle = stringResource(R.string.alarm_empty_subtitle)
+                        )
+                    } else {
+                        AlarmListContent(
+                            alarms = alarmItems,
+                            onAlarmClick = { alarmId ->
+                                navController.navigate(AlarmEdit(alarmId = alarmId))
+                            },
+                            onToggleEnabled = { alarmId, enabled ->
+                                viewModel.onAction(AlarmListAction.OnToggleEnabled(alarmId, enabled))
+                            },
+                            onDeleteAlarm = { alarm ->
+                                viewModel.onAction(AlarmListAction.OnDeleteAlarm(alarm))
+                            }
+                        )
                     }
                 }
             }

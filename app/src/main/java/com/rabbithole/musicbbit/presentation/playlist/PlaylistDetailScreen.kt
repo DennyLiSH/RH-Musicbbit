@@ -2,8 +2,6 @@ package com.rabbithole.musicbbit.presentation.playlist
 
 import com.rabbithole.musicbbit.service.playback.UserPlaybackSession
 import com.rabbithole.musicbbit.presentation.playback.LocalPlaybackSession
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,7 +9,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -24,7 +21,6 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,12 +50,11 @@ import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.navigation.Player
+import com.rabbithole.musicbbit.presentation.components.CollectUserMessages
 import com.rabbithole.musicbbit.presentation.components.EmptyState
-import com.rabbithole.musicbbit.presentation.components.ErrorContent
-import com.rabbithole.musicbbit.presentation.components.LoadingState
+import com.rabbithole.musicbbit.presentation.components.ScreenStateCrossfade
 import com.rabbithole.musicbbit.presentation.music.components.SongListItem
 import com.rabbithole.musicbbit.presentation.playlist.components.AddSongsBottomSheet
-import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import kotlin.math.roundToInt
 
 /**
@@ -81,7 +76,9 @@ fun PlaylistDetailScreen(
     playerViewModel: UserPlaybackSession = LocalPlaybackSession.current
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val reorderPreview by viewModel.reorderPreview.collectAsStateWithLifecycle()
     val allSongs by viewModel.allSongs.collectAsStateWithLifecycle()
+    CollectUserMessages(viewModel.messages)
     var showAddSongsSheet by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -89,9 +86,12 @@ fun PlaylistDetailScreen(
             TopAppBar(
                 title = {
                     val title = when (val state = uiState) {
-                        is PlaylistDetailUiState.Loading -> stringResource(R.string.playlist_detail_title_loading)
-                        is PlaylistDetailUiState.Error -> stringResource(state.messageResId)
-                        is PlaylistDetailUiState.Success -> state.playlistWithSongs.playlist.name
+                        is com.rabbithole.musicbbit.presentation.components.ListUiState.Loading ->
+                            stringResource(R.string.playlist_detail_title_loading)
+                        is com.rabbithole.musicbbit.presentation.components.ListUiState.Error ->
+                            stringResource(state.messageResId)
+                        is com.rabbithole.musicbbit.presentation.components.ListUiState.Content ->
+                            state.data?.playlist?.name ?: stringResource(R.string.playlist_not_found)
                     }
                     Text(title)
                 },
@@ -111,80 +111,74 @@ fun PlaylistDetailScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            Crossfade(
-                targetState = uiState,
-                animationSpec = tween(durationMillis = MotionTokens.DurationLong, easing = MotionTokens.EasingEmphasized),
-                modifier = Modifier.fillMaxSize(),
-                label = "PlaylistDetailState"
-            ) { state ->
-                when (state) {
-                    is PlaylistDetailUiState.Loading -> {
-                        LoadingState()
+            ScreenStateCrossfade(
+                state = uiState,
+                errorIcon = rememberVectorPainter(Icons.Filled.Error),
+                onRetry = viewModel::retry,
+            ) { playlistWithSongs ->
+                val effective = reorderPreview ?: playlistWithSongs
+                if (effective == null) {
+                    EmptyState(
+                        title = stringResource(R.string.playlist_not_found),
+                        icon = rememberVectorPainter(Icons.Default.MusicNote),
+                    )
+                } else {
+                    val existingSongIds = remember(effective.songs) {
+                        effective.songs.map { it.id }.toSet()
+                    }
+                    val availableSongs = remember(allSongs, existingSongIds) {
+                        allSongs.filter { it.id !in existingSongIds }
                     }
 
-                    is PlaylistDetailUiState.Error -> {
-                        ErrorContent(message = stringResource(state.messageResId), icon = rememberVectorPainter(Icons.Filled.Error), onRetry = viewModel::retry)
+                    if (effective.songs.isEmpty()) {
+                        EmptyState(
+                            title = stringResource(R.string.playlist_detail_empty, effective.playlist.name),
+                            icon = rememberVectorPainter(Icons.Default.MusicNote),
+                            actionLabel = stringResource(R.string.add_songs_title),
+                            onAction = { showAddSongsSheet = true }
+                        )
+                    } else {
+                        PlaylistDetailContent(
+                            songs = effective.songs,
+                            playlistId = effective.playlist.id,
+                            playerViewModel = playerViewModel,
+                            navController = navController,
+                            onPlayAll = {
+                                playerViewModel.playQueue(
+                                    effective.songs,
+                                    startIndex = 0,
+                                    playlistId = effective.playlist.id
+                                )
+                                navController.navigate(Player)
+                            },
+                            onSongClick = { index ->
+                                playerViewModel.playQueue(
+                                    effective.songs,
+                                    startIndex = index,
+                                    playlistId = effective.playlist.id
+                                )
+                                navController.navigate(Player)
+                            },
+                            onRemoveSong = { songId ->
+                                viewModel.onAction(PlaylistDetailAction.OnRemoveSong(songId))
+                            },
+                            onReorderSongs = { fromIndex, toIndex ->
+                                viewModel.onAction(
+                                    PlaylistDetailAction.OnReorderSongs(fromIndex, toIndex)
+                                )
+                            },
+                            onAddSongsClick = { showAddSongsSheet = true }
+                        )
                     }
 
-                    is PlaylistDetailUiState.Success -> {
-                        val playlistWithSongs = state.playlistWithSongs
-                        val existingSongIds = remember(playlistWithSongs.songs) {
-                            playlistWithSongs.songs.map { it.id }.toSet()
-                        }
-                        val availableSongs = remember(allSongs, existingSongIds) {
-                            allSongs.filter { it.id !in existingSongIds }
-                        }
-
-                        if (playlistWithSongs.songs.isEmpty()) {
-                            EmptyState(
-                                title = stringResource(R.string.playlist_detail_empty, playlistWithSongs.playlist.name),
-                                icon = rememberVectorPainter(Icons.Default.MusicNote),
-                                actionLabel = stringResource(R.string.add_songs_title),
-                                onAction = { showAddSongsSheet = true }
-                            )
-                        } else {
-                            PlaylistDetailContent(
-                                songs = playlistWithSongs.songs,
-                                playlistId = playlistWithSongs.playlist.id,
-                                playerViewModel = playerViewModel,
-                                navController = navController,
-                                onPlayAll = {
-                                    playerViewModel.playQueue(
-                                        playlistWithSongs.songs,
-                                        startIndex = 0,
-                                        playlistId = playlistWithSongs.playlist.id
-                                    )
-                                    navController.navigate(Player)
-                                },
-                                onSongClick = { index ->
-                                    playerViewModel.playQueue(
-                                        playlistWithSongs.songs,
-                                        startIndex = index,
-                                        playlistId = playlistWithSongs.playlist.id
-                                    )
-                                    navController.navigate(Player)
-                                },
-                                onRemoveSong = { songId ->
-                                    viewModel.onAction(PlaylistDetailAction.OnRemoveSong(songId))
-                                },
-                                onReorderSongs = { fromIndex, toIndex ->
-                                    viewModel.onAction(
-                                        PlaylistDetailAction.OnReorderSongs(fromIndex, toIndex)
-                                    )
-                                },
-                                onAddSongsClick = { showAddSongsSheet = true }
-                            )
-                        }
-
-                        if (showAddSongsSheet) {
-                            AddSongsBottomSheet(
-                                availableSongs = availableSongs,
-                                onSongsSelected = { songIds ->
-                                    viewModel.onAction(PlaylistDetailAction.OnAddSongs(songIds))
-                                },
-                                onDismiss = { showAddSongsSheet = false }
-                            )
-                        }
+                    if (showAddSongsSheet) {
+                        AddSongsBottomSheet(
+                            availableSongs = availableSongs,
+                            onSongsSelected = { songIds ->
+                                viewModel.onAction(PlaylistDetailAction.OnAddSongs(songIds))
+                            },
+                            onDismiss = { showAddSongsSheet = false }
+                        )
                     }
                 }
             }
