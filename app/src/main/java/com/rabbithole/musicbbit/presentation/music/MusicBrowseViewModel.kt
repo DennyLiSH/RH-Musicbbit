@@ -2,44 +2,38 @@ package com.rabbithole.musicbbit.presentation.music
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
+import com.rabbithole.musicbbit.presentation.components.ListUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import timber.log.Timber
-import javax.inject.Inject
-import com.rabbithole.musicbbit.R
 
-sealed interface MusicUiState {
-    data object Loading : MusicUiState
-    data object NoScanDirectory : MusicUiState
-    data object Empty : MusicUiState
-    data class Error(val messageResId: Int) : MusicUiState
-    data class Success(
-        val songs: List<Song>,
-        val searchQuery: String = "",
-        val errorMessageResId: Int? = null
-    ) : MusicUiState
+/** Content-level variants of the music browse screen (loaded via [ListUiState]). */
+sealed interface MusicBrowseData {
+    data object NoScanDirectory : MusicBrowseData
+    data object Empty : MusicBrowseData
+    data class Songs(val songs: List<Song>, val searchQuery: String) : MusicBrowseData
 }
 
 sealed interface MusicBrowseAction {
     data class OnSearchQueryChange(val query: String) : MusicBrowseAction
-    data object OnNavigateToSettings : MusicBrowseAction
-    data class OnSongClick(val song: Song) : MusicBrowseAction
 }
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
@@ -49,54 +43,42 @@ class MusicBrowseViewModel @Inject constructor(
     private val scanDirectoryRepository: ScanDirectoryRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<MusicUiState>(MusicUiState.Loading)
-    val uiState: StateFlow<MusicUiState> = _uiState.asStateFlow()
-
     private val _searchQuery = MutableStateFlow("")
-    private var loadJob: Job? = null
+    private val loadTrigger = MutableStateFlow(0)
 
-    init {
-        loadData()
-    }
-
-    fun retry() = loadData()
-
-    private fun loadData() {
-        loadJob?.cancel()
-        _uiState.value = MusicUiState.Loading
-        loadJob = combine(
-            scanDirectoryRepository.getAll(),
-            _searchQuery
-                .debounce(300)
-                .distinctUntilChanged()
-                .flatMapLatest { query ->
-                    if (query.isBlank()) musicRepository.getAllSongs() else musicRepository.searchSongs(query)
+    val uiState: StateFlow<ListUiState<MusicBrowseData>> = loadTrigger
+        .flatMapLatest {
+            combine(
+                scanDirectoryRepository.getAll(),
+                _searchQuery
+                    .debounce(300)
+                    .distinctUntilChanged()
+                    .flatMapLatest { query ->
+                        if (query.isBlank()) musicRepository.getAllSongs() else musicRepository.searchSongs(query)
+                    }
+            ) { directories, songs ->
+                when {
+                    directories.isEmpty() -> MusicBrowseData.NoScanDirectory
+                    songs.isEmpty() -> MusicBrowseData.Empty
+                    else -> MusicBrowseData.Songs(songs = songs, searchQuery = _searchQuery.value)
                 }
-        ) { directories, songs ->
-            when {
-                directories.isEmpty() -> MusicUiState.NoScanDirectory
-                songs.isEmpty() -> MusicUiState.Empty
-                else -> MusicUiState.Success(
-                    songs = songs,
-                    searchQuery = _searchQuery.value
-                )
             }
+                .map<MusicBrowseData, ListUiState<MusicBrowseData>> { ListUiState.Content(it) }
+                .onStart { emit(ListUiState.Loading) }
+                .catch { e ->
+                    Timber.e(e, "Flow collection failed: MusicBrowse data")
+                    emit(ListUiState.Error(R.string.error_load_failed))
+                }
         }
-            .onEach { state -> _uiState.value = state }
-            .catch { e ->
-                Timber.e(e, "Flow collection failed: MusicBrowse data")
-                _uiState.value = MusicUiState.Error(R.string.error_load_failed)
-            }
-            .launchIn(viewModelScope)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ListUiState.Loading)
+
+    fun retry() {
+        loadTrigger.update { it + 1 }
     }
 
     fun onAction(action: MusicBrowseAction) {
         when (action) {
-            is MusicBrowseAction.OnSearchQueryChange -> {
-                _searchQuery.update { action.query }
-            }
-
-            else -> { /* Navigation handled in UI layer */ }
+            is MusicBrowseAction.OnSearchQueryChange -> _searchQuery.update { action.query }
         }
     }
 }

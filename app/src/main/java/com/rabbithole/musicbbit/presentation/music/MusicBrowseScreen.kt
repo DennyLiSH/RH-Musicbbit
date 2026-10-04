@@ -2,9 +2,6 @@ package com.rabbithole.musicbbit.presentation.music
 
 import com.rabbithole.musicbbit.service.playback.UserPlaybackSession
 import com.rabbithole.musicbbit.presentation.playback.LocalPlaybackSession
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,7 +16,6 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -48,13 +44,11 @@ import com.rabbithole.musicbbit.navigation.Player
 import com.rabbithole.musicbbit.navigation.ScanDirectorySettings
 import com.rabbithole.musicbbit.presentation.music.components.SongListItem
 import com.rabbithole.musicbbit.presentation.components.EmptyState
-import com.rabbithole.musicbbit.presentation.components.ErrorContent
-import com.rabbithole.musicbbit.presentation.components.LoadingState
+import com.rabbithole.musicbbit.presentation.components.ScreenStateCrossfade
 import com.rabbithole.musicbbit.presentation.components.SongSearchField
-import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import com.rabbithole.musicbbit.presentation.player.components.AddToPlaylistBottomSheet
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicBrowseScreen(
     navController: NavController,
@@ -105,55 +99,35 @@ fun MusicBrowseScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            Crossfade(
-                targetState = uiState,
-                animationSpec = tween(durationMillis = MotionTokens.DurationLong, easing = MotionTokens.EasingEmphasized),
-                modifier = Modifier.fillMaxSize(),
-                label = "MusicBrowseState"
-            ) { state ->
-                when (state) {
-                    is MusicUiState.Loading -> {
-                        LoadingState()
-                    }
+            ScreenStateCrossfade(
+                state = uiState,
+                errorIcon = rememberVectorPainter(Icons.Filled.Error),
+                onRetry = viewModel::retry,
+            ) { data ->
+                when (data) {
+                    is MusicBrowseData.NoScanDirectory -> EmptyState(
+                        title = stringResource(R.string.music_browse_no_directory),
+                        icon = rememberVectorPainter(Icons.Default.Folder),
+                        actionLabel = stringResource(R.string.music_browse_go_to_settings),
+                        onAction = { navController.navigate(ScanDirectorySettings) }
+                    )
 
-                    is MusicUiState.Error -> {
-                        ErrorContent(
-                            message = stringResource(state.messageResId),
-                            icon = rememberVectorPainter(Icons.Filled.Error),
-                            onRetry = viewModel::retry
-                        )
-                    }
+                    is MusicBrowseData.Empty -> EmptyState(
+                        title = stringResource(R.string.music_browse_empty)
+                    )
 
-                    is MusicUiState.NoScanDirectory -> {
-                        EmptyState(
-                            title = stringResource(R.string.music_browse_no_directory),
-                            icon = rememberVectorPainter(Icons.Default.Folder),
-                            actionLabel = stringResource(R.string.music_browse_go_to_settings),
-                            onAction = { navController.navigate(ScanDirectorySettings) }
-                        )
-                    }
-
-                    is MusicUiState.Empty -> {
-                        EmptyState(
-                            title = stringResource(R.string.music_browse_empty)
-                        )
-                    }
-
-                    is MusicUiState.Success -> {
-                        SuccessContent(
-                            songs = state.songs,
-                            searchQuery = state.searchQuery,
-                            onSearchQueryChange = { viewModel.onAction(MusicBrowseAction.OnSearchQueryChange(it)) },
-                            onSongClick = { song ->
-                                viewModel.onAction(MusicBrowseAction.OnSongClick(song))
-                                playerViewModel.play(song, playlistId = -1)
-                                navController.navigate(Player)
-                            },
-                            onAddToPlaylist = { song ->
-                                viewModel.onAction(MusicBrowseAction.OnSongClick(song))
-                            }
-                        )
-                    }
+                    is MusicBrowseData.Songs -> SuccessContent(
+                        songs = data.songs,
+                        searchQuery = data.searchQuery,
+                        onSearchQueryChange = { viewModel.onAction(MusicBrowseAction.OnSearchQueryChange(it)) },
+                        onSongClick = { song ->
+                            playerViewModel.play(song, playlistId = -1)
+                            navController.navigate(Player)
+                        },
+                        onAddToPlaylist = { song ->
+                            // AddToPlaylistBottomSheet is opened below
+                        }
+                    )
                 }
             }
         }
@@ -203,6 +177,7 @@ private fun SuccessContent(
                         onClick = {
                             showMenu = false
                             selectedSongForPlaylist = song
+                            onAddToPlaylist(song)
                         }
                     )
                 }

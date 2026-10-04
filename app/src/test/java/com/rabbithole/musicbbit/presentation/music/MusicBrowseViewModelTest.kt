@@ -4,11 +4,11 @@ import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.MusicRepository
 import com.rabbithole.musicbbit.domain.repository.ScanDirectoryRepository
+import com.rabbithole.musicbbit.presentation.components.ListUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -42,18 +42,19 @@ class MusicBrowseViewModelTest {
     }
 
     @Test
-    fun `load with no scan directories emits NoScanDirectory`() = runTest(testDispatcher) {
+    fun `load with no scan directories emits Content NoScanDirectory`() = runTest(testDispatcher) {
         whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(emptyList()))
         whenever(musicRepository.getAllSongs()).thenReturn(flowOf(emptyList()))
 
         val viewModel = MusicBrowseViewModel(musicRepository, scanDirectoryRepository)
         advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value is MusicUiState.NoScanDirectory)
+        val state = viewModel.uiState.value as ListUiState.Content
+        assertTrue(state.data is MusicBrowseData.NoScanDirectory)
     }
 
     @Test
-    fun `load with directories and empty songs emits Empty`() = runTest(testDispatcher) {
+    fun `load with directories and empty songs emits Content Empty`() = runTest(testDispatcher) {
         whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(
             listOf(ScanDirectory(id = 1L, path = "/music", name = "Music", addedAt = 0L))
         ))
@@ -62,11 +63,12 @@ class MusicBrowseViewModelTest {
         val viewModel = MusicBrowseViewModel(musicRepository, scanDirectoryRepository)
         advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value is MusicUiState.Empty)
+        val state = viewModel.uiState.value as ListUiState.Content
+        assertTrue(state.data is MusicBrowseData.Empty)
     }
 
     @Test
-    fun `load with directories and songs emits Success`() = runTest(testDispatcher) {
+    fun `load with directories and songs emits Content Songs`() = runTest(testDispatcher) {
         val songs = listOf(
             Song(id = 1L, path = "/a.mp3", title = "Song A", artist = null, album = null, durationMs = 1000L, dateAdded = 0L, coverUri = null),
             Song(id = 2L, path = "/b.mp3", title = "Song B", artist = null, album = null, durationMs = 2000L, dateAdded = 0L, coverUri = null)
@@ -79,9 +81,10 @@ class MusicBrowseViewModelTest {
         val viewModel = MusicBrowseViewModel(musicRepository, scanDirectoryRepository)
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value as MusicUiState.Success
-        assertEquals(2, state.songs.size)
-        assertEquals("Song A", state.songs[0].title)
+        val state = viewModel.uiState.value as ListUiState.Content
+        val data = state.data as MusicBrowseData.Songs
+        assertEquals(2, data.songs.size)
+        assertEquals("Song A", data.songs[0].title)
     }
 
     @Test
@@ -93,8 +96,9 @@ class MusicBrowseViewModelTest {
         val viewModel = MusicBrowseViewModel(musicRepository, scanDirectoryRepository)
         advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value is MusicUiState.Error)
+        assertTrue(viewModel.uiState.value is ListUiState.Error)
 
+        // Replace stubs with success data before retry.
         whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(
             listOf(ScanDirectory(id = 1L, path = "/music", name = "Music", addedAt = 0L))
         ))
@@ -104,7 +108,8 @@ class MusicBrowseViewModelTest {
         viewModel.retry()
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value as MusicUiState.Success
-        assertEquals(1, state.songs.size)
+        val state = viewModel.uiState.value as ListUiState.Content
+        val data = state.data as MusicBrowseData.Songs
+        assertEquals(1, data.songs.size)
     }
 }
