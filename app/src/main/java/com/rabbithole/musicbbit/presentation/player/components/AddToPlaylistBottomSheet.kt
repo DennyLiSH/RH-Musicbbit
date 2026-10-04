@@ -31,7 +31,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.res.stringResource
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Playlist
-import com.rabbithole.musicbbit.presentation.components.ErrorContent
+import com.rabbithole.musicbbit.presentation.components.CollectUserMessages
+import com.rabbithole.musicbbit.presentation.components.ListUiState
+import com.rabbithole.musicbbit.presentation.components.ScreenStateCrossfade
 import com.rabbithole.musicbbit.presentation.components.SheetTokens
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +45,7 @@ fun AddToPlaylistBottomSheet(
     viewModel: AddToPlaylistBottomSheetViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    CollectUserMessages(viewModel.messages)
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
@@ -63,44 +66,32 @@ fun AddToPlaylistBottomSheet(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            when (uiState) {
-                is AddToPlaylistUiState.Loading -> {
+            ScreenStateCrossfade(
+                state = uiState,
+                modifier = Modifier.fillMaxWidth(),
+                errorIcon = rememberVectorPainter(Icons.Filled.Error),
+                onRetry = viewModel::retry,
+            ) { playlists ->
+                if (playlists.isEmpty()) {
                     Text(
-                        text = stringResource(R.string.playlist_selector_loading),
+                        text = stringResource(R.string.playlist_list_empty_title),
                         style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
-                }
-                is AddToPlaylistUiState.Error -> {
-                    ErrorContent(
-                        message = stringResource((uiState as AddToPlaylistUiState.Error).messageResId),
-                        icon = rememberVectorPainter(Icons.Filled.Error),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                is AddToPlaylistUiState.Success -> {
-                    val playlists = (uiState as AddToPlaylistUiState.Success).playlists
-                    if (playlists.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.playlist_list_empty_title),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.align(Alignment.CenterHorizontally)
-                        )
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.heightIn(max = SheetTokens.ListMaxHeight),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            items(playlists, key = { it.id }) { playlist ->
-                                PlaylistItem(
-                                    playlist = playlist,
-                                    onClick = {
-                                        viewModel.onPlaylistSelected(playlist.id, songId)
-                                        onDismiss()
-                                    }
-                                )
-                            }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = SheetTokens.ListMaxHeight),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(playlists, key = { it.id }) { playlist ->
+                            PlaylistItem(
+                                playlist = playlist,
+                                onClick = {
+                                    viewModel.onPlaylistSelected(playlist.id, songId)
+                                    onDismiss()
+                                }
+                            )
                         }
                     }
                 }

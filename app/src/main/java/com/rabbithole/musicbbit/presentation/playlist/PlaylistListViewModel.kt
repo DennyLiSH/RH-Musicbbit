@@ -5,92 +5,71 @@ import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
+import com.rabbithole.musicbbit.presentation.components.ListUiState
+import com.rabbithole.musicbbit.presentation.components.UserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
-import timber.log.Timber
+import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
-
-sealed interface PlaylistListUiState {
-    data object Loading : PlaylistListUiState
-    data class Error(val messageResId: Int) : PlaylistListUiState
-    data class Success(
-        val playlists: List<Playlist>,
-        val errorMessageResId: Int? = null
-    ) : PlaylistListUiState
-}
+import timber.log.Timber
 
 sealed interface PlaylistListAction {
     data class OnCreatePlaylist(val name: String) : PlaylistListAction
     data class OnDeletePlaylist(val playlist: Playlist) : PlaylistListAction
-    data class OnPlaylistClick(val playlistId: Long) : PlaylistListAction
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class PlaylistListViewModel @Inject constructor(
     private val playlistRepository: PlaylistRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<PlaylistListUiState>(PlaylistListUiState.Loading)
-    val uiState: StateFlow<PlaylistListUiState> = _uiState.asStateFlow()
+    private val loadTrigger = MutableStateFlow(0)
 
-    private var loadJob: Job? = null
+    val uiState: StateFlow<ListUiState<List<Playlist>>> = loadTrigger
+        .flatMapLatest {
+            playlistRepository.getAllPlaylists()
+                .map<List<Playlist>, ListUiState<List<Playlist>>> { ListUiState.Content(it) }
+                .onStart { emit(ListUiState.Loading) }
+                .catch { e ->
+                    Timber.e(e, "Failed to load playlists")
+                    emit(ListUiState.Error(R.string.error_load_failed))
+                }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ListUiState.Loading)
 
-    init {
-        loadData()
+    private val _messages = Channel<UserMessage>(Channel.BUFFERED)
+    val messages = _messages.receiveAsFlow()
+
+    fun retry() {
+        loadTrigger.update { it + 1 }
     }
-
-    /**
-     * Subscribes to the playlists flow and updates UI state accordingly.
-     * Cancels any previous subscription before re-subscribing.
-     */
-    private fun loadData() {
-        loadJob?.cancel()
-        _uiState.value = PlaylistListUiState.Loading
-        loadJob = playlistRepository.getAllPlaylists()
-            .onEach { playlists ->
-                _uiState.update { PlaylistListUiState.Success(playlists) }
-            }
-            .catch { e ->
-                Timber.e(e, "Failed to load playlists")
-                _uiState.value = PlaylistListUiState.Error(R.string.error_load_failed)
-            }
-            .launchIn(viewModelScope)
-    }
-
-    /**
-     * Retries loading playlists after an error.
-     */
-    fun retry() = loadData()
 
     fun onAction(action: PlaylistListAction) {
         when (action) {
             is PlaylistListAction.OnCreatePlaylist -> {
-                val name = action.name
-                if (name.isBlank()) {
-                    _uiState.update {
-                        (it as? PlaylistListUiState.Success)?.copy(
-                            errorMessageResId = R.string.playlist_error_add_song_failed
-                        ) ?: it
-                    }
+                if (action.name.isBlank()) {
+                    val sent = _messages.trySend(UserMessage(R.string.playlist_error_add_song_failed))
+                    if (!sent.isSuccess) Timber.w("UserMessage dropped: channel full or closed")
                     return
                 }
                 viewModelScope.launch {
-                    playlistRepository.createPlaylist(name)
+                    playlistRepository.createPlaylist(action.name)
                         .onFailure { e ->
                             Timber.w(e, "Failed to create playlist")
-                            _uiState.update {
-                                (it as? PlaylistListUiState.Success)?.copy(
-                                    errorMessageResId = R.string.playlist_error_add_song_failed
-                                ) ?: it
-                            }
+                            val sent = _messages.trySend(UserMessage(R.string.playlist_error_add_song_failed))
+                            if (!sent.isSuccess) Timber.w("UserMessage dropped: channel full or closed")
                         }
                 }
             }
@@ -99,15 +78,11 @@ class PlaylistListViewModel @Inject constructor(
                     playlistRepository.deletePlaylist(action.playlist)
                         .onFailure { e ->
                             Timber.w(e, "Failed to delete playlist")
-                            _uiState.update {
-                                (it as? PlaylistListUiState.Success)?.copy(
-                                    errorMessageResId = R.string.playlist_error_delete_failed
-                                ) ?: it
-                            }
+                            val sent = _messages.trySend(UserMessage(R.string.playlist_error_delete_failed))
+                            if (!sent.isSuccess) Timber.w("UserMessage dropped: channel full or closed")
                         }
                 }
             }
-            else -> { /* Navigation handled in UI */ }
         }
     }
 }

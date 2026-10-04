@@ -1,9 +1,5 @@
 package com.rabbithole.musicbbit.presentation.playlist
 
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,29 +39,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
-import com.rabbithole.musicbbit.presentation.components.EmptyState
-import com.rabbithole.musicbbit.presentation.components.ErrorContent
-import com.rabbithole.musicbbit.presentation.components.LoadingState
-import com.rabbithole.musicbbit.ui.theme.MotionTokens
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.navigation.PlaylistDetail
+import com.rabbithole.musicbbit.presentation.components.CollectUserMessages
+import com.rabbithole.musicbbit.presentation.components.EmptyState
+import com.rabbithole.musicbbit.presentation.components.ScreenStateCrossfade
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaylistListScreen(
     navController: NavController,
     viewModel: PlaylistListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    CollectUserMessages(viewModel.messages)
     var showCreateDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -98,45 +93,27 @@ fun PlaylistListScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            Crossfade(
-                targetState = uiState,
-                animationSpec = tween(durationMillis = MotionTokens.DurationLong, easing = MotionTokens.EasingEmphasized),
-                modifier = Modifier.fillMaxSize(),
-                label = "PlaylistListState"
-            ) { state ->
-                when (state) {
-                    is PlaylistListUiState.Loading -> {
-                        LoadingState()
-                    }
-
-                    is PlaylistListUiState.Error -> {
-                        ErrorContent(
-                            message = stringResource(state.messageResId),
-                            icon = rememberVectorPainter(Icons.Filled.Error),
-                            onRetry = viewModel::retry
-                        )
-                    }
-
-                    is PlaylistListUiState.Success -> {
-                        if (state.playlists.isEmpty()) {
-                            EmptyState(
-                                icon = rememberVectorPainter(Icons.AutoMirrored.Filled.PlaylistPlay),
-                                title = stringResource(R.string.playlist_list_empty_title),
-                                subtitle = stringResource(R.string.playlist_list_empty_subtitle)
-                            )
-                        } else {
-                            PlaylistListContent(
-                                playlists = state.playlists,
-                                onPlaylistClick = { playlistId ->
-                                    viewModel.onAction(PlaylistListAction.OnPlaylistClick(playlistId))
-                                    navController.navigate(PlaylistDetail(playlistId = playlistId))
-                                },
-                                onDeletePlaylist = { playlist ->
-                                    viewModel.onAction(PlaylistListAction.OnDeletePlaylist(playlist))
-                                }
-                            )
+            ScreenStateCrossfade(
+                state = uiState,
+                errorIcon = rememberVectorPainter(Icons.Filled.Error),
+                onRetry = viewModel::retry,
+            ) { playlists ->
+                if (playlists.isEmpty()) {
+                    EmptyState(
+                        icon = rememberVectorPainter(Icons.AutoMirrored.Filled.PlaylistPlay),
+                        title = stringResource(R.string.playlist_list_empty_title),
+                        subtitle = stringResource(R.string.playlist_list_empty_subtitle)
+                    )
+                } else {
+                    PlaylistListContent(
+                        playlists = playlists,
+                        onPlaylistClick = { playlistId ->
+                            navController.navigate(PlaylistDetail(playlistId = playlistId))
+                        },
+                        onDeletePlaylist = { playlist ->
+                            viewModel.onAction(PlaylistListAction.OnDeletePlaylist(playlist))
                         }
-                    }
+                    )
                 }
             }
         }

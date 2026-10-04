@@ -3,8 +3,11 @@ package com.rabbithole.musicbbit.presentation.player.components
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
+import com.rabbithole.musicbbit.presentation.components.ListUiState
+import com.rabbithole.musicbbit.presentation.components.UserMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -52,7 +55,7 @@ class AddToPlaylistBottomSheetViewModelTest {
     }
 
     @Test
-    fun `load playlists emits Success`() = runTest(testDispatcher) {
+    fun `load playlists emits Content`() = runTest(testDispatcher) {
         val playlists = listOf(
             Playlist(id = 1L, name = "Favorites", createdAt = 0L, updatedAt = 0L),
             Playlist(id = 2L, name = "Workout", createdAt = 0L, updatedAt = 0L)
@@ -61,9 +64,9 @@ class AddToPlaylistBottomSheetViewModelTest {
 
         val viewModel = AddToPlaylistBottomSheetViewModel(playlistRepository)
 
-        val state = viewModel.uiState.value as AddToPlaylistUiState.Success
-        assertEquals(2, state.playlists.size)
-        assertEquals("Favorites", state.playlists[0].name)
+        val state = viewModel.uiState.value as ListUiState.Content
+        assertEquals(2, state.data.size)
+        assertEquals("Favorites", state.data[0].name)
     }
 
     @Test
@@ -74,7 +77,7 @@ class AddToPlaylistBottomSheetViewModelTest {
         val viewModel = AddToPlaylistBottomSheetViewModel(playlistRepository)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value is AddToPlaylistUiState.Error)
+        assertTrue(viewModel.uiState.value is ListUiState.Error)
     }
 
     @Test
@@ -84,7 +87,7 @@ class AddToPlaylistBottomSheetViewModelTest {
 
         val viewModel = AddToPlaylistBottomSheetViewModel(playlistRepository)
         testDispatcher.scheduler.advanceUntilIdle()
-        assertTrue(viewModel.uiState.value is AddToPlaylistUiState.Error)
+        assertTrue(viewModel.uiState.value is ListUiState.Error)
 
         whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(
             listOf(Playlist(id = 1L, name = "Favorites", createdAt = 0L, updatedAt = 0L))
@@ -92,12 +95,12 @@ class AddToPlaylistBottomSheetViewModelTest {
         viewModel.retry()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        val state = viewModel.uiState.value as AddToPlaylistUiState.Success
-        assertEquals(1, state.playlists.size)
+        val state = viewModel.uiState.value as ListUiState.Content
+        assertEquals(1, state.data.size)
     }
 
     @Test
-    fun `onPlaylistSelected failure sets error message in Success state`() = runTest {
+    fun `onPlaylistSelected failure emits UserMessage with add song failed`() = runTest {
         val playlists = listOf(Playlist(id = 1L, name = "Favorites", createdAt = 0L, updatedAt = 0L))
         whenever(playlistRepository.getAllPlaylists()).thenReturn(flowOf(playlists))
         wheneverBlocking { playlistRepository.addSongToPlaylist(1L, 10L) } doReturn Result.failure(RuntimeException("Failed"))
@@ -108,7 +111,7 @@ class AddToPlaylistBottomSheetViewModelTest {
         viewModel.onPlaylistSelected(playlistId = 1L, songId = 10L)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        val state = viewModel.uiState.value as AddToPlaylistUiState.Success
-        assertEquals(R.string.playlist_error_add_song_failed, state.errorMessageResId)
+        val message = viewModel.messages.first()
+        assertEquals(UserMessage(R.string.playlist_error_add_song_failed), message)
     }
 }
