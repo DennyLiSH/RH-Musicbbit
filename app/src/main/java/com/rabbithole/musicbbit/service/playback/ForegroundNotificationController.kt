@@ -88,12 +88,14 @@ class ForegroundNotificationController @Inject constructor(
 
     fun onStartCommand() {
         Timber.i("ForegroundNotificationController onStartCommand")
+        // Unconditional: every onStartCommand must satisfy the startForegroundService
+        // obligation (AlarmReceiver uses it for cold-process alarm triggers). buildSpec
+        // falls back to the app name when the user session has no song — the alarm
+        // session's own notification (posted via NotificationManager) is separate.
         val state = playbackSession.playbackState.value
-        if (state.currentSong != null) {
-            val spec = musicNotificationPort.buildSpec(state)
-            val notification = buildNotification(spec)
-            service?.startForeground(NOTIFICATION_ID, notification)
-        }
+        val spec = musicNotificationPort.buildSpec(state)
+        val notification = buildNotification(spec)
+        service?.startForeground(NOTIFICATION_ID, notification)
     }
 
     fun onDestroy() {

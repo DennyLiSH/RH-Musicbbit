@@ -131,6 +131,19 @@ class ForegroundNotificationControllerTest {
     }
 
     @Test
+    fun `onStartCommand satisfies foreground obligation with empty user state`() {
+        // Cold-process alarm trigger: startForegroundService was used, but the user
+        // session has never played (playbackState.currentSong == null).
+        // The obligation must be satisfied even with no song — fallback spec (app name).
+        val state = PlaybackState()
+        playbackState.value = state
+
+        controller.onStartCommand()
+
+        verify(service).startForeground(eq(ForegroundNotificationController.NOTIFICATION_ID), any())
+    }
+
+    @Test
     fun `state emitted before attach is ignored (service == null)`() {
         // Detach first (service == null), then trigger state collection via onCreate
         controller.detach()
