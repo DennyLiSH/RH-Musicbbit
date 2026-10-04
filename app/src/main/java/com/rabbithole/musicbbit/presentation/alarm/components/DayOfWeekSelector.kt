@@ -42,34 +42,10 @@ private val ALL_DAYS = listOf(
 )
 
 @StringRes
-private fun dayShortLabelRes(day: DayOfWeek): Int = when (day) {
-    DayOfWeek.MONDAY -> R.string.alarm_day_short_mon
-    DayOfWeek.TUESDAY -> R.string.alarm_day_short_tue
-    DayOfWeek.WEDNESDAY -> R.string.alarm_day_short_wed
-    DayOfWeek.THURSDAY -> R.string.alarm_day_short_thu
-    DayOfWeek.FRIDAY -> R.string.alarm_day_short_fri
-    DayOfWeek.SATURDAY -> R.string.alarm_day_short_sat
-    DayOfWeek.SUNDAY -> R.string.alarm_day_short_sun
-}
+private fun dayShortLabelRes(day: DayOfWeek): Int = day.shortLabelRes
 
 @StringRes
-private fun dayFullNameRes(day: DayOfWeek): Int = when (day) {
-    DayOfWeek.MONDAY -> R.string.alarm_monday
-    DayOfWeek.TUESDAY -> R.string.alarm_tuesday
-    DayOfWeek.WEDNESDAY -> R.string.alarm_wednesday
-    DayOfWeek.THURSDAY -> R.string.alarm_thursday
-    DayOfWeek.FRIDAY -> R.string.alarm_friday
-    DayOfWeek.SATURDAY -> R.string.alarm_saturday
-    DayOfWeek.SUNDAY -> R.string.alarm_sunday
-}
-
-private val WEEKDAYS = setOf(
-    DayOfWeek.MONDAY,
-    DayOfWeek.TUESDAY,
-    DayOfWeek.WEDNESDAY,
-    DayOfWeek.THURSDAY,
-    DayOfWeek.FRIDAY
-)
+private fun dayFullNameRes(day: DayOfWeek): Int = day.fullNameRes
 
 private val EVERYDAY = ALL_DAYS.toSet()
 

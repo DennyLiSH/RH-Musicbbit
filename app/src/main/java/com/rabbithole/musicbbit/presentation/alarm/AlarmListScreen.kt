@@ -1,6 +1,8 @@
 package com.rabbithole.musicbbit.presentation.alarm
 
 import android.os.Build
+import com.rabbithole.musicbbit.presentation.alarm.components.RepeatSummary
+import com.rabbithole.musicbbit.presentation.alarm.components.repeatSummary
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -374,33 +376,11 @@ internal fun AlarmListItemSubtitle(alarmItem: AlarmItem) {
  * Formats a set of [DayOfWeek] into a human-readable repeat description.
  */
 @Composable
-private fun formatRepeatDays(days: Set<DayOfWeek>, excludeHolidays: Boolean): String {
-    return when {
-        days.isEmpty() -> stringResource(R.string.alarm_one_time)
-        days.size == 7 && !excludeHolidays -> stringResource(R.string.alarm_daily)
-        days.size == 7 && excludeHolidays -> stringResource(R.string.alarm_excluding_holidays)
-        days == setOf(
-            DayOfWeek.MONDAY,
-            DayOfWeek.TUESDAY,
-            DayOfWeek.WEDNESDAY,
-            DayOfWeek.THURSDAY,
-            DayOfWeek.FRIDAY
-        ) -> stringResource(R.string.alarm_weekdays)
-        else -> {
-            val labels = mutableListOf<String>()
-            days.sortedBy { it.value }.forEach { day ->
-                val label = when (day) {
-                    DayOfWeek.MONDAY -> stringResource(R.string.alarm_monday)
-                    DayOfWeek.TUESDAY -> stringResource(R.string.alarm_tuesday)
-                    DayOfWeek.WEDNESDAY -> stringResource(R.string.alarm_wednesday)
-                    DayOfWeek.THURSDAY -> stringResource(R.string.alarm_thursday)
-                    DayOfWeek.FRIDAY -> stringResource(R.string.alarm_friday)
-                    DayOfWeek.SATURDAY -> stringResource(R.string.alarm_saturday)
-                    DayOfWeek.SUNDAY -> stringResource(R.string.alarm_sunday)
-                }
-                labels.add(label)
-            }
-            labels.joinToString(", ")
-        }
+private fun formatRepeatDays(days: Set<DayOfWeek>, excludeHolidays: Boolean): String =
+    when (val summary = repeatSummary(days, excludeHolidays)) {
+        RepeatSummary.OneTime -> stringResource(R.string.alarm_one_time)
+        RepeatSummary.Daily -> stringResource(R.string.alarm_daily)
+        RepeatSummary.ExcludingHolidays -> stringResource(R.string.alarm_excluding_holidays)
+        RepeatSummary.Weekdays -> stringResource(R.string.alarm_weekdays)
+        is RepeatSummary.Days -> summary.dayNameResIds.map { stringResource(it) }.joinToString(", ")
     }
-}
