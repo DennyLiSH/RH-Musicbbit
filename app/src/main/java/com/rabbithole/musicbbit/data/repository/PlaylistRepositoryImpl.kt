@@ -67,14 +67,13 @@ class PlaylistRepositoryImpl @Inject constructor(
 
     override fun getPlaylistWithSongs(playlistId: Long): Flow<PlaylistWithSongs?> {
         return combine(
-            playlistDao.getAll(),
+            playlistDao.observeWithSongs(playlistId),
             playlistSongDao.getByPlaylistId(playlistId)
-        ) { playlists, playlistSongs ->
-            playlists.find { it.id == playlistId }?.let { playlistEntity ->
-                val withSongs = playlistDao.getPlaylistWithSongs(playlistId)
+        ) { withSongs, playlistSongs ->
+            withSongs?.let {
                 toPlaylistWithSongs(
-                    playlist = playlistEntity.toDomain(),
-                    songs = withSongs?.songs?.map { it.toDomain() } ?: emptyList(),
+                    playlist = it.playlist.toDomain(),
+                    songs = it.songs.map { song -> song.toDomain() },
                     sortOrders = playlistSongs
                 )
             }

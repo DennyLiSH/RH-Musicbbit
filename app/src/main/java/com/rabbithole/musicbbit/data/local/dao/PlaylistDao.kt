@@ -32,4 +32,13 @@ interface PlaylistDao {
     @Transaction
     @Query("SELECT * FROM playlists WHERE id = :playlistId")
     suspend fun getPlaylistWithSongs(playlistId: Long): PlaylistWithSongsEntity?
+
+    /**
+     * Observable playlist-with-songs query. Watches the playlists + playlist_songs + songs
+     * table family (via the @Relation songs field) and emits on any insert/update/delete.
+     * Replaces the old snapshot pipeline that subscribed to the full playlist table.
+     */
+    @Transaction
+    @Query("SELECT * FROM playlists WHERE id = :id")
+    fun observeWithSongs(id: Long): Flow<PlaylistWithSongsEntity?>
 }
