@@ -62,6 +62,7 @@ fun PlayerScreen(
 ) {
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
     val currentSong = playbackState.currentSong
+    val commandsBlocked by viewModel.commandsBlocked.collectAsStateWithLifecycle()
 
     Column(
         modifier = modifier
@@ -140,6 +141,7 @@ fun PlayerScreen(
                 viewModel.seekTo((sliderPosition * durationMs).toLong())
                 isUserDragging = false
             },
+            enabled = !commandsBlocked,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -168,14 +170,17 @@ fun PlayerScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Play mode button
-            IconButton(onClick = {
-                val nextMode = when (playbackState.playMode) {
-                    PlayMode.SEQUENTIAL -> PlayMode.RANDOM
-                    PlayMode.RANDOM -> PlayMode.REPEAT_ONE
-                    PlayMode.REPEAT_ONE -> PlayMode.SEQUENTIAL
-                }
-                viewModel.setPlayMode(nextMode)
-            }) {
+            IconButton(
+                onClick = {
+                    val nextMode = when (playbackState.playMode) {
+                        PlayMode.SEQUENTIAL -> PlayMode.RANDOM
+                        PlayMode.RANDOM -> PlayMode.REPEAT_ONE
+                        PlayMode.REPEAT_ONE -> PlayMode.SEQUENTIAL
+                    }
+                    viewModel.setPlayMode(nextMode)
+                },
+                enabled = !commandsBlocked,
+            ) {
                 Icon(
                     imageVector = when (playbackState.playMode) {
                         PlayMode.SEQUENTIAL -> Icons.Default.Repeat
@@ -187,7 +192,10 @@ fun PlayerScreen(
             }
 
             // Previous button
-            IconButton(onClick = { viewModel.previous() }) {
+            IconButton(
+                onClick = { viewModel.previous() },
+                enabled = !commandsBlocked,
+            ) {
                 Icon(
                     imageVector = Icons.Default.SkipPrevious,
                     contentDescription = stringResource(R.string.player_previous),
@@ -204,6 +212,7 @@ fun PlayerScreen(
                         viewModel.resume()
                     }
                 },
+                enabled = !commandsBlocked,
                 modifier = Modifier.size(PlayerTokens.PlayButtonSize)
             ) {
                 Icon(
@@ -214,7 +223,10 @@ fun PlayerScreen(
             }
 
             // Next button
-            IconButton(onClick = { viewModel.next() }) {
+            IconButton(
+                onClick = { viewModel.next() },
+                enabled = !commandsBlocked,
+            ) {
                 Icon(
                     imageVector = Icons.Default.SkipNext,
                     contentDescription = stringResource(R.string.player_next),

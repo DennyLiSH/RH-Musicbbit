@@ -48,6 +48,7 @@ fun MiniPlayer(
 ) {
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
     val currentSong = playbackState.currentSong
+    val commandsBlocked by viewModel.commandsBlocked.collectAsStateWithLifecycle()
 
     AnimatedVisibility(
         visible = currentSong != null,
@@ -115,7 +116,8 @@ fun MiniPlayer(
                     } else {
                         viewModel.resume()
                     }
-                }
+                },
+                enabled = !commandsBlocked,
             ) {
                 Icon(
                     imageVector = if (playbackState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -124,7 +126,8 @@ fun MiniPlayer(
             }
 
             IconButton(
-                onClick = { viewModel.next() }
+                onClick = { viewModel.next() },
+                enabled = !commandsBlocked,
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipNext,
@@ -133,7 +136,8 @@ fun MiniPlayer(
             }
 
             IconButton(
-                onClick = { viewModel.stop() }
+                onClick = { viewModel.stop() },
+                enabled = !commandsBlocked,
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,

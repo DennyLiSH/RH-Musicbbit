@@ -151,6 +151,7 @@ class PlayerScreenTest {
     private fun createMockViewModel(playbackState: PlaybackState): UserPlaybackSession {
         val viewModel = mock<UserPlaybackSession>()
         whenever(viewModel.playbackState).thenReturn(MutableStateFlow(playbackState))
+        whenever(viewModel.commandsBlocked).thenReturn(MutableStateFlow(false))
         return viewModel
     }
 }
