@@ -25,7 +25,7 @@ import timber.log.Timber
  * when the queue ends.
  *
  * All public entry points are no-ops while another session (alarm) owns the
- * shared player — see [blockedByActiveAlarm]. It does **not** interact with Android Service specifics such as
+ * shared player — see [SessionCore.issueCommand]. It does **not** interact with Android Service specifics such as
  * [startForeground] / [stopForeground]; those remain in [MusicPlaybackService].
  *
  * Events and audio-focus callbacks are routed through [PlaybackCoordinator] so that
@@ -191,20 +191,7 @@ class UserPlaybackSession @Inject constructor(
         updateState { it.copy(playMode = mode) }
     }
 
-    override fun pause() {
-        if (blockedByActiveAlarm()) return
-        super.pause()
-    }
-
-    override fun resume() {
-        if (blockedByActiveAlarm()) return
-        super.resume()
-    }
-
-    override fun seekTo(positionMs: Long) {
-        if (blockedByActiveAlarm()) return
-        super.seekTo(positionMs)
-    }
+    // pause/resume/seekTo guards are inherited from SessionCore.issueCommand.
 
     // -------------------------------------------------------------------------
     // Private helpers

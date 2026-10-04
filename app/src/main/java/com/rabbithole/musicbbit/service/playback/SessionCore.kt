@@ -119,28 +119,51 @@ abstract class SessionCore protected constructor(
     // Shared session behaviour
     // -------------------------------------------------------------------------
 
-    open fun pause() {
-        Timber.i("Pausing playback")
-        wasPausedByFocusLoss = false
-        playerPort.pause()
-        progressTracker.saveProgress()
+    /**
+     * Single choke point for player commands. While another session owns the shared
+     * player, commands from this session are dropped (they would act on the owning
+     * session's playback). All public command entry points must route through this —
+     * new SessionCore commands should be guarded here, not at call sites.
+     *
+     * @return true when the command was issued, false when it was dropped.
+     */
+    protected fun issueCommand(command: () -> Unit): Boolean {
+        if (playbackCoordinator.isOwnedByAnother(this)) {
+            Timber.w("$logTag command dropped: another session owns the player")
+            return false
+        }
+        command()
+        return true
     }
 
-    open fun resume() {
-        Timber.i("Resuming playback")
-        if (!audioFocusPort.requestFocus()) {
-            Timber.w("Failed to gain audio focus, cannot resume")
-            return
-        }
-        if (!playerPort.isPlaying()) {
-            playerPort.play()
+    fun pause() {
+        issueCommand {
+            Timber.i("Pausing playback")
+            wasPausedByFocusLoss = false
+            playerPort.pause()
+            progressTracker.saveProgress()
         }
     }
 
-    open fun seekTo(positionMs: Long) {
-        Timber.d("Seeking to $positionMs ms")
-        playerPort.seekTo(positionMs)
-        _playbackState.update { it.copy(positionMs = positionMs) }
+    fun resume() {
+        issueCommand {
+            Timber.i("Resuming playback")
+            if (!audioFocusPort.requestFocus()) {
+                Timber.w("Failed to gain audio focus, cannot resume")
+                return@issueCommand
+            }
+            if (!playerPort.isPlaying()) {
+                playerPort.play()
+            }
+        }
+    }
+
+    fun seekTo(positionMs: Long) {
+        issueCommand {
+            Timber.d("Seeking to $positionMs ms")
+            playerPort.seekTo(positionMs)
+            _playbackState.update { it.copy(positionMs = positionMs) }
+        }
     }
 
     /**
