@@ -62,6 +62,10 @@ class PlaybackProgressTracker(
     fun saveProgress() {
         val state = getState()
         val song = state.currentSong ?: return
+        // Domain rule: progress is only recorded for playlist playback. Ad-hoc
+        // single-song plays (playlistId = -1) have no resume path — and the
+        // playback_progress FKs (migration 10->11) would reject such rows.
+        if (state.currentPlaylistId <= 0L) return
         val position = playerPort.currentPositionMs()
 
         pendingSaveJob = scope.launch {

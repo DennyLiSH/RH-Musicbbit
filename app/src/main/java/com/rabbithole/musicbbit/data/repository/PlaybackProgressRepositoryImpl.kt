@@ -41,17 +41,6 @@ class PlaybackProgressRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun deleteProgress(songId: Long, playlistId: Long): Result<Unit> = withContext(ioDispatcher) {
-        try {
-            playbackProgressDao.deleteBySongIdAndPlaylistId(songId, playlistId)
-            Timber.d("Progress deleted: songId=$songId, playlistId=$playlistId")
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to delete progress: songId=$songId, playlistId=$playlistId")
-            Result.failure(e)
-        }
-    }
-
     override suspend fun deleteAllProgressForPlaylist(playlistId: Long): Result<Unit> = withContext(ioDispatcher) {
         try {
             playbackProgressDao.deleteByPlaylistId(playlistId)

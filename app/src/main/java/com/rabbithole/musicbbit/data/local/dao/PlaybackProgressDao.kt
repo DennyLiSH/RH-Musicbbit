@@ -15,9 +15,6 @@ interface PlaybackProgressDao {
     @Query("SELECT * FROM playback_progress WHERE songId = :songId AND playlistId = :playlistId")
     suspend fun getBySongIdAndPlaylistId(songId: Long, playlistId: Long): PlaybackProgressEntity?
 
-    @Query("DELETE FROM playback_progress WHERE songId = :songId AND playlistId = :playlistId")
-    suspend fun deleteBySongIdAndPlaylistId(songId: Long, playlistId: Long)
-
     @Query("DELETE FROM playback_progress WHERE playlistId = :playlistId")
     suspend fun deleteByPlaylistId(playlistId: Long)
 

@@ -557,6 +557,33 @@ class UserPlaybackSessionTest {
     }
 
     @Test
+    fun `play with playlistId -1 (ad-hoc) does not trigger saveProgress`() = runBlocking<Unit> {
+        // Domain rule: progress is only recorded for playlist playback (playlistId > 0).
+        // Ad-hoc single-song play (MusicBrowseScreen.play(song, playlistId = -1)) must NOT
+        // persist progress, otherwise the playback_progress FKs (migration 10->11)
+        // would reject such rows at save time. This test exercises the PlaybackProgressTracker
+        // guard via UserPlaybackSession.pause() → saveProgress path.
+        session.play(SONG_1, playlistId = -1L)
+        playerPort.emitEvent(PlayerEvent.IsPlayingChanged(true))
+
+        session.pause()
+
+        org.mockito.kotlin.verify(playbackProgressRepository, org.mockito.kotlin.never())
+            .saveProgress(any())
+    }
+
+    @Test
+    fun `playQueue with positive playlistId does trigger saveProgress on pause`() = runBlocking<Unit> {
+        // Control test — verifies the guard does not over-filter valid playback.
+        session.playQueue(listOf(SONG_1, SONG_2), startIndex = 0, playlistId = 10L)
+        playerPort.emitEvent(PlayerEvent.IsPlayingChanged(true))
+
+        session.pause()
+
+        org.mockito.kotlin.verify(playbackProgressRepository).saveProgress(any())
+    }
+
+    @Test
     fun `activate setQueue order regression`() = runBlocking {
         // Lock the activate→setQueue order invariant in UserPlaybackSession.play().
         // Reverse handoff (alarm active, user plays) requires activate BEFORE setQueue
@@ -765,9 +792,6 @@ class UserPlaybackSessionTest {
             kotlinx.coroutines.delay(100)
             return Result.success(null)
         }
-
-        override suspend fun deleteProgress(songId: Long, playlistId: Long): Result<Unit> =
-            Result.success(Unit)
 
         override suspend fun deleteAllProgressForPlaylist(playlistId: Long): Result<Unit> =
             Result.success(Unit)

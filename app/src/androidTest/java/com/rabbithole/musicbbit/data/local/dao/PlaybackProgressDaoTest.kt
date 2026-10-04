@@ -37,31 +37,6 @@ class PlaybackProgressDaoTest : DatabaseTest() {
     }
 
     @Test
-    fun deleteBySongIdAndPlaylistId_removesExact() = dbTest {
-        val progress1 = PlaybackProgressEntity(
-            songId = 1L,
-            playlistId = 2L,
-            positionMs = 30_000L,
-            updatedAt = 1_700_000_000_000L
-        )
-        val progress2 = PlaybackProgressEntity(
-            songId = 3L,
-            playlistId = 2L,
-            positionMs = 60_000L,
-            updatedAt = 1_700_000_001_000L
-        )
-        dao.insert(progress1)
-        dao.insert(progress2)
-
-        dao.deleteBySongIdAndPlaylistId(songId = 1L, playlistId = 2L)
-        val result = dao.getBySongIdAndPlaylistId(songId = 1L, playlistId = 2L)
-        val remaining = dao.getBySongIdAndPlaylistId(songId = 3L, playlistId = 2L)
-
-        assertNull(result)
-        assertNotNull(remaining)
-    }
-
-    @Test
     fun deleteByPlaylistId_removesBatch() = dbTest {
         val progress1 = PlaybackProgressEntity(
             songId = 1L,

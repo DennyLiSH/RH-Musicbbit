@@ -113,9 +113,6 @@ class FakeProgressRepository : PlaybackProgressRepository {
     override suspend fun getProgress(songId: Long, playlistId: Long): Result<PlaybackProgress?> =
         Result.success(byPlaylist[playlistId]?.firstOrNull { it.songId == songId })
 
-    override suspend fun deleteProgress(songId: Long, playlistId: Long): Result<Unit> =
-        Result.success(Unit)
-
     override suspend fun deleteAllProgressForPlaylist(playlistId: Long): Result<Unit> =
         Result.success(Unit)
 

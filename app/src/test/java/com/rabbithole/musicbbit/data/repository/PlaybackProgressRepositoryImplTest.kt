@@ -100,16 +100,6 @@ class PlaybackProgressRepositoryImplTest {
     }
 
     @Test
-    fun `deleteProgress delegates to DAO`() = runTest(testDispatcher) {
-        wheneverBlocking { playbackProgressDao.deleteBySongIdAndPlaylistId(5L, 10L) } doReturn Unit
-
-        val result = repository.deleteProgress(5L, 10L)
-
-        assertTrue(result.isSuccess)
-        verifyBlocking(playbackProgressDao) { deleteBySongIdAndPlaylistId(5L, 10L) }
-    }
-
-    @Test
     fun `deleteAllProgressForPlaylist delegates to DAO`() = runTest(testDispatcher) {
         wheneverBlocking { playbackProgressDao.deleteByPlaylistId(20L) } doReturn Unit
 
