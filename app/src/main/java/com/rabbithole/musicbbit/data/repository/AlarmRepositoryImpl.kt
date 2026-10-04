@@ -1,12 +1,15 @@
 package com.rabbithole.musicbbit.data.repository
 
+import com.rabbithole.musicbbit.data.local.dao.AlarmDao
+import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
 import com.rabbithole.musicbbit.di.IoDispatcher
 import com.rabbithole.musicbbit.domain.model.Alarm
-import com.rabbithole.musicbbit.data.repository.AlarmPersistenceRepository
+import com.rabbithole.musicbbit.domain.model.AlarmWithPlaylistName
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.service.AlarmScheduler
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -23,6 +26,8 @@ import javax.inject.Singleton
 @Singleton
 class AlarmRepositoryImpl @Inject constructor(
     private val persistence: AlarmPersistenceRepository,
+    private val alarmDao: AlarmDao,
+    private val playlistDao: PlaylistDao,
     private val alarmScheduler: AlarmScheduler,
     @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : AlarmRepository {
@@ -34,6 +39,17 @@ class AlarmRepositoryImpl @Inject constructor(
     override fun getEnabledAlarms(): Flow<List<Alarm>> {
         return persistence.getEnabledAlarms().flowOn(ioDispatcher)
     }
+
+    override fun getAlarmsWithPlaylistName(): Flow<List<AlarmWithPlaylistName>> =
+        combine(
+            persistence.getAllAlarms(),
+            playlistDao.getAll()
+        ) { alarms, playlists ->
+            val namesById = playlists.associate { it.id to it.name }
+            alarms.map { alarm ->
+                AlarmWithPlaylistName(alarm = alarm, playlistName = namesById[alarm.playlistId])
+            }
+        }.flowOn(ioDispatcher)
 
     override suspend fun getAlarmById(id: Long): Alarm? = withContext(ioDispatcher) {
         persistence.getAlarmById(id)

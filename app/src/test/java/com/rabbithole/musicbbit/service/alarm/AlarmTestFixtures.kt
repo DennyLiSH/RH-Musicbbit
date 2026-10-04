@@ -1,6 +1,7 @@
 package com.rabbithole.musicbbit.service.alarm
 
 import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.domain.model.AlarmWithPlaylistName
 import com.rabbithole.musicbbit.domain.model.PlaybackProgress
 import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.model.PlaylistWithSongs
@@ -28,6 +29,9 @@ class FakeAlarmRepository : AlarmRepository {
 
     override fun getEnabledAlarms(): Flow<List<Alarm>> =
         flowOf(rows.values.filter { it.isEnabled })
+
+    override fun getAlarmsWithPlaylistName(): Flow<List<AlarmWithPlaylistName>> =
+        flowOf(rows.values.map { AlarmWithPlaylistName(it, "Test Playlist") })
 
     override suspend fun getAlarmById(id: Long): Alarm? = rows[id]
 

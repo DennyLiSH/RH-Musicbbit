@@ -167,6 +167,9 @@ class AlarmStartupReconcilerTest {
         override fun getEnabledAlarms(): Flow<List<Alarm>> =
             flowOf(rows.values.filter { it.isEnabled })
 
+        override fun getAlarmsWithPlaylistName(): Flow<List<com.rabbithole.musicbbit.domain.model.AlarmWithPlaylistName>> =
+            flowOf(rows.values.map { com.rabbithole.musicbbit.domain.model.AlarmWithPlaylistName(it, "Test Playlist") })
+
         override suspend fun getAlarmById(id: Long): Alarm? = rows[id]
 
         override suspend fun saveAlarm(alarm: Alarm): Result<Long> {

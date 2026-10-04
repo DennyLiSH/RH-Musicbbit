@@ -354,8 +354,10 @@ private fun SwipeableAlarmItem(
 
 @Composable
 internal fun AlarmListItemSubtitle(alarmItem: AlarmItem) {
+    val playlistLabel = alarmItem.playlistName
+        ?: stringResource(R.string.alarm_unknown_playlist)
     val base = formatRepeatDays(alarmItem.alarm.repeatDays, alarmItem.alarm.excludeHolidays) +
-        " · " + alarmItem.playlistName
+        " · " + playlistLabel
     val text = if (!alarmItem.alarm.ignoreQuietMode) {
         base + " · " + stringResource(R.string.alarm_list_muted_in_dnd)
     } else {

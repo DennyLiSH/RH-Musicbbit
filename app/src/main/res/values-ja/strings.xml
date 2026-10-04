@@ -258,6 +258,7 @@
     <string name="autostart_manual_guide_message">アラームが時間通りに鳴るよう、自動起動権限を手動で有効にしてください：\n\n1. システム「設定」を開く\n2.「アプリ」に入る\n3.「自動起動管理」をタップ\n4.「音楽兎」を見つけて有効にする\n\n有効にしない場合、システムがバックグラウンドでアプリを終了し、アラームが動作しない可能性があります。</string>
     <string name="autostart_manual_guide_open_settings">システム設定を開く</string>
     <string name="playlist_not_found">このプレイリストは存在しません</string>
+    <string name="alarm_unknown_playlist">不明なプレイリスト</string>
     <string name="permission_name_exact_alarms">正確なアラームスケジュール</string>
     <string name="permission_desc_exact_alarms">アラームの正確なスケジュールに必要です。システム設定で有効にしてください。</string>
     <string name="permission_name_post_notifications">通知の送信</string>

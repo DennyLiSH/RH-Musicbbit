@@ -258,6 +258,7 @@
     <string name="autostart_manual_guide_message">To ensure alarms ring on time, please manually enable auto-start permission:\n\n1. Open system \"Settings\"\n2. Go to \"Apps\"\n3. Tap \"Auto-start management\"\n4. Find \"Music Rabbit\" and enable it\n\nOtherwise, the system may kill the app in the background, causing alarms to fail.</string>
     <string name="autostart_manual_guide_open_settings">Open System Settings</string>
     <string name="playlist_not_found">This playlist no longer exists</string>
+    <string name="alarm_unknown_playlist">Unknown playlist</string>
     <string name="permission_name_exact_alarms">Schedule Exact Alarms</string>
     <string name="permission_desc_exact_alarms">Required for precise alarm scheduling. Must be enabled in system settings.</string>
     <string name="permission_name_post_notifications">Post Notifications</string>

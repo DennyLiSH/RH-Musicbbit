@@ -2,11 +2,10 @@ package com.rabbithole.musicbbit.presentation.alarm
 
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.domain.model.AlarmWithPlaylistName
 import com.rabbithole.musicbbit.domain.model.AutoStop
-import com.rabbithole.musicbbit.domain.model.Playlist
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.HolidayRepository
-import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.presentation.components.ListUiState
 import com.rabbithole.musicbbit.presentation.components.UserMessage
 import com.rabbithole.musicbbit.presentation.permissions.PermissionStatusMonitor
@@ -23,6 +22,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -41,7 +41,6 @@ class AlarmListViewModelTest {
     private lateinit var permissionPort: PermissionPort
     private lateinit var alarmRepository: AlarmRepository
     private lateinit var holidayRepository: HolidayRepository
-    private lateinit var playlistRepository: PlaylistRepository
 
     @Before
     fun setUp() {
@@ -52,16 +51,33 @@ class AlarmListViewModelTest {
             whenever(it.isNotificationPolicyAccessGranted()).thenReturn(true)
         }
         alarmRepository = mock {
-            whenever(it.getAllAlarms()).thenReturn(flowOf(emptyList()))
+            whenever(it.getAlarmsWithPlaylistName()).thenReturn(flowOf(emptyList()))
         }
         holidayRepository = mock()
-        playlistRepository = mock()
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
     }
+
+    private fun alarmEntity(
+        id: Long = 1L,
+        playlistId: Long = 10L,
+        label: String = "Test",
+        hour: Int = 7,
+    ) = Alarm(
+        id = id,
+        hour = hour,
+        minute = 0,
+        repeatDays = setOf(DayOfWeek.MONDAY),
+        excludeHolidays = false,
+        playlistId = playlistId,
+        isEnabled = true,
+        label = label,
+        autoStop = null,
+        lastTriggeredAt = null,
+    )
 
     // -------- FSI permission tests (existing) --------------------------------
 
@@ -129,35 +145,15 @@ class AlarmListViewModelTest {
     // -------- Alarm list loading tests ---------------------------------------
 
     @Test
-    fun `alarm list loading emits Content with correct AlarmItems`() = runTest {
-        val alarm1 = Alarm(
-            id = 1L,
-            hour = 7,
-            minute = 30,
-            repeatDays = setOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY),
-            excludeHolidays = false,
-            playlistId = 10L,
-            isEnabled = true,
-            label = "Morning Alarm",
-            autoStop = null,
-            lastTriggeredAt = null
-        )
-        val alarm2 = Alarm(
-            id = 2L,
-            hour = 22,
-            minute = 0,
-            repeatDays = emptySet(),
-            excludeHolidays = false,
-            playlistId = 20L,
-            isEnabled = false,
-            label = "Bedtime",
-            autoStop = AutoStop.ByMinutes(30),
-            lastTriggeredAt = 1_700_000_000_000L
-        )
+    fun `alarm list loading emits Content with joined playlist names`() = runTest {
+        val alarm1 = alarmEntity(id = 1L, playlistId = 10L, label = "Morning Alarm", hour = 7)
+        val alarm2 = alarmEntity(id = 2L, playlistId = 20L, label = "Bedtime", hour = 22)
 
-        whenever(alarmRepository.getAllAlarms()).thenReturn(flowOf(listOf(alarm1, alarm2)))
-        wheneverBlocking { playlistRepository.getPlaylistById(10L) } doReturn Playlist(10L, "Workout Mix", 0L, 0L)
-        wheneverBlocking { playlistRepository.getPlaylistById(20L) } doReturn Playlist(20L, "Sleep Sounds", 0L, 0L)
+        val items = listOf(
+            AlarmWithPlaylistName(alarm = alarm1, playlistName = "Workout Mix"),
+            AlarmWithPlaylistName(alarm = alarm2, playlistName = "Sleep Sounds"),
+        )
+        whenever(alarmRepository.getAlarmsWithPlaylistName()).thenReturn(flowOf(items))
         whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
 
         val viewModel = createViewModel()
@@ -179,7 +175,7 @@ class AlarmListViewModelTest {
 
     @Test
     fun `empty alarm list emits Content with empty list`() = runTest {
-        whenever(alarmRepository.getAllAlarms()).thenReturn(flowOf(emptyList()))
+        whenever(alarmRepository.getAlarmsWithPlaylistName()).thenReturn(flowOf(emptyList()))
         whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
 
         val viewModel = createViewModel()
@@ -191,25 +187,28 @@ class AlarmListViewModelTest {
         assertTrue("Alarm list should be empty", content.data.isEmpty())
     }
 
+    @Test
+    fun `playlistName null when underlying playlist deleted`() = runTest {
+        val alarm = alarmEntity(id = 1L, playlistId = 999L)
+        // Repository signals "playlist deleted" by returning null for that playlist.
+        val items = listOf(AlarmWithPlaylistName(alarm = alarm, playlistName = null))
+        whenever(alarmRepository.getAlarmsWithPlaylistName()).thenReturn(flowOf(items))
+        whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val content = viewModel.uiState.value as ListUiState.Content
+        assertNull("playlistName must be null when repository signals deleted playlist", content.data[0].playlistName)
+    }
+
     // -------- Delete alarm test ----------------------------------------------
 
     @Test
     fun `onAction OnDeleteAlarm calls repository deleteAlarm`() = runTest {
-        val alarm = Alarm(
-            id = 1L,
-            hour = 7,
-            minute = 0,
-            repeatDays = setOf(DayOfWeek.MONDAY),
-            excludeHolidays = false,
-            playlistId = 10L,
-            isEnabled = true,
-            label = "Test",
-            autoStop = null,
-            lastTriggeredAt = null
-        )
-        whenever(alarmRepository.getAllAlarms()).thenReturn(flowOf(listOf(alarm)))
+        val alarm = alarmEntity()
+        whenever(alarmRepository.getAlarmsWithPlaylistName()).thenReturn(flowOf(emptyList()))
         wheneverBlocking { alarmRepository.deleteAlarm(alarm) } doReturn Result.success(Unit)
-        wheneverBlocking { playlistRepository.getPlaylistById(10L) } doReturn Playlist(10L, "Test Playlist", 0L, 0L)
         whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
 
         val viewModel = createViewModel()
@@ -222,21 +221,9 @@ class AlarmListViewModelTest {
 
     @Test
     fun `onAction OnToggleEnabled calls repository enableAlarm`() = runTest {
-        val alarm = Alarm(
-            id = 1L,
-            hour = 7,
-            minute = 0,
-            repeatDays = setOf(DayOfWeek.MONDAY),
-            excludeHolidays = false,
-            playlistId = 10L,
-            isEnabled = true,
-            label = "Test",
-            autoStop = null,
-            lastTriggeredAt = null
-        )
-        whenever(alarmRepository.getAllAlarms()).thenReturn(flowOf(listOf(alarm)))
+        val alarm = alarmEntity()
+        whenever(alarmRepository.getAlarmsWithPlaylistName()).thenReturn(flowOf(emptyList()))
         wheneverBlocking { alarmRepository.enableAlarm(1L, false) } doReturn Result.success(Unit)
-        wheneverBlocking { playlistRepository.getPlaylistById(10L) } doReturn Playlist(10L, "Test Playlist", 0L, 0L)
         whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
 
         val viewModel = createViewModel()
@@ -249,21 +236,9 @@ class AlarmListViewModelTest {
 
     @Test
     fun `onAction OnToggleEnabled failure emits UserMessage with enable failed`() = runTest {
-        val alarm = Alarm(
-            id = 1L,
-            hour = 7,
-            minute = 0,
-            repeatDays = setOf(DayOfWeek.MONDAY),
-            excludeHolidays = false,
-            playlistId = 10L,
-            isEnabled = true,
-            label = "Test",
-            autoStop = null,
-            lastTriggeredAt = null
-        )
-        whenever(alarmRepository.getAllAlarms()).thenReturn(flowOf(listOf(alarm)))
+        val alarm = alarmEntity()
+        whenever(alarmRepository.getAlarmsWithPlaylistName()).thenReturn(flowOf(emptyList()))
         wheneverBlocking { alarmRepository.enableAlarm(1L, false) } doReturn Result.failure(RuntimeException("DB error"))
-        wheneverBlocking { playlistRepository.getPlaylistById(10L) } doReturn Playlist(10L, "Test Playlist", 0L, 0L)
         whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
 
         val viewModel = createViewModel()
@@ -278,15 +253,17 @@ class AlarmListViewModelTest {
 
     @Test
     fun `retry reloads alarms after error`() = runTest {
-        val errorFlow = kotlinx.coroutines.flow.flow<List<Alarm>> { throw RuntimeException("DB error") }
-        whenever(alarmRepository.getAllAlarms()).thenReturn(errorFlow)
+        val errorFlow = kotlinx.coroutines.flow.flow<List<AlarmWithPlaylistName>> {
+            throw RuntimeException("DB error")
+        }
+        whenever(alarmRepository.getAlarmsWithPlaylistName()).thenReturn(errorFlow)
         whenever(permissionPort.isFullScreenIntentGranted()).thenReturn(true)
 
         val viewModel = createViewModel()
         advanceUntilIdle()
 
         // Replace stub with success flow before retry.
-        whenever(alarmRepository.getAllAlarms()).thenReturn(flowOf(emptyList()))
+        whenever(alarmRepository.getAlarmsWithPlaylistName()).thenReturn(flowOf(emptyList()))
         viewModel.retry()
         advanceUntilIdle()
 
@@ -300,8 +277,7 @@ class AlarmListViewModelTest {
         return AlarmListViewModel(
             alarmRepository = alarmRepository,
             holidayRepository = holidayRepository,
-            playlistRepository = playlistRepository,
-            permissionMonitor = PermissionStatusMonitor(permissionPort)
+            permissionMonitor = PermissionStatusMonitor(permissionPort),
         )
     }
 }

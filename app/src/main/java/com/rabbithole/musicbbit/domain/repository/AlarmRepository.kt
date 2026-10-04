@@ -1,6 +1,7 @@
 package com.rabbithole.musicbbit.domain.repository
 
 import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.domain.model.AlarmWithPlaylistName
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -15,6 +16,11 @@ interface AlarmRepository {
      * Returns a flow of all alarms (both enabled and disabled).
      */
     fun getAllAlarms(): Flow<List<Alarm>>
+
+    /**
+     * Alarms joined with playlist names — reactive to both tables. Null name = deleted playlist.
+     */
+    fun getAlarmsWithPlaylistName(): Flow<List<AlarmWithPlaylistName>>
 
     /**
      * Returns a flow of only enabled alarms.

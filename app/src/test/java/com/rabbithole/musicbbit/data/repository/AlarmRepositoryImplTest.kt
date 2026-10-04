@@ -2,6 +2,8 @@ package com.rabbithole.musicbbit.data.repository
 
 import app.cash.turbine.test
 import com.rabbithole.musicbbit.data.local.dao.AlarmDao
+import com.rabbithole.musicbbit.data.local.dao.PlaylistDao
+import com.rabbithole.musicbbit.data.local.model.PlaylistEntity
 import com.rabbithole.musicbbit.data.model.AlarmEntity
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.domain.model.AutoStop
@@ -28,6 +30,7 @@ import java.time.DayOfWeek
 class AlarmRepositoryImplTest {
 
     private val alarmDao: AlarmDao = mock()
+    private val playlistDao: PlaylistDao = mock()
     private val alarmScheduler: AlarmScheduler = mock()
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var repository: AlarmRepositoryImpl
@@ -35,7 +38,7 @@ class AlarmRepositoryImplTest {
     @Before
     fun setup() {
         val persistence = AlarmPersistenceRepositoryImpl(alarmDao, testDispatcher)
-        repository = AlarmRepositoryImpl(persistence, alarmScheduler, testDispatcher)
+        repository = AlarmRepositoryImpl(persistence, alarmDao, playlistDao, alarmScheduler, testDispatcher)
     }
 
     // ------------------------------------------------------------------

@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.domain.model.Alarm
+import com.rabbithole.musicbbit.domain.model.AlarmWithPlaylistName
 import com.rabbithole.musicbbit.domain.repository.AlarmRepository
 import com.rabbithole.musicbbit.domain.repository.HolidayRepository
-import com.rabbithole.musicbbit.domain.repository.PlaylistRepository
 import com.rabbithole.musicbbit.presentation.components.ListUiState
 import com.rabbithole.musicbbit.presentation.components.UserMessage
 import com.rabbithole.musicbbit.presentation.permissions.PermissionStatus
@@ -30,10 +30,11 @@ import javax.inject.Inject
 
 /**
  * Presentation model that combines an alarm with its associated playlist name.
+ * `playlistName` is nullable: a null name means the linked playlist has been deleted.
  */
 data class AlarmItem(
     val alarm: Alarm,
-    val playlistName: String
+    val playlistName: String?,
 )
 
 /**
@@ -49,7 +50,6 @@ sealed interface AlarmListAction {
 class AlarmListViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val holidayRepository: HolidayRepository,
-    private val playlistRepository: PlaylistRepository,
     private val permissionMonitor: PermissionStatusMonitor,
 ) : ViewModel() {
 
@@ -72,13 +72,13 @@ class AlarmListViewModel @Inject constructor(
 
     val uiState: StateFlow<ListUiState<List<AlarmItem>>> = loadTrigger
         .flatMapLatest {
-            alarmRepository.getAllAlarms()
-                .map<List<Alarm>, ListUiState<List<AlarmItem>>> { alarms ->
+            alarmRepository.getAlarmsWithPlaylistName()
+                .map<List<AlarmWithPlaylistName>, ListUiState<List<AlarmItem>>> { items ->
                     ListUiState.Content(
-                        alarms.map { alarm ->
+                        items.map { item ->
                             AlarmItem(
-                                alarm = alarm,
-                                playlistName = resolvePlaylistName(alarm.playlistId),
+                                alarm = item.alarm,
+                                playlistName = item.playlistName,
                             )
                         }
                     )
@@ -136,11 +136,4 @@ class AlarmListViewModel @Inject constructor(
             }
         }
     }
-
-    /**
-     * Resolves the playlist name for the given playlist ID.
-     * Plan C Task 6 will sink this into a shared repository helper.
-     */
-    private suspend fun resolvePlaylistName(playlistId: Long): String =
-        playlistRepository.getPlaylistById(playlistId)?.name ?: "Unknown Playlist"
 }
