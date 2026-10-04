@@ -1,70 +1,30 @@
 package com.rabbithole.musicbbit.data.repository
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
 import com.rabbithole.musicbbit.data.local.datastore.SettingsKeys
-import com.rabbithole.musicbbit.di.IoDispatcher
+import com.rabbithole.musicbbit.data.local.datastore.SettingsStore
 import com.rabbithole.musicbbit.domain.repository.AlarmRingSettingsRepository
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class AlarmRingSettingsRepositoryImpl @Inject constructor(
-    private val dataStore: DataStore<Preferences>,
-    @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher
+    private val settingsStore: SettingsStore,
 ) : AlarmRingSettingsRepository {
 
-    override fun isBreathingEnabled(): Flow<Boolean> {
-        return dataStore.data.map { preferences ->
-            preferences[SettingsKeys.BREATHING_ENABLED] ?: true
-        }
-    }
+    override fun isBreathingEnabled(): Flow<Boolean> =
+        settingsStore.booleanFlow(SettingsKeys.BREATHING_ENABLED, default = true)
 
-    override fun getBreathingPeriodMs(): Flow<Long> {
-        return dataStore.data.map { preferences ->
-            preferences[SettingsKeys.BREATHING_PERIOD_MS] ?: 3500L
-        }
-    }
+    override fun getBreathingPeriodMs(): Flow<Long> =
+        settingsStore.longFlow(SettingsKeys.BREATHING_PERIOD_MS, default = 3500L)
 
-    override suspend fun setBreathingEnabled(enabled: Boolean): Result<Unit> = withContext(ioDispatcher) {
-        try {
-            dataStore.edit { preferences ->
-                preferences[SettingsKeys.BREATHING_ENABLED] = enabled
-            }
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    override suspend fun setBreathingEnabled(enabled: Boolean): Result<Unit> =
+        settingsStore.write(SettingsKeys.BREATHING_ENABLED, enabled)
 
-    override suspend fun setBreathingPeriodMs(periodMs: Long): Result<Unit> = withContext(ioDispatcher) {
-        try {
-            dataStore.edit { preferences ->
-                preferences[SettingsKeys.BREATHING_PERIOD_MS] = periodMs
-            }
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    override suspend fun setBreathingPeriodMs(periodMs: Long): Result<Unit> =
+        settingsStore.write(SettingsKeys.BREATHING_PERIOD_MS, periodMs)
 
-    override fun getVolumeRampDurationSeconds(): Flow<Int> {
-        return dataStore.data.map { preferences ->
-            preferences[SettingsKeys.VOLUME_RAMP_DURATION_SECONDS] ?: 5
-        }
-    }
+    override fun getVolumeRampDurationSeconds(): Flow<Int> =
+        settingsStore.intFlow(SettingsKeys.VOLUME_RAMP_DURATION_SECONDS, default = 5)
 
-    override suspend fun setVolumeRampDurationSeconds(seconds: Int): Result<Unit> = withContext(ioDispatcher) {
-        try {
-            dataStore.edit { preferences ->
-                preferences[SettingsKeys.VOLUME_RAMP_DURATION_SECONDS] = seconds
-            }
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    override suspend fun setVolumeRampDurationSeconds(seconds: Int): Result<Unit> =
+        settingsStore.write(SettingsKeys.VOLUME_RAMP_DURATION_SECONDS, seconds)
 }

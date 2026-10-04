@@ -1,11 +1,9 @@
 package com.rabbithole.musicbbit.data.repository
 
 import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
 import com.rabbithole.musicbbit.data.local.dao.HolidayDao
 import com.rabbithole.musicbbit.data.local.datastore.SettingsKeys
+import com.rabbithole.musicbbit.data.local.datastore.SettingsStore
 import com.rabbithole.musicbbit.data.local.model.HolidayEntity
 import com.rabbithole.musicbbit.data.mapper.toDomain
 import com.rabbithole.musicbbit.data.remote.api.HolidayApi
@@ -35,7 +33,7 @@ class HolidayRepositoryImpl @Inject constructor(
     private val json: Json,
     @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     @param:ApplicationContext private val context: Context,
-    private val dataStore: DataStore<Preferences>
+    private val settingsStore: SettingsStore,
 ) : HolidayRepository {
 
     private var fallbackCache: Map<String, HolidayEntity>? = null
@@ -106,8 +104,10 @@ class HolidayRepositoryImpl @Inject constructor(
 
     override suspend fun maybeRefreshHolidays(year: Int): Result<Unit> = runCatching {
         val currentMonth = YearMonth.now().toString()
-        val preferences = dataStore.data.first()
-        val lastCallMonth = preferences[SettingsKeys.LAST_HOLIDAY_API_CALL_MONTH]
+        val lastCallMonth = settingsStore.stringFlow(
+            SettingsKeys.LAST_HOLIDAY_API_CALL_MONTH,
+            default = "",
+        ).first()
 
         if (lastCallMonth == currentMonth) {
             Timber.d("Holiday API already called this month ($currentMonth), skipping refresh")
@@ -117,9 +117,7 @@ class HolidayRepositoryImpl @Inject constructor(
         Timber.i("Triggering holiday refresh for year $year (last call: $lastCallMonth, current: $currentMonth)")
         val result = refreshHolidays(year)
         result.getOrThrow()
-        dataStore.edit { prefs ->
-            prefs[SettingsKeys.LAST_HOLIDAY_API_CALL_MONTH] = currentMonth
-        }
+        settingsStore.write(SettingsKeys.LAST_HOLIDAY_API_CALL_MONTH, currentMonth)
         Timber.i("Holiday refresh succeeded, recorded month $currentMonth")
     }
 

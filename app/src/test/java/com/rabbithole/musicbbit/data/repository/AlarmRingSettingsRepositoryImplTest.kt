@@ -1,10 +1,10 @@
 package com.rabbithole.musicbbit.data.repository
 
-import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.mutablePreferencesOf
 import app.cash.turbine.test
+import com.rabbithole.musicbbit.data.local.datastore.SettingsKeys
+import com.rabbithole.musicbbit.data.local.datastore.SettingsStore
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -12,40 +12,20 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AlarmRingSettingsRepositoryImplTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
-    private val breathingEnabledKey = booleanPreferencesKey("breathing_enabled")
-    private val breathingPeriodMsKey = longPreferencesKey("breathing_period_ms")
-
-    private val prefsMap = mutableMapOf<String, Any>(
-        "breathing_enabled" to true,
-        "breathing_period_ms" to 3500L,
-    )
-
-    private val prefsFlow = MutableStateFlow(createMockPrefs())
-
-    private fun createMockPrefs(): Preferences {
-        val prefs = mock<Preferences>()
-        whenever(prefs[breathingEnabledKey]).thenAnswer { prefsMap["breathing_enabled"] as? Boolean ?: true }
-        whenever(prefs[breathingPeriodMsKey]).thenAnswer { prefsMap["breathing_period_ms"] as? Long ?: 3500L }
-        return prefs
-    }
-
-    private val dataStore: DataStore<Preferences> = mock<DataStore<Preferences>>().also {
-        whenever(it.data).thenReturn(prefsFlow)
-    }
+    private val holder = MutablePreferencesHolder()
+    private val settingsStore = SettingsStore(FakeDataStore(holder), testDispatcher)
 
     private lateinit var repository: AlarmRingSettingsRepositoryImpl
 
     @Before
     fun setup() {
-        repository = AlarmRingSettingsRepositoryImpl(dataStore, testDispatcher)
+        repository = AlarmRingSettingsRepositoryImpl(settingsStore)
     }
 
     @Test
@@ -68,9 +48,7 @@ class AlarmRingSettingsRepositoryImplTest {
 
     @Test
     fun `isBreathingEnabled reflects updated value`() = runTest(testDispatcher) {
-        // Simulate preference change
-        prefsMap["breathing_enabled"] = false
-        prefsFlow.value = createMockPrefs()
+        holder.set(mutablePreferencesOf(SettingsKeys.BREATHING_ENABLED to false))
 
         repository.isBreathingEnabled().test {
             assertEquals(false, awaitItem())
@@ -80,12 +58,27 @@ class AlarmRingSettingsRepositoryImplTest {
 
     @Test
     fun `getBreathingPeriodMs reflects updated value`() = runTest(testDispatcher) {
-        prefsMap["breathing_period_ms"] = 5000L
-        prefsFlow.value = createMockPrefs()
+        holder.set(mutablePreferencesOf(SettingsKeys.BREATHING_PERIOD_MS to 5000L))
 
         repository.getBreathingPeriodMs().test {
             assertEquals(5000L, awaitItem())
             cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    private class MutablePreferencesHolder {
+        private val flow = MutableStateFlow<Preferences>(mutablePreferencesOf())
+        val data: kotlinx.coroutines.flow.StateFlow<Preferences> = flow
+        fun set(p: Preferences) { flow.value = p }
+    }
+
+    private class FakeDataStore(private val holder: MutablePreferencesHolder) :
+        androidx.datastore.core.DataStore<Preferences> {
+        override val data = holder.data
+        override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+            val next = transform(holder.data.value)
+            holder.set(next)
+            return next
         }
     }
 }
