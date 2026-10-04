@@ -572,6 +572,26 @@ class AlarmFireSessionTest {
     }
 
     @Test
+    fun `stop from Paused finalizes the session`() = scope.runTest {
+        // Reach Paused state, then user taps Stop on the notification/ring screen.
+        // A PlaybackStopped transition arriving in Paused state must still finalize the
+        // session (terminal transitions close the lifecycle regardless of state).
+        firePlaying(alarmId = 36L, playlistId = 360L)
+        session.pause()
+        assertTrue("pre-condition: should be Paused", session.state.value is AlarmFireState.Paused)
+
+        // Issue the stop; the mock alarmPlaybackSession.stop() is a no-op stub. We
+        // simulate the real session's PlaybackStopped emission arriving via the
+        // transitions collector.
+        session.stop()
+        fakeControls.emitPlaybackTransition(PlaybackTransition.PlaybackStopped)
+        runCurrent()
+
+        assertEquals("state must finalize even though it was Paused", AlarmFireState.Stopped, session.state.value)
+        assertEquals(1, notificationPort.cancelCount)
+    }
+
+    @Test
     fun `SongCompleted transition does not trigger onPlaybackStopped`() = scope.runTest {
         firePlaying(alarmId = 35L, playlistId = 350L)
         assertTrue(wakeLockPort.isHeld)

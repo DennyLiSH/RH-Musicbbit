@@ -73,6 +73,14 @@ class AlarmFireSession @Inject constructor(
     }
 
     private fun handlePlaybackTransition(transition: PlaybackTransition) {
+        // Terminal transitions finalize the session regardless of the current state —
+        // stop() may legitimately arrive from Paused (notification Stop action) or even
+        // Loading. Business transitions (SongCompleted/QueueEnded) only apply while Playing.
+        if (transition is PlaybackTransition.PlaybackStopped) {
+            onPlaybackStopped()
+            return
+        }
+
         val current = _state.value
         if (current !is AlarmFireState.Playing) return
 
@@ -89,7 +97,7 @@ class AlarmFireSession @Inject constructor(
                 deletePlaylistProgressIfMatches(transition.playlistId, current.alarmId)
                 alarmPlaybackSession.stop()
             }
-            is PlaybackTransition.PlaybackStopped -> onPlaybackStopped()
+            is PlaybackTransition.PlaybackStopped -> Unit // handled above
         }
     }
 
