@@ -93,10 +93,6 @@ class UserPlaybackSession @Inject constructor(
                 Timber.w("playQueue called with empty list")
                 return@issueCommand
             }
-            if (!audioFocusPort.requestFocus()) {
-                Timber.w("Failed to gain audio focus")
-                return@issueCommand
-            }
             val safeIndex = startIndex.coerceIn(0, songs.lastIndex)
             val startSong = songs[safeIndex]
 
@@ -104,36 +100,37 @@ class UserPlaybackSession @Inject constructor(
                 "Playing queue of ${songs.size} songs, startIndex=$safeIndex, playlistId=$playlistId"
             )
 
-            playbackCoordinator.activate(this@UserPlaybackSession)
-            audioStreamPort.setAlarmStream(false)
-            serviceStarter.startService()
-
-            val mediaItems = songs.map { song ->
-                PlayItem(uri = song.path, tag = song)
-            }
-
-            playerPort.setQueue(items = mediaItems, startIndex = safeIndex, startPositionMs = 0)
-
-            sessionScope.launch {
-                val progressResult = playbackProgressRepository.getProgress(startSong.id, playlistId)
-                // Re-check ownership: the alarm may have taken the player while we were
-                // suspended on IO. Seeking/playing now would act on the alarm's queue.
-                if (playbackCoordinator.isOwnedByAnother(this@UserPlaybackSession)) {
-                    Timber.w("playQueue aborted after suspension: another session owns the player")
-                    return@launch
-                }
-                progressResult.getOrNull()?.let { progress ->
-                    Timber.i("Restoring progress for song ${startSong.id}: ${progress.positionMs}ms")
-                    playerPort.seekTo(progress.positionMs)
-                }
-                playerPort.play()
-            }
-
-            applyPlaybackState(
-                song = startSong,
-                playlistId = playlistId,
-                queue = songs,
-                queueIndex = safeIndex,
+            coreStartQueue(
+                items = songs.map { song -> PlayItem(uri = song.path, tag = song) },
+                startIndex = safeIndex,
+                useAlarmStream = false,
+                focusFailLog = "Failed to gain audio focus",
+                startPlayback = {
+                    sessionScope.launch {
+                        val progressResult = playbackProgressRepository.getProgress(startSong.id, playlistId)
+                        // Re-check ownership: the alarm may have taken the player while we were
+                        // suspended on IO. Seeking/playing now would act on the alarm's queue.
+                        if (playbackCoordinator.isOwnedByAnother(this@UserPlaybackSession)) {
+                            Timber.w("playQueue aborted after suspension: another session owns the player")
+                            return@launch
+                        }
+                        progressResult.getOrNull()?.let { progress ->
+                            Timber.i("Restoring progress for song ${startSong.id}: ${progress.positionMs}ms")
+                            playerPort.seekTo(progress.positionMs)
+                        }
+                        playerPort.play()
+                    }
+                },
+                applyState = {
+                    it.copy(
+                        currentSong = startSong,
+                        currentPlaylistId = playlistId,
+                        queue = songs,
+                        queueIndex = safeIndex,
+                        positionMs = 0,
+                        durationMs = startSong.durationMs,
+                    )
+                },
             )
         }
     }
