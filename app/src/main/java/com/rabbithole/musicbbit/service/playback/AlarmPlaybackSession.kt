@@ -23,7 +23,7 @@ import timber.log.Timber
 @Singleton
 class AlarmPlaybackSession @Inject constructor(
     private val playerPort: PlayerPort,
-    private val audioStreamPort: AudioStreamPort,
+    audioStreamPort: AudioStreamPort,
     playbackProgressRepository: PlaybackProgressRepository,
     serviceStarter: ServiceStarter,
     audioFocusPort: AudioFocusPort,
@@ -33,6 +33,7 @@ class AlarmPlaybackSession @Inject constructor(
     playerPort = playerPort,
     playbackProgressRepository = playbackProgressRepository,
     audioFocusPort = audioFocusPort,
+    audioStreamPort = audioStreamPort,
     serviceStarter = serviceStarter,
     playbackCoordinator = playbackCoordinator,
     mainDispatcher = mainDispatcher,

@@ -37,7 +37,7 @@ import timber.log.Timber
 @Singleton
 class UserPlaybackSession @Inject constructor(
     private val playerPort: PlayerPort,
-    private val audioStreamPort: AudioStreamPort,
+    audioStreamPort: AudioStreamPort,
     playbackProgressRepository: PlaybackProgressRepository,
     serviceStarter: ServiceStarter,
     audioFocusPort: AudioFocusPort,
@@ -47,6 +47,7 @@ class UserPlaybackSession @Inject constructor(
     playerPort = playerPort,
     playbackProgressRepository = playbackProgressRepository,
     audioFocusPort = audioFocusPort,
+    audioStreamPort = audioStreamPort,
     serviceStarter = serviceStarter,
     playbackCoordinator = playbackCoordinator,
     mainDispatcher = mainDispatcher,

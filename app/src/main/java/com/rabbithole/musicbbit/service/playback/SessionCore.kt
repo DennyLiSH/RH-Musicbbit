@@ -38,6 +38,7 @@ abstract class SessionCore protected constructor(
     private val playerPort: PlayerPort,
     protected val playbackProgressRepository: PlaybackProgressRepository,
     protected val audioFocusPort: AudioFocusPort,
+    protected val audioStreamPort: AudioStreamPort,
     protected val serviceStarter: ServiceStarter,
     protected val playbackCoordinator: PlaybackCoordinator,
     @MainDispatcher mainDispatcher: CoroutineDispatcher,
@@ -200,6 +201,44 @@ abstract class SessionCore protected constructor(
                 playbackCoordinator.deactivate(this@SessionCore)
             }
         }
+    }
+
+    /**
+     * Shared queue-start sequence — the counterpart of [coreStop]. Ordering contract,
+     * maintained here only:
+     *
+     *   1. audio focus must be gained BEFORE activation (a session that cannot hold
+     *      focus must not become the coordinator's active consumer);
+     *   2. the audio stream is routed BEFORE the queue is set (stream attributes
+     *      apply to the session, not per-item);
+     *   3. the foreground service starts BEFORE play (playback must never outrun
+     *      its foreground host);
+     *   4. state is applied LAST (UI never observes a queue that is not yet started).
+     *
+     * @param startPlayback how playback actually begins. Default: play immediately.
+     *   [UserPlaybackSession.playQueue] passes a coroutine that restores progress
+     *   first, then plays.
+     * @return false when audio focus was refused — nothing has been activated or
+     *   queued; the caller logs its context-specific failure.
+     */
+    protected fun coreStartQueue(
+        items: List<PlayItem>,
+        startIndex: Int,
+        useAlarmStream: Boolean,
+        focusFailLog: String,
+        startPlayback: () -> Unit = { playerPort.play() },
+        applyState: (PlaybackState) -> PlaybackState,
+    ) {
+        if (!audioFocusPort.requestFocus()) {
+            Timber.w(focusFailLog)
+            return
+        }
+        playbackCoordinator.activate(this)
+        audioStreamPort.setAlarmStream(useAlarmStream)
+        serviceStarter.startService()
+        playerPort.setQueue(items = items, startIndex = startIndex, startPositionMs = 0)
+        startPlayback()
+        updateState(applyState)
     }
 
     private fun teardownPlayer(skipSave: Boolean) {
