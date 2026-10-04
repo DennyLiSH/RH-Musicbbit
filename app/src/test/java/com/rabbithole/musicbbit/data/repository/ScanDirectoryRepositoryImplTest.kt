@@ -1,10 +1,10 @@
 package com.rabbithole.musicbbit.data.repository
 
 import app.cash.turbine.test
+import com.rabbithole.musicbbit.data.local.LibraryRefresher
 import com.rabbithole.musicbbit.data.local.dao.ScanDirectoryDao
-import com.rabbithole.musicbbit.data.local.dao.SongDao
 import com.rabbithole.musicbbit.data.local.model.ScanDirectoryEntity
-import com.rabbithole.musicbbit.data.local.model.SongEntity
+import com.rabbithole.musicbbit.data.local.sync.SyncResult
 import com.rabbithole.musicbbit.domain.model.ScanDirectory
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -14,7 +14,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.doThrow
@@ -23,22 +22,22 @@ import org.mockito.kotlin.verifyBlocking
 import org.mockito.kotlin.whenever
 import org.mockito.kotlin.wheneverBlocking
 
+/**
+ * Verifies the repository delegates add/remove to LibraryRefresher — the actual
+ * cascade / refresh semantics are exercised by LibraryRefresherTest, not here.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ScanDirectoryRepositoryImplTest {
 
     private val scanDirectoryDao: ScanDirectoryDao = mock()
-    private val songDao: SongDao = mock()
+    private val libraryRefresher: LibraryRefresher = mock()
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var repository: ScanDirectoryRepositoryImpl
 
     @Before
     fun setup() {
-        repository = ScanDirectoryRepositoryImpl(scanDirectoryDao, songDao, testDispatcher)
+        repository = ScanDirectoryRepositoryImpl(scanDirectoryDao, libraryRefresher, testDispatcher)
     }
-
-    // ------------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------------
 
     private fun scanDirEntity(
         id: Long = 1L,
@@ -46,24 +45,6 @@ class ScanDirectoryRepositoryImplTest {
         name: String = "Music",
         addedAt: Long = 1000L
     ) = ScanDirectoryEntity(id = id, path = path, name = name, addedAt = addedAt)
-
-    private fun songEntity(
-        id: Long = 1L,
-        path: String = "/storage/Music/song.mp3",
-        title: String = "Song",
-        artist: String? = null,
-        album: String? = null,
-        durationMs: Long = 180000L,
-        dateAdded: Long = 3000L,
-        coverUri: String? = null
-    ) = SongEntity(
-        id = id, path = path, title = title, artist = artist,
-        album = album, durationMs = durationMs, dateAdded = dateAdded, coverUri = coverUri
-    )
-
-    // ------------------------------------------------------------------
-    // Tests
-    // ------------------------------------------------------------------
 
     @Test
     fun `getAll maps entities to domain`() = runTest(testDispatcher) {
@@ -84,62 +65,43 @@ class ScanDirectoryRepositoryImplTest {
     }
 
     @Test
-    fun `add inserts and returns id`() = runTest(testDispatcher) {
+    fun `add delegates to libraryRefresher addDirectoryAndRefresh`() = runTest(testDispatcher) {
         val directory = ScanDirectory(id = 0L, path = "/storage/Music", name = "Music", addedAt = 1000L)
-        wheneverBlocking { scanDirectoryDao.insert(any()) } doReturn 5L
+        wheneverBlocking { libraryRefresher.addDirectoryAndRefresh(directory) } doReturn Result.success(5L)
 
         val result = repository.add(directory)
 
         assertTrue(result.isSuccess)
         assertEquals(5L, result.getOrNull())
-        verifyBlocking(scanDirectoryDao) {
-            insert(argThat { path == "/storage/Music" && name == "Music" })
-        }
+        verifyBlocking(libraryRefresher) { addDirectoryAndRefresh(directory) }
     }
 
     @Test
-    fun `remove cascades songs under directory path`() = runTest(testDispatcher) {
-        val dir = scanDirEntity(id = 1L, path = "/storage/Music")
-        wheneverBlocking { scanDirectoryDao.getById(1L) } doReturn dir
-        whenever(songDao.getAll()).thenReturn(
-            flowOf(
-                listOf(
-                    songEntity(id = 10L, path = "/storage/Music/song1.mp3"),
-                    songEntity(id = 20L, path = "/storage/Music/sub/song2.mp3"),
-                    songEntity(id = 30L, path = "/storage/Other/song3.mp3")
-                )
-            )
-        )
-        wheneverBlocking { songDao.delete(any()) } doReturn Unit
-        wheneverBlocking { scanDirectoryDao.delete(any()) } doReturn Unit
+    fun `remove delegates to libraryRefresher removeDirectoryAndCascade`() = runTest(testDispatcher) {
+        wheneverBlocking { libraryRefresher.removeDirectoryAndCascade(1L) } doReturn Result.success(Unit)
 
         val result = repository.remove(1L)
 
         assertTrue(result.isSuccess)
-        verifyBlocking(songDao, org.mockito.Mockito.times(2)) { delete(any()) }
-        verifyBlocking(songDao) { delete(argThat { id == 10L }) }
-        verifyBlocking(songDao) { delete(argThat { id == 20L }) }
-        verifyBlocking(songDao, org.mockito.Mockito.never()) { delete(argThat { id == 30L }) }
-        verifyBlocking(scanDirectoryDao) { delete(dir) }
+        verifyBlocking(libraryRefresher) { removeDirectoryAndCascade(1L) }
     }
 
     @Test
-    fun `remove does nothing for non-existent directory`() = runTest(testDispatcher) {
-        wheneverBlocking { scanDirectoryDao.getById(99L) } doReturn null
-
-        val result = repository.remove(99L)
-
-        assertTrue(result.isSuccess)
-        verifyBlocking(songDao, org.mockito.Mockito.never()) { delete(any()) }
-        verifyBlocking(scanDirectoryDao, org.mockito.Mockito.never()) { delete(any()) }
-    }
-
-    @Test
-    fun `add returns failure on DAO exception`() = runTest(testDispatcher) {
+    fun `add returns failure when refresh fails`() = runTest(testDispatcher) {
         val directory = ScanDirectory(id = 0L, path = "/storage/Music", name = "Music", addedAt = 1000L)
-        wheneverBlocking { scanDirectoryDao.insert(any()) } doThrow android.database.sqlite.SQLiteException("disk full")
+        wheneverBlocking { libraryRefresher.addDirectoryAndRefresh(directory) } doReturn
+            Result.failure(android.database.sqlite.SQLiteException("scan failed"))
 
         val result = repository.add(directory)
+
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `remove returns failure on exception`() = runTest(testDispatcher) {
+        wheneverBlocking { libraryRefresher.removeDirectoryAndCascade(99L) } doThrow RuntimeException("db down")
+
+        val result = repository.remove(99L)
 
         assertTrue(result.isFailure)
     }

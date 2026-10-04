@@ -82,7 +82,6 @@ class ScanDirectorySettingsViewModelTest {
     fun `add directory success clears pendingDirectory and emits no message`() = runTest {
         whenever(scanDirectoryRepository.getAll()).thenReturn(flowOf(emptyList()))
         wheneverBlocking { scanDirectoryRepository.add(any()) } doAnswer { Result.success(1L) }
-        wheneverBlocking { musicRepository.refreshSongs() } doReturn Result.success(Unit)
 
         val viewModel = ScanDirectorySettingsViewModel(
             scanDirectoryRepository,

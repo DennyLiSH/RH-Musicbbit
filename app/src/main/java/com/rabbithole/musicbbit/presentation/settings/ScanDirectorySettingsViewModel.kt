@@ -164,7 +164,8 @@ class ScanDirectorySettingsViewModel @Inject constructor(
 
             scanDirectoryRepository.add(directory)
                 .onSuccess {
-                    musicRepository.refreshSongs()
+                    // Library refresh now happens inside the repository (LibraryRefresher);
+                    // the VM no longer needs to call musicRepository.refreshSongs().
                     updateSuccess { it.copy(pendingDirectory = null) }
                 }
                 .onFailure { e ->
