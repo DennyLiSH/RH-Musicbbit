@@ -5,9 +5,11 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.mock
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaybackCoordinatorTest {
@@ -155,6 +157,66 @@ class PlaybackCoordinatorTest {
         coordinator.activate(active)
         coordinator.deactivate(active)
         assertFalse(coordinator.isOwnedByAnother(other))
+    }
+
+    // -------- activeConsumer StateFlow ---------------------------------------
+
+    @Test
+    fun `activeConsumer is observable and reflects activate deactivate`() = runTest(dispatcher) {
+        val consumer = FakeConsumer()
+        assertNull(coordinator.activeConsumer.value)
+
+        coordinator.activate(consumer)
+        assertEquals(consumer, coordinator.activeConsumer.value)
+
+        coordinator.deactivate(consumer)
+        assertNull(coordinator.activeConsumer.value)
+    }
+
+    @Test
+    fun `commandsBlocked on UserPlaybackSession flips with coordinator ownership`() = runTest(dispatcher) {
+        // Two sessions share the same coordinator. The non-owning one must surface
+        // commandsBlocked = true while the other owns the player.
+        val playerPort = FakePlayerPort()
+        val audioFocusPort = FakeAudioFocusPort()
+        val progressRepo = com.rabbithole.musicbbit.service.alarm.FakeProgressRepository()
+        val serviceStarter: ServiceStarter = mock()
+        val sharedCoordinator = PlaybackCoordinator(
+            playerPort = playerPort,
+            audioFocusPort = audioFocusPort,
+            mainDispatcher = dispatcher,
+        )
+        val user = UserPlaybackSession(
+            playerPort = playerPort,
+            audioStreamPort = FakeAudioStreamPort(),
+            playbackProgressRepository = progressRepo,
+            serviceStarter = serviceStarter,
+            audioFocusPort = audioFocusPort,
+            playbackCoordinator = sharedCoordinator,
+            mainDispatcher = dispatcher,
+        )
+        val alarm = AlarmPlaybackSession(
+            playerPort = playerPort,
+            audioStreamPort = FakeAudioStreamPort(),
+            playbackProgressRepository = progressRepo,
+            audioFocusPort = audioFocusPort,
+            serviceStarter = serviceStarter,
+            playbackCoordinator = sharedCoordinator,
+            mainDispatcher = dispatcher,
+        )
+
+        // Initially neither owns — neither session is blocked.
+        assertFalse(user.commandsBlocked.value)
+
+        sharedCoordinator.activate(alarm)
+        assertTrue(user.commandsBlocked.value)
+
+        sharedCoordinator.deactivate(alarm)
+        assertFalse(user.commandsBlocked.value)
+
+        user.close()
+        alarm.close()
+        sharedCoordinator.close()
     }
 
     private class FakeConsumer : PlaybackCoordinator.PlaybackConsumer {

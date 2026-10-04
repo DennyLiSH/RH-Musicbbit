@@ -7,6 +7,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -47,8 +50,10 @@ class PlaybackCoordinator @Inject constructor(
     private val coordinatorJob = SupervisorJob()
     private val coordinatorScope = CoroutineScope(coordinatorJob + mainDispatcher)
 
-    @Volatile
-    private var activeConsumer: PlaybackConsumer? = null
+    private val _activeConsumer = MutableStateFlow<PlaybackConsumer?>(null)
+
+    /** Observable ownership: the consumer currently receiving events and focus callbacks. */
+    val activeConsumer: StateFlow<PlaybackConsumer?> = _activeConsumer.asStateFlow()
 
     private var playerEventsJob: Job? = null
 
@@ -67,8 +72,8 @@ class PlaybackCoordinator @Inject constructor(
      * is invoked before the swap. Must be called on the main dispatcher.
      */
     fun activate(consumer: PlaybackConsumer) {
-        val previous = activeConsumer
-        activeConsumer = consumer
+        val previous = _activeConsumer.value
+        _activeConsumer.value = consumer
         if (previous != null && previous !== consumer) {
             previous.onDeactivated()
             Timber.i(
@@ -85,8 +90,8 @@ class PlaybackCoordinator @Inject constructor(
      * Must be called on the main dispatcher.
      */
     fun deactivate(consumer: PlaybackConsumer) {
-        if (activeConsumer === consumer) {
-            activeConsumer = null
+        if (_activeConsumer.value === consumer) {
+            _activeConsumer.value = null
             Timber.d("PlaybackCoordinator deactivated: ${consumer::class.java.simpleName}")
         }
     }
@@ -97,7 +102,7 @@ class PlaybackCoordinator @Inject constructor(
      * owning session's playback — e.g. user commands during an active alarm).
      */
     fun isOwnedByAnother(consumer: PlaybackConsumer): Boolean {
-        val active = activeConsumer
+        val active = _activeConsumer.value
         return active != null && active !== consumer
     }
 
@@ -105,14 +110,14 @@ class PlaybackCoordinator @Inject constructor(
         playerEventsJob?.cancel()
         playerEventsJob = coordinatorScope.launch {
             playerPort.events.collect { event ->
-                activeConsumer?.onPlayerEvent(event)
+                _activeConsumer.value?.onPlayerEvent(event)
                     ?: Timber.d("Dropping player event: no active consumer ($event)")
             }
         }
     }
 
     private fun dispatchFocusCallback(dispatch: PlaybackConsumer.() -> Unit) {
-        activeConsumer?.dispatch()
+        _activeConsumer.value?.dispatch()
             ?: Timber.d("Dropping focus callback: no active consumer")
     }
 
