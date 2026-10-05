@@ -45,7 +45,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -64,8 +63,7 @@ import com.rabbithole.musicbbit.presentation.components.EmptyState
 import com.rabbithole.musicbbit.presentation.components.InfoBanner
 import com.rabbithole.musicbbit.presentation.components.ScreenStateCrossfade
 import com.rabbithole.musicbbit.presentation.components.performHapticSafe
-import com.rabbithole.musicbbit.presentation.components.rememberAppToast
-import com.rabbithole.musicbbit.presentation.permissions.launchSettingsSafely
+import com.rabbithole.musicbbit.presentation.components.rememberSettingsLauncher
 import com.rabbithole.musicbbit.presentation.util.formatClockTime
 import com.rabbithole.musicbbit.service.alarm.QuietModeBypassResolver
 import com.rabbithole.musicbbit.ui.theme.MotionTokens
@@ -83,9 +81,7 @@ fun AlarmListScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val permissionStatus by viewModel.permissionStatus.collectAsStateWithLifecycle()
     CollectUserMessages(viewModel.messages)
-    val context = LocalContext.current
-    val toast = rememberAppToast()
-    val settingsOpenFailedMessage = stringResource(R.string.common_settings_open_failed)
+    val launchSettings = rememberSettingsLauncher()
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refreshPermissionStatus()
@@ -130,11 +126,7 @@ fun AlarmListScreen(
                         ) {
                             if (showBatteryBanner) {
                                 BatteryOptimizationBanner(
-                                    onClick = {
-                                        if (!launchSettingsSafely(context, viewModel.createBatteryOptimizationIntent())) {
-                                            toast.showShort(settingsOpenFailedMessage)
-                                        }
-                                    }
+                                    onClick = { launchSettings(viewModel.createBatteryOptimizationIntent()) }
                                 )
                             }
                             if (showFsiBanner) {
@@ -142,11 +134,7 @@ fun AlarmListScreen(
                                     Spacer(modifier = Modifier.height(8.dp))
                                 }
                                 FullScreenIntentBanner(
-                                    onClick = {
-                                        if (!launchSettingsSafely(context, viewModel.createFullScreenIntentSettingsIntent())) {
-                                            toast.showShort(settingsOpenFailedMessage)
-                                        }
-                                    }
+                                    onClick = { launchSettings(viewModel.createFullScreenIntentSettingsIntent()) }
                                 )
                             }
                             if (showDndBanner) {
@@ -154,11 +142,7 @@ fun AlarmListScreen(
                                     Spacer(modifier = Modifier.height(8.dp))
                                 }
                                 DndAccessBanner(
-                                    onClick = {
-                                        if (!launchSettingsSafely(context, viewModel.createDndAccessSettingsIntent())) {
-                                            toast.showShort(settingsOpenFailedMessage)
-                                        }
-                                    }
+                                    onClick = { launchSettings(viewModel.createDndAccessSettingsIntent()) }
                                 )
                             }
                         }
