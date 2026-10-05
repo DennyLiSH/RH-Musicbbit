@@ -1,5 +1,6 @@
 package com.rabbithole.musicbbit.service.playback
 
+import androidx.annotation.VisibleForTesting
 import com.rabbithole.musicbbit.di.MainDispatcher
 import com.rabbithole.musicbbit.domain.model.Song
 import com.rabbithole.musicbbit.domain.repository.PlaybackProgressRepository
@@ -258,7 +259,11 @@ abstract class SessionCore protected constructor(
     /**
      * Gracefully shuts down the session. Cancels internal coroutines and stops progress
      * tracking. Safe to call multiple times; subsequent calls are no-ops.
+     *
+     * Production never closes a session — they live as long as the process.
+     * Test-only teardown path.
      */
+    @VisibleForTesting
     fun close() {
         Timber.i("$logTag closing")
         sessionJob.cancel()
