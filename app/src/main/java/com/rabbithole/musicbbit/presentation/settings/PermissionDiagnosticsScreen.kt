@@ -50,7 +50,7 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.rabbithole.musicbbit.presentation.components.rememberAppToast
-import com.rabbithole.musicbbit.presentation.permissions.launchSettingsSafely
+import com.rabbithole.musicbbit.presentation.components.rememberSettingsLauncher
 import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,6 +63,7 @@ fun PermissionDiagnosticsScreen(
     val context = LocalContext.current
     val toast = rememberAppToast()
     val settingsOpenFailedMessage = stringResource(R.string.common_settings_open_failed)
+    val launchSettings = rememberSettingsLauncher()
 
     // Refresh permissions when returning from system settings
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -85,9 +86,7 @@ fun PermissionDiagnosticsScreen(
                 val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                     data = Uri.parse("package:${context.packageName}")
                 }
-                if (!launchSettingsSafely(context, intent)) {
-                    toast.showShort(settingsOpenFailedMessage)
-                }
+                launchSettings(intent)
             }
         }
     }
@@ -134,9 +133,7 @@ fun PermissionDiagnosticsScreen(
                                         val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
                                             data = Uri.parse("package:${context.packageName}")
                                         }
-                                        if (!launchSettingsSafely(context, intent)) {
-                                            toast.showShort(settingsOpenFailedMessage)
-                                        }
+                                        launchSettings(intent)
                                     }
                                 }
                                 PermissionKey.FULL_SCREEN_INTENT -> {
@@ -153,9 +150,7 @@ fun PermissionDiagnosticsScreen(
                                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                                         data = Uri.parse("package:${context.packageName}")
                                     }
-                                    if (!launchSettingsSafely(context, intent)) {
-                                        toast.showShort(settingsOpenFailedMessage)
-                                    }
+                                    launchSettings(intent)
                                 }
                             }
                         }
