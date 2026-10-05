@@ -37,6 +37,7 @@ MVVM + Clean Architecture（单模块）：
 `service/playback/` 封装了播放器的所有复杂性，核心抽象：
 
 - **[`PlayerPort`](app/src/main/java/com/rabbithole/musicbbit/service/playback/PlayerPort.kt)** — 播放运行时接口，隔离 ExoPlayer 具体实现。生产实现 `ExoPlayerAdapter`，测试可用 Fake 实现。
+- **[`SessionCore`](app/src/main/java/com/rabbithole/musicbbit/service/playback/SessionCore.kt)** — <!-- 2026-10-04 --> `UserPlaybackSession` 与 `AlarmPlaybackSession` 的共享基类：状态归约、进度追踪、音频焦点处理、stop 序列（save/tick/deactivate/emit 顺序契约单点维护）。子类仅差异于队列启动方式与 queue-ended 策略。统一启动入口 `coreStartQueue` 维护启动顺序契约（焦点先于激活、流路由先于设队列、前台服务先于播放、状态最后应用）；alarm 侧 queue-ended 经 `stopDeferred` 延迟停止并抑制最终 save（skipSave=true），`QueueEnded` 作为单一 terminal transition 发出，且在整个停止窗口持有 player 所有权（用户会话无法在队列结束与停止之间插入播放）
 - **[`UserPlaybackSession`](app/src/main/java/com/rabbithole/musicbbit/service/playback/UserPlaybackSession.kt)** — `@Singleton` 深模块，封装**用户播放**状态管理、音频焦点协调、进度追踪、通知状态驱动。`MusicPlaybackService` 仅负责 Android Service 生命周期与前台调用执行，不处理播放逻辑；UI 直接注入 `UserPlaybackSession` 调用其公共 API。
 - **[`AlarmPlaybackSession`](app/src/main/java/com/rabbithole/musicbbit/service/playback/AlarmPlaybackSession.kt)** — `@Singleton` 深模块，封装**闹钟播放**状态管理与 `PlayerPort` 交互。逻辑上与 `PlaybackSession` 独立，共享同一 `PlayerPort` / `AudioFocusPort` 实例。
 - **[`PlaybackCoordinator`](app/src/main/java/com/rabbithole/musicbbit/service/playback/PlaybackCoordinator.kt)** — `@Singleton` 路由层，订阅一次 `PlayerPort.events` 与 `AudioFocusPort` 回调，仅向当前 active 的播放会话（`PlaybackSession` 或 `AlarmPlaybackSession`）转发，保证两者互斥响应共享 ExoPlayer 事件。
@@ -100,7 +101,8 @@ app/src/main/java/com/rabbithole/musicbbit/
 │   ├── repository/      # Repository 实现
 │   ├── local/
 │   │   ├── model/       # Room Entity（SongEntity, PlaylistEntity, PlaybackProgressEntity, ScanDirectoryEntity, HolidayEntity, PlaylistWithSongsEntity）
-│   │   ├── dao/         # Room DAO（全部使用 Entity 类型）
+│   │   ├── dao/         # Room DAO（全部使用 Entity 类型；PlaylistDao.observeWithSongs = @Transaction 观察 Flow，playlists+playlist_songs+songs 三表失效追踪）
+│   │   ├── LibraryRefresher.kt # 曲库刷新配方+扫描目录生命周期深模块（refreshAll/refreshDirectory/addDirectoryAndRefresh/removeDirectoryAndCascade；「无扫描目录⇒清空曲库」策略所在；进度孤儿由 FK CASCADE 兜底）
 │   │   ├── sync/        # 歌曲同步模块（SongDiff, SongSyncEngine）
 │   │   ├── datastore/   # DataStore 偏好设置（读写统一经 `SettingsStore`，新偏好项禁止直接注入 DataStore）
 │   │   └── Migration2To3.kt / ... / Migration10To11.kt  # Room 迁移（10→11 playback_progress FK CASCADE + 索引）
@@ -120,12 +122,14 @@ app/src/main/java/com/rabbithole/musicbbit/
 │   │   ├── AlarmSaveOrchestrator.kt # 保存工作流编排（验证→权限→持久化→引导）
 │   │   └── components/              # 闹钟相关 UI 组件
 │   │       ├── RingModeSelector.kt  # 响铃方式单选组（Normal / FullScreen）
-│   │       └── DayOfWeekSelector.kt # 重复规则星期选择器
+│   │       ├── DayOfWeekSelector.kt # 重复规则星期选择器
+│   │       └── RepeatSummary.kt     # 纯函数星期摘要 seam（DayOfWeek.fullNameRes/shortLabelRes + repeatSummary()，无 Compose 依赖，JVM 可测）
 │   ├── player/          # 播放器 UI
 │   ├── settings/        # 设置（扫描目录、主题切换、语言选择）
 │   │   └── AppLanguage.kt  # 语言枚举（SYSTEM / ENGLISH / CHINESE / JAPANESE）
+│   ├── permissions/     # 权限状态 UI 深模块（PermissionStatusMonitor：PermissionPort 之上单一 StateFlow<PermissionStatus> + 各设置页 Intent 构造；SettingsIntentLauncher）
 │   ├── about/           # 关于页面（版本信息）
-│   └── components/      # 共享组件（StateView 三态渲染 / HapticExt 触觉扩展 / InfoBanner / BottomNavItem / ViewModelUtils / AppToast 封装 android.widget.Toast / SingleChoiceDropdown 泛型单选下拉框 / SongSearchField 共享搜索框 / SheetTokens sheet 尺寸）
+│   └── components/      # 共享组件（StateView 三态渲染 / HapticExt 触觉扩展 / InfoBanner / BottomNavItem / ViewModelUtils / AppToast 封装 android.widget.Toast / SingleChoiceDropdown 泛型单选下拉框 / SongSearchField 共享搜索框 / SheetTokens sheet 尺寸 / ListUiState 泛型列表三态（Loading/Error/Content，Empty 非独立态=Content(emptyList)） / ScreenStateCrossfade 统一 Crossfade 渲染 ListUiState / UserMessage+CollectUserMessages Channel-based 一次性消息（经 AppToast 渲染） / rememberSettingsLauncher 设置跳转+失败 toast 一行式）
 ├── ui/theme/            # 主题（Coral/Slate/Amber 品牌色 + 暖染色中性色 + 完整 M3 Typography + timeDisplay token + MotionTokens 动画时长 + AppShapes 圆角 + ExtendedColors.success 语义色；UI 视觉契约见根目录 DESIGN.md）
 ├── navigation/
 │   └── AppNavigation.kt
@@ -143,6 +147,7 @@ app/src/main/java/com/rabbithole/musicbbit/
 │   │   └── ports/                   # 闹钟端口（VolumeRampPort, WakeLockPort, NotificationPort, PermissionPort）
 │   ├── playback/        # 播放深模块
 │   │   ├── PlayerPort.kt            # 播放运行时接口（隔离 ExoPlayer）
+│   │   ├── SessionCore.kt           # 两播放会话共享基类（状态归约/进度追踪/焦点/stop 序列；coreStartQueue 启动顺序契约 + stopDeferred 延迟停止）
 │   │   ├── UserPlaybackSession.kt   # 用户播放会话（状态管理、音频焦点、进度追踪、通知状态驱动）
 │   │   ├── AlarmPlaybackSession.kt  # 闹钟播放会话（逻辑独立，共享 ExoPlayer）
 │   │   ├── PlaybackCoordinator.kt   # PlayerPort 事件与音频焦点回调路由器
