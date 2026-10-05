@@ -6,6 +6,7 @@ import android.content.Context
 import com.rabbithole.musicbbit.MainActivity
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.service.alarm.NextOccurrenceCalculator
+import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -19,7 +20,9 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyBlocking
+import org.mockito.kotlin.whenever
 import org.mockito.kotlin.wheneverBlocking
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -34,13 +37,14 @@ class AlarmSchedulerTest {
 
     private lateinit var context: Context
     private lateinit var nextOccurrenceCalculator: NextOccurrenceCalculator
+    private val permissionPort: PermissionPort = mock()
     private lateinit var alarmScheduler: AlarmScheduler
 
     @Before
     fun setUp() {
         context = RuntimeEnvironment.getApplication()
         nextOccurrenceCalculator = mock()
-        alarmScheduler = AlarmScheduler(context, nextOccurrenceCalculator)
+        alarmScheduler = AlarmScheduler(context, nextOccurrenceCalculator, permissionPort)
     }
 
     private fun enabledAlarm(
@@ -144,10 +148,13 @@ class AlarmSchedulerTest {
     }
 
     @Test
-    @Config(sdk = [30])
-    fun `canScheduleExactAlarms returns true below API 31`() {
+    fun `canScheduleExactAlarms delegates to permission port`() {
+        whenever(permissionPort.canScheduleExactAlarms()) doReturn true
+
         val result = alarmScheduler.canScheduleExactAlarms()
-        assertTrue("Should be able to schedule exact alarms on API 30 shadow", result)
+
+        assertTrue(result)
+        verify(permissionPort).canScheduleExactAlarms()
     }
 
     @Test

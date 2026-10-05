@@ -4,13 +4,13 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.rabbithole.musicbbit.domain.model.Alarm
 import com.rabbithole.musicbbit.service.alarm.AlarmIntegrityWorker
 import com.rabbithole.musicbbit.service.alarm.NextOccurrenceCalculator
+import com.rabbithole.musicbbit.service.alarm.ports.PermissionPort
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -32,21 +32,16 @@ import javax.inject.Singleton
 class AlarmScheduler @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val nextOccurrenceCalculator: NextOccurrenceCalculator,
+    private val permissionPort: PermissionPort,
 ) {
 
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
     /**
-     * Check whether the app can schedule exact alarms on API 31+.
-     *
-     * On API < 31 this always returns true because the permission is not required.
+     * Whether the app can schedule exact alarms — delegated to [PermissionPort],
+     * the single source of truth for permission queries (API 31 branch lives there).
      */
-    fun canScheduleExactAlarms(): Boolean =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            alarmManager.canScheduleExactAlarms()
-        } else {
-            true
-        }
+    fun canScheduleExactAlarms(): Boolean = permissionPort.canScheduleExactAlarms()
 
     /**
      * Schedule a single alarm with the system [AlarmManager].
