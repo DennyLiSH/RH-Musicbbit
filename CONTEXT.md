@@ -12,7 +12,7 @@
 | **音乐兔（Musicbbit）** | 整体应用：本地音乐播放器，集成"闹钟到点续播音乐"为核心特色 |
 | **Playlist** | 用户组织的歌曲集合。歌曲实体 `Song` 持久化在 Room；进度 `PlaybackProgress` 按 `(songId, playlistId)` 维度存储 |
 | **Alarm** | 用户配置的闹钟。领域模型 `Alarm` 字段含 `playlistId / repeatDays: Set<DayOfWeek> / autoStop: AutoStop? / lastTriggeredAt`；`repeatDays.isEmpty()` 表示一次性闹钟。`AlarmEntity` 仍用于 Room 持久化（bitmask + String 编码），但 service 层不直接操作它 |
-| **Playback Progress** | 一次播放中"播到了哪首歌、第几毫秒"的快照。`PlaybackProgress(songId, positionMs, updatedAt, playlistId)` — 同时是 Room entity（`@Entity`，composite primary key） |
+| **Playback Progress** | 一次播放中"播到了哪首歌、第几毫秒"的快照。`PlaybackProgress(songId, positionMs, updatedAt, playlistId)` — 领域模型，Room 侧由 `PlaybackProgressEntity`（composite primary key）+ `PlaybackProgressMapper` 位拷贝承载 |
 
 ---
 
@@ -42,11 +42,15 @@
 |---|---|
 | **PlayerPort** | 播放运行时的抽象接口。方法集合面向"队列播放器"语义：`setQueue / play / pause / next / previous / seekTo / stop / setShuffleEnabled / setRepeatMode / hasNext / hasPrevious / isPlaying / currentPositionMs / clearQueue`，事件 `Flow<PlayerEvent>` |
 | **PlayerEvent** | sealed class：`IsPlayingChanged / MediaItemTransition(itemTag, itemIndex, reason) / PlaybackReady(durationMs) / PositionDiscontinuity(newPositionMs, itemIndex)` |
-| **TransitionReason** | `AUTO`（自然播完进入下一首） / `SEEK`（用户跳转） / `REPEAT`（循环回放） / `PLAYLIST_CHANGED` |
+| **TransitionReason** | `AUTO`（自然播完进入下一首） / `SEEK`（用户跳转） / `REPEAT`（循环回放） / `OTHER` |
 | **ExoPlayerAdapter** | `PlayerPort` 的唯一 production adapter，包装 ExoPlayer + `Player.Listener` → `Flow<PlayerEvent>` |
 | **UserPlaybackSession** | 用户主动播放的会话（<!-- 2026-09-15 --> 代码类名已对齐为 `UserPlaybackSession`）。持有 `PlayerPort` 用户实例，管理 `PlaybackState`，与闹钟播放完全解耦 |
 | **AlarmPlaybackSession** | 闹钟触发专用的播放会话。与用户会话**共享单一 `PlayerPort` 实例**（经 `PlaybackCoordinator` 路由），只暴露闹钟播放需要的 seam：`playAlarmQueue / pause / resume / stop / playbackTransitions`。不携带 `alarmId` / `alarmLabel` 等 UI 状态，这些由 `AlarmFireSession` 持有 |
-| **SessionCore** | <!-- 2026-09-06 --> `UserPlaybackSession` / `AlarmPlaybackSession` 的共享实现基类：状态归约、进度跟踪、音频焦点四回调、stop 时序。唯一 per-session 钩子是 queue-ended 策略（用户会话立即 stop；闹钟会话 `queueEndedPending` 延迟并抑制最后一次 save）。排序契约只在一处维护 |
+| **SessionCore** | <!-- 2026-09-06 --> `UserPlaybackSession` / `AlarmPlaybackSession` 的共享实现基类：状态归约、进度跟踪、音频焦点四回调、stop 时序。<!-- 2026-10-04 --> queue-ended 策略统一走 `stopDeferred`（保留所有权至 teardown 完成，发射单一终态转换）；启动次序契约统一走 `coreStartQueue` |
+| **issueCommand** | <!-- 2026-10-04 --> `SessionCore` 的唯一命令守卫 seam：查 `PlaybackCoordinator` 所有权→放行/丢弃。两个会话的所有公共命令入口（含挂起恢复后的复检）必须经此，互斥不变量从逐方法 if 封条收敛为结构性守卫 |
+| **commandsBlocked** | <!-- 2026-10-04 --> `UserPlaybackSession` 派生的 `StateFlow<Boolean>`（coordinator activeConsumer 映射）。UI（PlayerScreen/MiniPlayer）收集它禁用控件——命令拒绝首次可见 |
+| **stopDeferred** | <!-- 2026-10-04 --> `SessionCore` 一等操作：停 loop→await pending save→完整 teardown→发射单一终态转换。队列自然播完走它；所有权保持到 teardown 完成，QueueEnded→stop() 回调竞态结构性关闭 |
+| **coreStartQueue** | <!-- 2026-10-04 --> `SessionCore` 启动模板：focus→activate→stream→service→setQueue→play→applyState 的次序契约单点。`play / playQueue / playAlarmQueue` 三入口全部经它启动；`issueCommand` 守卫与 playQueue 挂起后所有权复检保留在入口侧 |
 | **MusicPlaybackService** | Android 前台服务。职责：foreground notification + 持有 `PlayerPort` + 实现 `AlarmPlaybackHost` + 在闹钟模式下中转 session 调用。**不做闹钟编排**，那是 session 的事 |
 
 ---
@@ -77,6 +81,9 @@
 | **LocalPlaybackSession** | <!-- 2026-09-06 --> CompositionLocal，向各屏幕提供应用级 `UserPlaybackSession`。`PlayerViewModel` 纯透传模块已删除（连带 `ViewModelUtils` 作用域 hack）；屏幕直接 collect `UserPlaybackSession.playbackState` |
 | **LibraryRefresher** | <!-- 2026-09-06 --> 数据层刷新配方深模块：scan → `SongSyncEngine.sync` → `SyncResult` + 目录生命周期：addDirectoryAndRefresh / removeDirectoryAndCascade 都在此处；进度孤儿由 playback_progress FK CASCADE 兜底（迁移 10→11）。"无扫描目录 ⇒ 清空曲库"策略在此显式化 |
 | **MediaStorePort** | <!-- 2026-09-06 --> `ContentResolver` 媒体查询 seam。`MusicScanner` 的 selection 构造与格式白名单变为纯函数（`buildAudioSelection` / `isSupportedAudioFormat`），JVM 可测 |
+| **observeWithSongs** | <!-- 2026-10-04 --> `PlaylistDao` 的 `@Transaction` 观察 Flow（playlist + playlist_song + song 三表失效追踪）。`PlaylistRepositoryImpl.getPlaylistWithSongs` 经它 + `playlistSongDao.getByPlaylistId` combine，不再订阅全表快照；null 语义（播放列表已不存在空态）保持 |
+| **RepeatSummary** | <!-- 2026-10-04 --> 纯函数星期摘要 seam（`presentation/alarm/components/RepeatSummary.kt`）：`DayOfWeek.fullNameRes / shortLabelRes` 单点映射 + `repeatSummary` 无 Compose 依赖，`DayOfWeekSelector` 与 `AlarmListScreen` 均委托，JVM 可测 |
+| **rememberSettingsLauncher** | <!-- 2026-10-04 --> `presentation/components/SettingsLauncher.kt` 组合 helper：设置 Intent 启动 + 失败 toast（`common_settings_open_failed`）一行式。AlarmList / AlarmEdit / PermissionDiagnostics 三屏的唯一设置跳转形态 |
 
 ---
 
@@ -100,6 +107,11 @@
 | `AlarmPlaybackSession.queueEndedPending` | `SessionCore.stopDeferred(terminal)` |
 | `UserPlaybackSession.playerEvents` | 删除（零消费者；未来需要用户事件应由 coordinator 按所有权过滤另设 seam） |
 | `AlarmFireSession` QueueEnded 分支回调 `alarmPlaybackSession.stop()` | `stopDeferred` 内完成 teardown，分支内直接 `onPlaybackStopped()` |
+| `AlarmNotificationHelper.lastChannelId` 可变状态 | <!-- 2026-10-04 --> `showAlarmPaused(alarmId, bypassDnd)` 显式契约参数（渠道由每次调用自决，无跨调用可变状态） |
+| `DayOfWeekSelector` 本地 `dayShortLabelRes / dayFullNameRes` 双写 + `AlarmListScreen.formatRepeatDays` 的 @Composable 锁死实现 | <!-- 2026-10-04 --> `DayOfWeek.fullNameRes / shortLabelRes` + 共享 `RepeatSummary.repeatSummary` 纯函数 |
+| `ExactAlarmPermissionHelper.openSettings` / `FullScreenIntentPermissionHelper.openSettings`（presentation 直调 + Intent 双构造） | <!-- 2026-10-04 --> `PermissionPort.createExactAlarmSettingsIntent` / adapter 单点构造 Intent，presentation 经 `rememberSettingsLauncher` 启动（helper 仅保留 `isGranted` 查询；ExactAlarm object 整体删除） |
+| `AlarmScheduler` 内的 `canScheduleExactAlarms` API 31 分支 | <!-- 2026-10-04 --> 委托 `PermissionPort.canScheduleExactAlarms()`（单真相源；分支由 adapter 测试持有） |
+| `PlaybackProgressDao.deleteAll` / `SongDao.getById` / `SongDao.update` / `SongDao.insert` 单条 / `HolidayDao.countForYear` | <!-- 2026-10-04 --> 删除（零生产消费者）；测试 fixture 统一 `insertAll` / `getAll` 等价改写 |
 | `AlarmActionReceiver` 的 `ACTION_SERVICE_*` 常量与 service intent 转发 | 直接调 `AlarmFireSession` 方法 |
 | `AlarmScheduler.calculateNextTriggerTime`（Companion） / `calculateNextTriggerTimeWithHolidays`（重复实现） | `NextOccurrenceCalculator`（单点） |
 | `AlarmListViewModel.playlistNameCache / resolvePlaylistName` | <!-- 2026-10-04 --> `AlarmRepository.getAlarmsWithPlaylistName()` 双表 combine |
@@ -108,7 +120,6 @@
 | `ThemeRepositoryImpl / AlarmRingSettingsRepositoryImpl / HolidayRepositoryImpl` 直连 DataStore | <!-- 2026-10-04 --> `SettingsStore` 小深模块（key + 默认值并置声明） |
 | `AlarmPersistenceRepository` 在 domain 包 | <!-- 2026-10-04 --> 移到 data 包（internal seam，不进入领域词汇） |
 | `PermissionDiagnosticsViewModel.PermissionStatus` 同名异义类 | <!-- 2026-10-04 --> `PermissionDiagnosticItem` + `PermissionKey` enum |
-| `SongEntity` / `PlaylistEntity` / `PlaybackProgressEntity` / `ScanDirectoryEntity` | 领域模型 `Song` / `Playlist` / `PlaybackProgress` / `ScanDirectory` 兼作 Room entity |
 | `IsWorkdayUseCase` / `AddSongToPlaylistUseCase` / `CreatePlaylistUseCase` / `AddScanDirectoryUseCase` | 逻辑移入 `HolidayRepository` / `PlaylistRepository` / ViewModel；use-case 层已删除 |
 | `AlarmScheduler.schedule(AlarmEntity)` | `AlarmScheduler.schedule(Alarm)` — 接受领域模型 |
 | `AlarmFireSession` 直接依赖 `AlarmDao` | `AlarmFireSession` 通过 `AlarmRepository` 操作 |
@@ -148,3 +159,4 @@
 | 2026-10-04 | Plan A 架构审查 #6 落地：播放所有权 seam 收敛（`SessionCore.issueCommand` 单一守卫 / `PlaybackCoordinator.activeConsumer` StateFlow / `UserPlaybackSession.commandsBlocked` UI 禁用 / `stopDeferred` 一等操作删除 `queueEndedPending`）/ Paused 态终态修复 / FGS 前台义务无条件履行 / 播放 seam 卫生清理（`playerEvents` 删除、`CHANNEL_ID` 单点、`contentIntent` 走 `MainActivityIntentFactory`） |
 | 2026-10-04 | Plan B 架构审查 #6 落地：列表族状态收敛（`ListUiState<T>` + `ScreenStateCrossfade`）5 个消费者；`UserMessage` Channel 替代 6 处死 errorMessageResId 通道；权限读取统一（`PermissionStatusMonitor.isMediaAudioGranted` + `PermissionKey` 枚举 + i18n）；主题映射与播放模式 cycle 抽到 `ThemeExt` / `UserPlaybackSession.cyclePlayMode()` |
 | 2026-10-04 | Plan C 架构审查 #6 落地：playback_progress FK CASCADE 迁移 10→11（ad-hoc playlistId≤0 写门 guard）；ScanDirectory 生命周期双配方（addDirectoryAndRefresh + removeDirectoryAndCascade）入 `LibraryRefresher`；`SettingsStore` 小深模块收敛 3 个 RepositoryImpl 的 DataStore 样板；`AlarmPersistenceRepository` 降级到 data 包；删 `updateAlarm / persistence.update / deleteProgress` 死代码；闹钟列表名称 join 下沉到 repository（VM cache 删除） |
+| 2026-10-04 | Plan D 旧批次独有项移植落地：闹钟契约三修（`showAlarmPaused` 显式 bypassDnd 契约 / resume 重发播放态通知 / `RepeatSummary` 纯函数星期摘要）；`coreStartQueue` 启动模板收编 play/playQueue/playAlarmQueue 三入口；`PlaylistDao.observeWithSongs` 观察查询；权限表面收敛（`rememberSettingsLauncher` 三屏 + `canScheduleExactAlarms` 单真相源 + presentation 直调收口，`ExactAlarmPermissionHelper` 删除）；DAO 死方法删除（deleteAll/getById/update/insert 单条/countForYear）；domain 纯度（`Playlist` 去 `@Immutable`、`SessionCore.close` `@VisibleForTesting`）；修正「领域模型兼作 Room entity」漂移表述 |
