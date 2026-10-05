@@ -82,7 +82,7 @@
 | **LibraryRefresher** | <!-- 2026-09-06 --> 数据层刷新配方深模块：scan → `SongSyncEngine.sync` → `SyncResult` + 目录生命周期：addDirectoryAndRefresh / removeDirectoryAndCascade 都在此处；进度孤儿由 playback_progress FK CASCADE 兜底（迁移 10→11）。"无扫描目录 ⇒ 清空曲库"策略在此显式化 |
 | **MediaStorePort** | <!-- 2026-09-06 --> `ContentResolver` 媒体查询 seam。`MusicScanner` 的 selection 构造与格式白名单变为纯函数（`buildAudioSelection` / `isSupportedAudioFormat`），JVM 可测 |
 | **observeWithSongs** | <!-- 2026-10-04 --> `PlaylistDao` 的 `@Transaction` 观察 Flow（playlist + playlist_song + song 三表失效追踪）。`PlaylistRepositoryImpl.getPlaylistWithSongs` 经它 + `playlistSongDao.getByPlaylistId` combine，不再订阅全表快照；null 语义（播放列表已不存在空态）保持 |
-| **RepeatSummary** | <!-- 2026-10-04 --> 纯函数星期摘要 seam（`presentation/alarm/components/RepeatSummary.kt`）：`DayOfWeek.fullNameRes / shortLabelRes` 单点映射 + `repeatSummary` 无 Compose 依赖，`DayOfWeekSelector` 与 `AlarmListScreen` 均委托，JVM 可测 |
+| **RepeatSummary** | <!-- 2026-10-04 --> 纯函数星期摘要 seam（`presentation/alarm/components/RepeatSummary.kt`）：`DayOfWeek.fullNameRes / shortLabelRes` 单点映射 + `repeatSummary` 无 Compose 依赖，`AlarmListScreen` 直调 `repeatSummary()`、`DayOfWeekSelector` 仅用 `shortLabelRes`/`fullNameRes` 扩展属性渲染星期标签（未直调 `repeatSummary()`），JVM 可测 |
 | **rememberSettingsLauncher** | <!-- 2026-10-04 --> `presentation/components/SettingsLauncher.kt` 组合 helper：设置 Intent 启动 + 失败 toast（`common_settings_open_failed`）一行式。AlarmList / AlarmEdit / PermissionDiagnostics 三屏的唯一设置跳转形态 |
 
 ---

@@ -185,9 +185,9 @@ class AlarmPlaybackSessionTest {
 
     @Test
     fun `stop after queueEnded skips saveProgress`() = runBlocking {
-        // Queue-ended path: handleQueueEnded sets queueEndedPending=true; the subsequent
-        // stop() call (driven by AlarmFireSession upon receiving QueueEnded) must skip
-        // saveProgress to avoid writing the just-finished song's end position.
+        // Queue-ended path: handleQueueEnded routes through stopDeferred(QueueEnded),
+        // which tears the player down with skipSave=true and emits QueueEnded as the
+        // single terminal transition — the just-finished song's end position is not written.
         session.playAlarmQueue(listOf(SONG_1), startIndex = 0, playlistId = 10L, useAlarmStream = true)
 
         playerPort.emitEvent(PlayerEvent.QueueEnded)
