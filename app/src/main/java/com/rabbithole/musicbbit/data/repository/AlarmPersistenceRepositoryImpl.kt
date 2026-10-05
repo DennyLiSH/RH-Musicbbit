@@ -21,7 +21,7 @@ import javax.inject.Singleton
  * Contains **only** database operations — no AlarmManager scheduling.
  */
 @Singleton
-class AlarmPersistenceRepositoryImpl @Inject constructor(
+internal class AlarmPersistenceRepositoryImpl @Inject constructor(
     private val alarmDao: AlarmDao,
     @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : AlarmPersistenceRepository {

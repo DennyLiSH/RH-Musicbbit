@@ -68,13 +68,13 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindAlarmRepository(
+    internal abstract fun bindAlarmRepository(
         impl: AlarmRepositoryImpl
     ): AlarmRepository
 
     @Binds
     @Singleton
-    abstract fun bindAlarmPersistenceRepository(
+    internal abstract fun bindAlarmPersistenceRepository(
         impl: AlarmPersistenceRepositoryImpl
     ): AlarmPersistenceRepository
 

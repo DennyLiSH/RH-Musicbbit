@@ -24,7 +24,7 @@ import javax.inject.Singleton
  * contains **only** orchestration logic — no direct Room or AlarmManager calls.
  */
 @Singleton
-class AlarmRepositoryImpl @Inject constructor(
+internal class AlarmRepositoryImpl @Inject constructor(
     private val persistence: AlarmPersistenceRepository,
     private val alarmDao: AlarmDao,
     private val playlistDao: PlaylistDao,

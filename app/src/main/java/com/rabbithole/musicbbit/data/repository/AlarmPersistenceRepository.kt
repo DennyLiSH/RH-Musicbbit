@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
  *
  * Pure persistence operations for alarms — no system scheduling.
  */
-interface AlarmPersistenceRepository {
+internal interface AlarmPersistenceRepository {
     fun getAllAlarms(): Flow<List<Alarm>>
     fun getEnabledAlarms(): Flow<List<Alarm>>
     suspend fun getAlarmById(id: Long): Alarm?
