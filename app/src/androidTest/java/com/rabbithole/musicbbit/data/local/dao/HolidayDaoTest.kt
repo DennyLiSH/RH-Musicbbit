@@ -93,36 +93,4 @@ class HolidayDaoTest : DatabaseTest() {
         assertTrue(result2026.isEmpty())
         assertEquals(1, result2027.size)
     }
-
-    @Test
-    fun countForYear_returnsCorrectCount() = dbTest {
-        val holidays = listOf(
-            HolidayEntity(
-                date = "2026-01-01",
-                year = 2026,
-                name = "New Year's Day",
-                isHoliday = true,
-                fetchedAt = 1_700_000_000_000L
-            ),
-            HolidayEntity(
-                date = "2026-02-17",
-                year = 2026,
-                name = "Spring Festival",
-                isHoliday = true,
-                fetchedAt = 1_700_000_000_000L
-            ),
-            HolidayEntity(
-                date = "2026-02-18",
-                year = 2026,
-                name = "Spring Festival Holiday",
-                isHoliday = true,
-                fetchedAt = 1_700_000_000_000L
-            )
-        )
-        dao.insertAll(holidays)
-
-        val count = dao.countForYear(2026)
-
-        assertEquals(3, count)
-    }
 }

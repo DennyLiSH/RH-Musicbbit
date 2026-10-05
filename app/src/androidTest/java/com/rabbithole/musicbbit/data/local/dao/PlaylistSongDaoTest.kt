@@ -25,17 +25,19 @@ class PlaylistSongDaoTest : DatabaseTest() {
     }
 
     private suspend fun createSong(title: String): Long {
-        return songDao.insert(
-            SongEntity(
-                path = "/music/$title.mp3",
-                title = title,
-                artist = "Artist",
-                album = "Album",
-                durationMs = 180_000L,
-                dateAdded = 1_700_000_000_000L,
-                coverUri = null
+        return songDao.insertAll(
+            listOf(
+                SongEntity(
+                    path = "/music/$title.mp3",
+                    title = title,
+                    artist = "Artist",
+                    album = "Album",
+                    durationMs = 180_000L,
+                    dateAdded = 1_700_000_000_000L,
+                    coverUri = null
+                )
             )
-        )
+        ).first()
     }
 
     @Test

@@ -44,17 +44,19 @@ class PlaybackProgressCascadeTest {
     private fun dbTest(block: suspend () -> Unit) = runTest(UnconfinedTestDispatcher()) { block() }
 
     private suspend fun seedSong(): Long =
-        db.songDao().insert(
-            SongEntity(
-                path = "/music/a.mp3",
-                title = "A",
-                artist = null,
-                album = null,
-                durationMs = 1000L,
-                dateAdded = 0L,
-                coverUri = null,
+        db.songDao().insertAll(
+            listOf(
+                SongEntity(
+                    path = "/music/a.mp3",
+                    title = "A",
+                    artist = null,
+                    album = null,
+                    durationMs = 1000L,
+                    dateAdded = 0L,
+                    coverUri = null,
+                )
             )
-        )
+        ).first()
 
     private suspend fun seedPlaylist(): Long =
         db.playlistDao().insert(

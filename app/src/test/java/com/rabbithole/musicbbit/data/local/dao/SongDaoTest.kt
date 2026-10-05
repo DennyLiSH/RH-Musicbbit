@@ -84,7 +84,7 @@ class SongDaoTest {
     fun `getByPathPrefix matches exact path`() = runTest {
         // Arrange
         val song = SongEntity(0, "/storage/Music", "Song", "Artist", "Album", 180000, System.currentTimeMillis(), null)
-        songDao.insert(song)
+        songDao.insertAll(listOf(song))
 
         // Act
         val result = songDao.getByPathPrefix("/storage/Music").first()
@@ -98,7 +98,7 @@ class SongDaoTest {
     fun `getByPathPrefix returns empty list when no matches`() = runTest {
         // Arrange
         val song = SongEntity(0, "/storage/Downloads/song.mp3", "Song", "Artist", "Album", 180000, System.currentTimeMillis(), null)
-        songDao.insert(song)
+        songDao.insertAll(listOf(song))
 
         // Act
         val result = songDao.getByPathPrefix("/storage/Music").first()

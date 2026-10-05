@@ -71,31 +71,6 @@ class PlaybackProgressDaoTest : DatabaseTest() {
     }
 
     @Test
-    fun deleteAll_clearsAll() = dbTest {
-        val progress1 = PlaybackProgressEntity(
-            songId = 1L,
-            playlistId = 2L,
-            positionMs = 30_000L,
-            updatedAt = 1_700_000_000_000L
-        )
-        val progress2 = PlaybackProgressEntity(
-            songId = 3L,
-            playlistId = 4L,
-            positionMs = 60_000L,
-            updatedAt = 1_700_000_001_000L
-        )
-        dao.insert(progress1)
-        dao.insert(progress2)
-
-        dao.deleteAll()
-        val result1 = dao.getBySongIdAndPlaylistId(songId = 1L, playlistId = 2L)
-        val result2 = dao.getBySongIdAndPlaylistId(songId = 3L, playlistId = 4L)
-
-        assertNull(result1)
-        assertNull(result2)
-    }
-
-    @Test
     fun getByPlaylistId_returnsOrderedResults() = dbTest {
         val progress1 = PlaybackProgressEntity(
             songId = 1L,

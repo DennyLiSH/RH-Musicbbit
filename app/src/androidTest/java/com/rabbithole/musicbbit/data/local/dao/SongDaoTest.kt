@@ -3,8 +3,6 @@ package com.rabbithole.musicbbit.data.local.dao
 import com.rabbithole.musicbbit.data.local.model.SongEntity
 import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -12,44 +10,24 @@ class SongDaoTest : DatabaseTest() {
 
     private val dao by lazy { db.songDao() }
 
-    @Test
-    fun insert_returnsId() = dbTest {
-        val song = SongEntity(
-            path = "/music/song1.mp3",
-            title = "Song One",
-            artist = "Artist A",
-            album = "Album A",
-            durationMs = 180_000L,
-            dateAdded = 1_700_000_000_000L,
-            coverUri = null
-        )
-
-        val id = dao.insert(song)
-
-        assertTrue(id > 0)
-    }
+    private fun song(
+        path: String,
+        title: String,
+    ) = SongEntity(
+        path = path,
+        title = title,
+        artist = "Artist A",
+        album = "Album A",
+        durationMs = 180_000L,
+        dateAdded = 1_700_000_000_000L,
+        coverUri = null
+    )
 
     @Test
     fun insertAll_returnsIds() = dbTest {
         val songs = listOf(
-            SongEntity(
-                path = "/music/song1.mp3",
-                title = "Song One",
-                artist = "Artist A",
-                album = "Album A",
-                durationMs = 180_000L,
-                dateAdded = 1_700_000_000_000L,
-                coverUri = null
-            ),
-            SongEntity(
-                path = "/music/song2.mp3",
-                title = "Song Two",
-                artist = "Artist B",
-                album = "Album B",
-                durationMs = 240_000L,
-                dateAdded = 1_700_000_001_000L,
-                coverUri = null
-            )
+            song("/music/song1.mp3", "Song One"),
+            song("/music/song2.mp3", "Song Two"),
         )
 
         val ids = dao.insertAll(songs)
@@ -59,55 +37,13 @@ class SongDaoTest : DatabaseTest() {
     }
 
     @Test
-    fun getById_returnsEntity_whenExists() = dbTest {
-        val song = SongEntity(
-            path = "/music/song1.mp3",
-            title = "Song One",
-            artist = "Artist A",
-            album = "Album A",
-            durationMs = 180_000L,
-            dateAdded = 1_700_000_000_000L,
-            coverUri = null
-        )
-        val id = dao.insert(song)
-
-        val result = dao.getById(id)
-
-        assertNotNull(result)
-        assertEquals(id, result?.id)
-        assertEquals("Song One", result?.title)
-        assertEquals("Artist A", result?.artist)
-    }
-
-    @Test
-    fun getById_returnsNull_whenNotExists() = dbTest {
-        val result = dao.getById(999L)
-
-        assertNull(result)
-    }
-
-    @Test
     fun getAll_emitsSongs() = dbTest {
-        val song1 = SongEntity(
-            path = "/music/song1.mp3",
-            title = "Song One",
-            artist = "Artist A",
-            album = "Album A",
-            durationMs = 180_000L,
-            dateAdded = 1_700_000_000_000L,
-            coverUri = null
+        dao.insertAll(
+            listOf(
+                song("/music/song1.mp3", "Song One"),
+                song("/music/song2.mp3", "Song Two"),
+            )
         )
-        val song2 = SongEntity(
-            path = "/music/song2.mp3",
-            title = "Song Two",
-            artist = "Artist B",
-            album = "Album B",
-            durationMs = 240_000L,
-            dateAdded = 1_700_000_001_000L,
-            coverUri = null
-        )
-        dao.insert(song1)
-        dao.insert(song2)
 
         val result = dao.getAll().first()
 
@@ -115,69 +51,23 @@ class SongDaoTest : DatabaseTest() {
     }
 
     @Test
-    fun update_modifiesEntity() = dbTest {
-        val song = SongEntity(
-            path = "/music/song1.mp3",
-            title = "Old Title",
-            artist = "Artist A",
-            album = "Album A",
-            durationMs = 180_000L,
-            dateAdded = 1_700_000_000_000L,
-            coverUri = null
-        )
-        val id = dao.insert(song)
-        val inserted = dao.getById(id)!!
-        val updated = inserted.copy(title = "New Title", artist = "New Artist")
-
-        dao.update(updated)
-        val result = dao.getById(id)
-
-        assertEquals("New Title", result?.title)
-        assertEquals("New Artist", result?.artist)
-    }
-
-    @Test
     fun delete_removesEntity() = dbTest {
-        val song = SongEntity(
-            path = "/music/song1.mp3",
-            title = "Song One",
-            artist = "Artist A",
-            album = "Album A",
-            durationMs = 180_000L,
-            dateAdded = 1_700_000_000_000L,
-            coverUri = null
-        )
-        val id = dao.insert(song)
-        val inserted = dao.getById(id)!!
+        val id = dao.insertAll(listOf(song("/music/song1.mp3", "Song One"))).first()
 
-        dao.delete(inserted)
-        val result = dao.getById(id)
+        dao.delete(song("/music/song1.mp3", "Song One").copy(id = id))
+        val result = dao.getAll().first()
 
-        assertNull(result)
+        assertTrue(result.none { it.id == id })
     }
 
     @Test
     fun deleteAll_clearsAll() = dbTest {
-        val song1 = SongEntity(
-            path = "/music/song1.mp3",
-            title = "Song One",
-            artist = "Artist A",
-            album = "Album A",
-            durationMs = 180_000L,
-            dateAdded = 1_700_000_000_000L,
-            coverUri = null
+        dao.insertAll(
+            listOf(
+                song("/music/song1.mp3", "Song One"),
+                song("/music/song2.mp3", "Song Two"),
+            )
         )
-        val song2 = SongEntity(
-            path = "/music/song2.mp3",
-            title = "Song Two",
-            artist = "Artist B",
-            album = "Album B",
-            durationMs = 240_000L,
-            dateAdded = 1_700_000_001_000L,
-            coverUri = null
-        )
-        dao.insert(song1)
-        dao.insert(song2)
 
         dao.deleteAll()
         val result = dao.getAll().first()

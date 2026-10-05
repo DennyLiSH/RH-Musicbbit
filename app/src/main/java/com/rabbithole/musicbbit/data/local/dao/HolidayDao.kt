@@ -21,7 +21,4 @@ interface HolidayDao {
 
     @Query("DELETE FROM holidays WHERE year = :year")
     suspend fun deleteByYear(year: Int)
-
-    @Query("SELECT COUNT(*) FROM holidays WHERE year = :year")
-    suspend fun countForYear(year: Int): Int
 }

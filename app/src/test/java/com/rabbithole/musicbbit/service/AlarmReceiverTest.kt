@@ -174,7 +174,7 @@ class AlarmReceiverTest {
             dateAdded = 0L,
             coverUri = null
         )
-        songDao.insert(song)
+        songDao.insertAll(listOf(song))
 
         val playlistSong = PlaylistSongEntity(
             playlistId = playlistId,
