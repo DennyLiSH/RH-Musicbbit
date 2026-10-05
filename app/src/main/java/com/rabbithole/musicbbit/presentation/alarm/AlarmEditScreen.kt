@@ -33,7 +33,6 @@ import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.navigation.PlaylistList
 
 import com.rabbithole.musicbbit.service.ExactAlarmPermissionHelper
-import com.rabbithole.musicbbit.presentation.permissions.launchSettingsSafely
 import com.rabbithole.musicbbit.presentation.alarm.components.AlarmEditContent
 import com.rabbithole.musicbbit.presentation.alarm.components.AutostartGuideDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.DeleteConfirmDialog
@@ -44,6 +43,7 @@ import com.rabbithole.musicbbit.presentation.alarm.components.SaveButtonBar
 import com.rabbithole.musicbbit.presentation.alarm.components.TimePickerDialog
 import com.rabbithole.musicbbit.presentation.components.LoadingState
 import com.rabbithole.musicbbit.presentation.components.rememberAppToast
+import com.rabbithole.musicbbit.presentation.components.rememberSettingsLauncher
 import timber.log.Timber
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,6 +64,7 @@ fun AlarmEditScreen(
     val alarmSavedMessage = stringResource(R.string.alarm_saved)
     val alarmDeletedMessage = stringResource(R.string.alarm_deleted)
     val settingsOpenFailedMessage = stringResource(R.string.common_settings_open_failed)
+    val launchSettings = rememberSettingsLauncher()
 
     // Navigate up when save is completed; briefly toast the success message.
     // (Toast instead of Snackbar because Snackbar is destroyed on navigateUp.)
@@ -184,9 +185,7 @@ fun AlarmEditScreen(
                     onAction = viewModel::onAction,
                     onCreatePlaylist = { navController.navigate(PlaylistList) },
                     onRequestDndAccess = {
-                        if (!launchSettingsSafely(context, viewModel.createDndAccessSettingsIntent())) {
-                            toast.showShort(settingsOpenFailedMessage)
-                        }
+                        launchSettings(viewModel.createDndAccessSettingsIntent())
                     }
                 )
             }
@@ -216,9 +215,7 @@ fun AlarmEditScreen(
         )
         AlarmEditDialogState.FullScreenIntent -> FullScreenIntentDialog(
             onConfirm = {
-                if (!launchSettingsSafely(context, viewModel.createFullScreenIntentSettingsIntent())) {
-                    toast.showShort(settingsOpenFailedMessage)
-                }
+                launchSettings(viewModel.createFullScreenIntentSettingsIntent())
                 viewModel.dismissDialog()
             },
             onDismiss = { viewModel.dismissDialog() },
@@ -230,9 +227,7 @@ fun AlarmEditScreen(
                 viewModel.onAutostartGuideDismissed()
             },
             onOpenSettings = {
-                if (!launchSettingsSafely(context, AutostartHelper.getManualGuideSettingsIntent())) {
-                    toast.showShort(settingsOpenFailedMessage)
-                }
+                launchSettings(AutostartHelper.getManualGuideSettingsIntent())
                 viewModel.dismissDialog()
                 viewModel.onAutostartGuideDismissed()
             }
@@ -246,11 +241,7 @@ fun AlarmEditScreen(
                     viewModel.onAutostartGuideDismissed()
                 },
                 onOpenSettings = {
-                    guideIntent?.let {
-                        if (!launchSettingsSafely(context, it)) {
-                            toast.showShort(settingsOpenFailedMessage)
-                        }
-                    }
+                    guideIntent?.let { launchSettings(it) }
                     viewModel.dismissDialog()
                     viewModel.onAutostartGuideDismissed()
                 }
