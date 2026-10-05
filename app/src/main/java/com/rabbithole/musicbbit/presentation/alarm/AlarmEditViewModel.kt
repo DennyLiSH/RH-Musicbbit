@@ -151,6 +151,9 @@ class AlarmEditViewModel @Inject constructor(
     /** Intent that opens the system page granting Do Not Disturb access. */
     fun createDndAccessSettingsIntent() = permissionMonitor.createDndAccessSettingsIntent()
 
+    /** Intent that opens the system page granting SCHEDULE_EXACT_ALARM. */
+    fun createExactAlarmSettingsIntent() = permissionMonitor.createExactAlarmSettingsIntent()
+
     /** Intent that opens the system page granting USE_FULL_SCREEN_INTENT. */
     fun createFullScreenIntentSettingsIntent() = permissionMonitor.createFullScreenIntentSettingsIntent()
 

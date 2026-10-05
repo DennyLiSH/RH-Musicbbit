@@ -49,9 +49,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import com.rabbithole.musicbbit.presentation.components.rememberAppToast
 import com.rabbithole.musicbbit.presentation.components.rememberSettingsLauncher
-import com.rabbithole.musicbbit.service.FullScreenIntentPermissionHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,8 +59,6 @@ fun PermissionDiagnosticsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val toast = rememberAppToast()
-    val settingsOpenFailedMessage = stringResource(R.string.common_settings_open_failed)
     val launchSettings = rememberSettingsLauncher()
 
     // Refresh permissions when returning from system settings
@@ -137,9 +133,7 @@ fun PermissionDiagnosticsScreen(
                                     }
                                 }
                                 PermissionKey.FULL_SCREEN_INTENT -> {
-                                    if (!FullScreenIntentPermissionHelper.openSettings(context)) {
-                                        toast.showShort(settingsOpenFailedMessage)
-                                    }
+                                    launchSettings(viewModel.createFullScreenIntentSettingsIntent())
                                 }
                                 PermissionKey.POST_NOTIFICATIONS -> {
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

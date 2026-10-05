@@ -44,6 +44,13 @@ interface PermissionPort {
     fun canScheduleExactAlarms(): Boolean
 
     /**
+     * Build an [Intent] that opens the system Settings page where the user can grant
+     * SCHEDULE_EXACT_ALARM for this app. The caller (UI layer) is responsible for
+     * launching it.
+     */
+    fun createExactAlarmSettingsIntent(): Intent
+
+    /**
      * Whether the user has granted this app Do Not Disturb access (Notification Policy
      * Access), the prerequisite for a notification channel to bypass DND.
      */

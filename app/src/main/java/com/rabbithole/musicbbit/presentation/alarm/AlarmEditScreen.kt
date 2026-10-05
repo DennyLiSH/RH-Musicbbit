@@ -22,7 +22,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -32,7 +31,6 @@ import androidx.navigation.NavController
 import com.rabbithole.musicbbit.R
 import com.rabbithole.musicbbit.navigation.PlaylistList
 
-import com.rabbithole.musicbbit.service.ExactAlarmPermissionHelper
 import com.rabbithole.musicbbit.presentation.alarm.components.AlarmEditContent
 import com.rabbithole.musicbbit.presentation.alarm.components.AutostartGuideDialog
 import com.rabbithole.musicbbit.presentation.alarm.components.DeleteConfirmDialog
@@ -54,7 +52,6 @@ fun AlarmEditScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val form = uiState.form
-    val context = LocalContext.current
     val toast = rememberAppToast()
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMessageResId = uiState.saveFailedMessageResId
@@ -63,7 +60,6 @@ fun AlarmEditScreen(
     val errorMessage = errorMessageResId?.let { stringResource(it) }
     val alarmSavedMessage = stringResource(R.string.alarm_saved)
     val alarmDeletedMessage = stringResource(R.string.alarm_deleted)
-    val settingsOpenFailedMessage = stringResource(R.string.common_settings_open_failed)
     val launchSettings = rememberSettingsLauncher()
 
     // Navigate up when save is completed; briefly toast the success message.
@@ -206,9 +202,7 @@ fun AlarmEditScreen(
         )
         AlarmEditDialogState.Permission -> PermissionDialog(
             onConfirm = {
-                if (!ExactAlarmPermissionHelper.openSettings(context)) {
-                    toast.showShort(settingsOpenFailedMessage)
-                }
+                launchSettings(viewModel.createExactAlarmSettingsIntent())
                 viewModel.dismissDialog()
             },
             onDismiss = { viewModel.dismissDialog() },

@@ -61,6 +61,12 @@ class AndroidPermissionAdapter @Inject constructor(
         }
     }
 
+    override fun createExactAlarmSettingsIntent(): Intent {
+        return Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+            data = Uri.parse("package:${context.packageName}")
+        }
+    }
+
     override fun isNotificationPolicyAccessGranted(): Boolean {
         return DndAccessPermissionHelper.isGranted(context)
     }

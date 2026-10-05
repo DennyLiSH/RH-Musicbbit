@@ -50,6 +50,9 @@ class PermissionStatusMonitor @Inject constructor(
     /** Intent that opens the system page granting Do Not Disturb access. */
     fun createDndAccessSettingsIntent(): Intent = permissionPort.createDndAccessSettingsIntent()
 
+    /** Intent that opens the system page granting SCHEDULE_EXACT_ALARM. */
+    fun createExactAlarmSettingsIntent(): Intent = permissionPort.createExactAlarmSettingsIntent()
+
     /** Intent that opens the system page granting USE_FULL_SCREEN_INTENT (no-op intent on API < 34). */
     fun createFullScreenIntentSettingsIntent(): Intent = permissionPort.createFullScreenIntentSettingsIntent()
 

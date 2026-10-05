@@ -1,6 +1,7 @@
 package com.rabbithole.musicbbit.presentation.settings
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
@@ -59,6 +60,9 @@ class PermissionDiagnosticsViewModel @Inject constructor(
         _uiState.update { it.copy(permissions = permissions, allGranted = allGranted) }
         Timber.d("Permission diagnostics refreshed: allGranted=$allGranted, permissions=${permissions.size}")
     }
+
+    /** Intent that opens the system page granting USE_FULL_SCREEN_INTENT. */
+    fun createFullScreenIntentSettingsIntent(): Intent = permissionPort.createFullScreenIntentSettingsIntent()
 
     private fun buildPermissionList(): List<PermissionDiagnosticItem> {
         val list = mutableListOf<PermissionDiagnosticItem>()
